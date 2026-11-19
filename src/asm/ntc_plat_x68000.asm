@@ -93,10 +93,21 @@ ntc_xb_nodata:
 			move.w #$0001, d1			; at every vertical blank
 			moveq #$6C, d0				; IOCS _VDISPST
 			trap #15
+			move.l #ntc_x68_super, $84.w	; trap #1: the supervisor call (20261119-1)
 			move.l #NTC_USTACK, a0
 			move.l a0, usp
 			move.w #$0000, sr			; user mode, the interrupts on: A7 is now the user stack
 			jmp ntc_start
+
+; The supervisor call. The X68000 keeps its video, sound and I/O registers for supervisor mode and
+; the program runs in user mode (its thread is A7). From #asm:
+;           lea my_routine, a0
+;           trap #1
+; my_routine runs in supervisor mode on the supervisor stack and ends with rts. It may use every
+; register (they come back as it leaves them, but a0). Interrupts stay on.
+ntc_x68_super:
+			jsr (a0)
+			rte
 
 ; the frame interrupt (supervisor mode, its own stack): count it
 ntc_x68_vbl:

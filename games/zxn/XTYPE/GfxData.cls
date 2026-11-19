@@ -1,12 +1,13 @@
 ' GfxData - X-TYPE's sprites and tiles (made by tools/art.py with tools/nxkit.py: don't edit).
 ' 109 sprite patterns (4 bit, 16 x 16), 8 sprite palette rows, 112 tiles (4 bit, 8 x 8: the font is
 ' tiles 32-126) and the tilemap's palette rows, in banks 28 (the patterns) and 29 (the tiles at #0000,
-' the sprite palette at #2000, the tilemap palette at #2200) of the NEX file (INCBIN XTYPE.DAT).
+' the sprite palette at #2000, the tilemap palette at #2200) of the NEX file (Option SaveNex XTYPE.DAT).
 ' Load: the patterns to the sprite RAM, both palettes, the tiles to bank 5 + #0000 (#C000, where
 ' Tiles.Init points the tilemap's tiles). S_NAME is a sprite's first pattern, P_NAME its palette
 ' offset (for Spr.Put's flags), T_NAME a tile.
 ' (c) 2026 Cyborg Unicorn Pty Ltd
 Option Explicit
+Option SaveNex "XTYPE.DAT", 28, 29      ' the data file in pages 28 and 29 of the NEX file (a page is the Next's 16K bank of the same number)
 
 Public Const S_SHIP = 0
 Public Const S_SHIP_N = 3
@@ -243,15 +244,5 @@ gd_p2:
             ld a, 11
             out (c), a
             dec b
-            jp gd_end
-gd_end:
-            MMU 6 7, 56
-            ORG #C000
-            INCBIN "XTYPE.DAT", 0, 16384
-            MMU 6 7, 58
-            ORG #C000
-            INCBIN "XTYPE.DAT", 16384, 16384
-            MMU 6 7, 10
-            ORG gd_end
 #endasm
 End Sub

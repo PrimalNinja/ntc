@@ -3,12 +3,12 @@
 ' it. No RAM expansion needed. With no card: FRAME.LST drawn (a list tools/s3dpi/sim wrote).
 ' Keys as AUCKLAND's: cursors turn / dive, climb; < > roll; X climb; Space ? faster / slower;
 ' S frame skip 0 / 4 / 8; 1-9 views; B detail; Q quit.
-' The card's ports in Link.cls are a stand-in until the CPC-CPLINK2's are known; its ROM: CROM.
+' The card link is the CPC-CPLINK2 (github.com/rabs664/Amstrad-CPC-CPLink2); its PI ROM: CROM.
 Option PressAnyKeyOnEnd "Press a key"
 Option Explicit
-Option RomEnable All
-Option Reserve &H4000, &H4000     ' main RAM's #4000-#7FFF: the second screen
-Const CROM = 6                    ' the card's ROM number (stand-in)
+Option ROM Enable All
+Option Memory Reserved &H4000, &H4000     ' main RAM's #4000-#7FFF: the second screen
+Const CROM = 32                   ' CPLINK2 PI ROM 1 (ROM select 32)
 Dim k As Integer, p As Integer, r As Integer, y As Integer, spd As Integer, skip As Integer
 Dim bud As Integer, sq As Integer, frames As Integer, t As Integer, n As Integer, nv As Integer
 Dim dx As Integer, dz As Integer
@@ -16,6 +16,7 @@ Dim dx As Integer, dz As Integer
 Mode 1
 Link.Inks
 Link.Setup CROM
+Link.Reset
 If Not Link.Hello() Then
   Print "No card (ROM"; CROM; ") - drawing FRAME.LST"
   If Link.Load("FRAME.LST") <= 0 Then Print "No FRAME.LST either" : End

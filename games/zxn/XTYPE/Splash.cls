@@ -35,6 +35,7 @@
 ' A key held when Show starts (the one that ran the program) doesn't count until it is let go.
 ' The internal jumps come back through JP (IX); no CALL, no PUSH (NTC's threaded code).
 Option Explicit
+Option SaveNex "SPLASH.DAT", 20     ' <--- NEW   the packed screens (tools/splashdat.py makes build/SPLASH.DAT) in page 20 of the NEX file; it was a Banks() Sub with MMU and INCBIN lines
 
 ' the picture packed at src unpacked, everything kept, the palette black
 Private Sub Begin(ByVal src As Integer)
@@ -279,19 +280,6 @@ Private Function NtcAt() As Integer
 End Function
 #End If
 
-' the screens in the NEX file (bank 20: tools/splashdat.py makes build/SPLASH.DAT); it only jumps over them
-Private Sub Banks()
-#asm
-            jp spz_end
-spz_end:
-            MMU 6 7, 40
-            ORG #C000
-            INCBIN "SPLASH.DAT", 0, 16384
-            MMU 6 7, 10
-            ORG spz_end
-#endasm
-End Sub
-
 ' the palette at brightness k (0 black - 16 full)
 Private Sub Level(ByVal k As Integer)
 #asm
@@ -374,7 +362,6 @@ End Function
 Public Sub Show(ByVal n As Integer)
   Dim a As Integer
   a = 0
-  If n = 99 Then Banks
 #If SplashNoLogo = 0 Then
   If n = 1 Then a = LogoAt()
 #End If

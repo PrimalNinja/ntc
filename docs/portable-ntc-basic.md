@@ -439,8 +439,8 @@ programs in one file.
 
 ### Rule 10: watch main RAM
 
-- Check the program's end against the platform's top. Next: below `#BA00` (FileSystem's DOS
-  area, then the stack). The compiler's layout list and `ntc_end` / `ntc_free` in the .sym say
+- Check the program's end against the platform's top. Next: below `#BE00` (the stack), or below
+  `#BA00` with the `FileSystem` or `Loader` class (their DOS area). The compiler's layout list and `ntc_end` / `ntc_free` in the .sym say
   where it ends.
 - Main RAM holds:
   - the classes in no page;
@@ -584,7 +584,7 @@ A game can have several services open at once: the display, the music, the maths
 | `cpcfw` | the CPC with the full firmware: AMSDOS, RSXs, every ROM working |
 | `cpc9990`, `cpccard` | the CPC with a V9990 / V9938 card as the console. These should be class inclusions (hwlib's `V9990.cls`, `V9938.cls`), not targets of their own |
 | `zxn` | the Next: own screen, keys and interrupts, with NextZXOS's esxDOS kept for files (`FileSystem` calls it with `rst 8`, ROM 3 paged in, through a trampoline at `#BA00`). So today it's the `cpcmin` equivalent. Files need the NEX started by NextZXOS (the browser, `.nexload`, an autoexec), not loaded as a snapshot |
-| `zxn` with no DOS | not a target of its own: leave the `FileSystem` class out, and nothing calls the DOS. One gap today: the compiler keeps `#BA00-#BDFF` (the class's DOS area) out of the program even when the class isn't used, so a no-files program loses that 1K |
+| `zxn` with no DOS | not a target of its own: leave the `FileSystem` class out, and nothing calls the DOS. The DOS area `#BA00-#BDFF` is kept out of the program only when it has the `FileSystem` or the `Loader` class (20261118-1; before, a no-files program lost that 1K) |
 | `msx` | an MSX cartridge. Close to `cpc`, but the BIOS stays in page 0 (its keys and interrupt) |
 | `msxdos` | MSX-DOS 2 / Nextor: the DOS console and files, plus the mapper's pages. Close to `cpcfw` |
 | `msx9990`, `msxcard` | the MSX with a V9990 / V9938 card as the console. These should also be class inclusions |
@@ -648,8 +648,8 @@ would:
 
 - **Add the missing groups, and remove the ones that should just be class additions.**
   - Missing: the levels each machine lacks. For example:
-    - the Next: `zxn` without the DOS area kept (today `#BA00-#BDFF` stays out even with no
-      `FileSystem`);
+    - (done, 20261118-1: the Next without the DOS area kept - `#BA00-#BDFF` is the program's unless
+      it has `FileSystem` or `Loader`);
     - the MSX: a minimal-OS level between `msx` and `msxdos`.
   - Class additions instead of targets:
     - `cpc9990`, `cpccard`, `msx9990`, `msxcard`;

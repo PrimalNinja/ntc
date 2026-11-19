@@ -42,4 +42,12 @@ fi
 # typed text: the keyboard at its ports (the emulator ends each typed text with Return)
 t guide "ANN!" '5:Ann' $P/guide.bas
 t keys "name Bob7 n21 k120 at ok" '4:Bob7,7:7,10:x' towns/Main.bas
+# the Memory and Keys classes, a high data file (the pad's press needs Tsugaru with tsugaru-padset.patch:
+# without it the pad line reads "pad0" and this test fails)
+if [ -z "$want" ] || [ "$want" == classes ]; then
+  if node townsbuild.js towns/Classes.bas towns/Dat.cls --out=t/towns/classes.bin --log >t/towns/classes.build 2>&1; then
+    o=$(timeout 300 python3 townsrun.py t/towns/classes.bin --secs=60 --log --pad=8:17 --keys=16:x 2>&1 | tr '\n' ' ')
+    if echo "$o" | grep -q "low ok none ok high ok file ok pad? pad33 key? key120 end"; then echo "ok   classes"; else echo "FAIL classes"; echo "$o"; fail=1; fi
+  else echo "FAIL classes (build)"; tail -5 t/towns/classes.build; fail=1; fi
+fi
 if [ $fail == 0 ]; then echo "ALL PASS (towns)"; fi

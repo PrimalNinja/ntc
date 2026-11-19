@@ -5,10 +5,13 @@ ntc_oom = 0		; 1 = out of memory (the fill reached the top range): said once
 ; ============================================================
 
 			DEVICE ZXSPECTRUMNEXT		; for SAVENEX at the end
-			MMU 0 5, 16			; #0000-#BFFF: pages 16-21 (banks 8, 9, 10)
+			MMU 0 5, 0			; #0000-#BFFF: the Next's 8K pages 0-5 (its 16K banks 0, 1, 2: NTC pages 0, 1, 2 - 20261116-7, it was banks 8, 9, 10)
+			MMU 6 7, 10			; #C000-#FFFF: pages 10, 11 (bank 5) - main memory too (20261116-6)
+			DEFINE NTC_PGLOADED		; Option Page ... Loaded n / Option SaveNex pages: taken from the start (ntc_pgloaded)
 			org #0040
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
@@ -22,8 +25,10 @@ NTC_PLATRSV	equ 1		; 1 = the platform's fixed areas (;@reserved) are Reserved in
 NTC_ZXIRQ	equ 0		; 1 = the interrupt handler (ntc_irq) is in the program: Frame catches up its lost ticks
 ; the ZX Spectrum Next: NTC_ZXN defined (a DEFINE - sjasmplus's IFDEF tests those, not labels)
 			DEFINE NTC_ZXN
-ZXN_FIRSTBANK	equ 22		; first free 16K bank (page 44), above the program/screen/low banks
-ZXN_MAXBANK	equ 90		; scan range: banks 22-111 (a 2MB Next has 112 16K banks, pages 0-223; the MMU has no page past 223 - a higher page number is not RAM)
+ZXN_MEMTOP	equ #BE00		; the top of the memory under the stack (ntc_plat_memtop): #BA00 with the FileSystem / Loader classes' DOS area, #BE00 without (20261118-1)
+ZXN_PROGPAGE	equ 0		; the Next's 8K page the program starts in (#0000): its six are ZXN_PROGPAGE .. + 5 (20261116-7: it was 16)
+ZXN_FIRSTBANK	equ 2		; first free 16K bank (page 4), above the program/screen/low banks
+ZXN_MAXBANK	equ 110		; scan range: banks 2-111 (a 2MB Next has 112 16K banks, pages 0-223; the MMU has no page past 223 - a higher page number is not RAM)
 ; the interrupt handler passes 1 in C at a frame's interrupt (ntc_isl_tick: not the CPC's vertical sync)
 			DEFINE NTC_ISLC
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
@@ -37,8 +42,8 @@ ntc_bk_cold:
 			ld sp, main_thread
 			ret
 
-			IF ($ < 65536) && (ntc_rg1_e - ntc_rg1 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg1_e - ntc_rg1 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1:
@@ -183,8 +188,8 @@ do1_e:
 			dw kw_stop
 
 ntc_rg1_e:
-			IF ($ < 65536) && (ntc_rg2_e - ntc_rg2 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg2_e - ntc_rg2 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg2:
@@ -260,8 +265,8 @@ for8_e:
 			dw p_newgame_r
 
 ntc_rg2_e:
-			IF ($ < 65536) && (ntc_rg3_e - ntc_rg3 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg3_e - ntc_rg3 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg3:
@@ -329,8 +334,8 @@ if9_1:
 			dw p_rock_r
 
 ntc_rg3_e:
-			IF ($ < 65536) && (ntc_rg4_e - ntc_rg4 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg4_e - ntc_rg4 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg4:
@@ -436,8 +441,8 @@ if12_e:
 			dw p_spawner_r
 
 ntc_rg4_e:
-			IF ($ < 65536) && (ntc_rg5_e - ntc_rg5 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg5_e - ntc_rg5 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg5:
@@ -599,8 +604,8 @@ do15_e:
 			dw p_events_r
 
 ntc_rg5_e:
-			IF ($ < 65536) && (ntc_rg6_e - ntc_rg6 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg6_e - ntc_rg6 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg6:
@@ -624,8 +629,8 @@ p_blast:
 			dw p_blast_r
 
 ntc_rg6_e:
-			IF ($ < 65536) && (ntc_rg7_e - ntc_rg7 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg7_e - ntc_rg7 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg7:
@@ -656,8 +661,8 @@ if23_1:
 			dw p_hud_r
 
 ntc_rg7_e:
-			IF ($ < 65536) && (ntc_rg8_e - ntc_rg8 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg8_e - ntc_rg8 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg8:
@@ -704,8 +709,8 @@ do24_e:
 			dw p_gameover_r
 
 ntc_rg8_e:
-			IF ($ < 65536) && (ntc_rg9_e - ntc_rg9 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg9_e - ntc_rg9 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg9:
@@ -793,8 +798,8 @@ if32_1:
 			dw p_readkeys_r
 
 ntc_rg9_e:
-			IF ($ < 65536) && (ntc_rg10_e - ntc_rg10 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg10_e - ntc_rg10 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg10:
@@ -846,8 +851,8 @@ if34_1:
 			dw p_sync_r
 
 ntc_rg10_e:
-			IF ($ < 65536) && (ntc_rg11_e - ntc_rg11 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg11_e - ntc_rg11 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg11:
@@ -857,115 +862,115 @@ ntc_rg11:
 
 p_e3_init:
 
-			; E3.cls 71: back = 15 : front = 12
+			; E3.cls 72: back = 15 : front = 12
 			dw kw_ltov, 15, var_e3_back
 			dw kw_ltov, 12, var_e3_front
 
-			; E3.cls 72: lodb = 2                                                                      ' <--- NEW
+			; E3.cls 73: lodb = 2                                                                      ' <--- NEW
 			dw kw_ltov, 2, var_e3_lodb
 
-			; E3.cls 73: Nx.Reg &H12, front
+			; E3.cls 74: Nx.Reg &H12, front
 			dw fn_nx_reg, lit_18, var_e3_front
 
-			; E3.cls 74: Nx.Reg &H70, 0                         ' 256 x 192
+			; E3.cls 75: Nx.Reg &H70, 0                         ' 256 x 192
 			dw fn_nx_reg, lit_112, lit_0
 
-			; E3.cls 75: Nx.Reg &H1C, 1
+			; E3.cls 76: Nx.Reg &H1C, 1
 			dw fn_nx_reg, lit_28, lit_1
 
-			; E3.cls 76: Nx.Reg &H18, 1 : Nx.Reg &H18, 254 : Nx.Reg &H18, 0 : Nx.Reg &H18, 191   ' (columns 0 and 255 hidden: polygons are cut to 1..255)
+			; E3.cls 77: Nx.Reg &H18, 1 : Nx.Reg &H18, 254 : Nx.Reg &H18, 0 : Nx.Reg &H18, 191   ' (columns 0 and 255 hidden: polygons are cut to 1..255)
 			dw fn_nx_reg, lit_24, lit_1
 			dw fn_nx_reg, lit_24, lit_254
 			dw fn_nx_reg, lit_24, lit_0
 			dw fn_nx_reg, lit_24, lit_191
 
-			; E3.cls 77: Nx.Reg &H14, &HE3                      ' (nothing see-through but colour #E3's)
+			; E3.cls 78: Nx.Reg &H14, &HE3                      ' (nothing see-through but colour #E3's)
 			dw fn_nx_reg, lit_20, lit_227
 
-			; E3.cls 78: Nx.Reg &H15, &H14                      ' the ULA over Layer 2 (ULS), the sprites off
+			; E3.cls 79: Nx.Reg &H15, &H14                      ' the ULA over Layer 2 (ULS), the sprites off
 			dw fn_nx_reg, lit_21, lit_20
 
-			; E3.cls 79: Out &H123B, 2
+			; E3.cls 80: Out &H123B, 2
 			dw kw_out, lit_4667, lit_2
 
-			; E3.cls 84: Nx.Reg &H68, 0 : Nx.Reg &H6B, 0 : Nx.Reg &H62, 0 : Nx.Reg &H69, &H80
+			; E3.cls 85: Nx.Reg &H68, 0 : Nx.Reg &H6B, 0 : Nx.Reg &H62, 0 : Nx.Reg &H69, &H80
 			dw fn_nx_reg, lit_104, lit_0
 			dw fn_nx_reg, lit_107, lit_0
 			dw fn_nx_reg, lit_98, lit_0
 			dw fn_nx_reg, lit_105, lit_128
 
-			; E3.cls 85: Nx.Reg &H26, 0 : Nx.Reg &H27, 0
+			; E3.cls 86: Nx.Reg &H26, 0 : Nx.Reg &H27, 0
 			dw fn_nx_reg, lit_38, lit_0
 			dw fn_nx_reg, lit_39, lit_0
 
-			; E3.cls 86: Nx.Reg &H16, 0 : Nx.Reg &H17, 0 : Nx.Reg &H71, 0 : Nx.Reg &H4A, 0
+			; E3.cls 87: Nx.Reg &H16, 0 : Nx.Reg &H17, 0 : Nx.Reg &H71, 0 : Nx.Reg &H4A, 0
 			dw fn_nx_reg, lit_22, lit_0
 			dw fn_nx_reg, lit_23, lit_0
 			dw fn_nx_reg, lit_113, lit_0
 			dw fn_nx_reg, lit_74, lit_0
 
-			; E3.cls 87: ta =E3Data.REdge() : ta = E3Data.Sines() : ta = E3Data.Font() : ta = E3Data.FontIx() : ta = E3Data.DatAt()   ' (linked: the Z80 reads them)
+			; E3.cls 88: ta =E3Data.REdge() : ta = E3Data.Sines() : ta = E3Data.Font() : ta = E3Data.FontIx() : ta = E3Data.DatAt()   ' (linked: the Z80 reads them)
 			dw fn_e3data_redge, var_e3_ta
 			dw fn_e3data_sines, var_e3_ta
 			dw fn_e3data_font, var_e3_ta
 			dw fn_e3data_fontix, var_e3_ta
 			dw fn_e3data_datat, var_e3_ta
 
-			; E3.cls 88: Lib
+			; E3.cls 89: Lib
 			dw fn_e3_lib
 
-			; E3.cls 89: DataOn
+			; E3.cls 90: DataOn
 			dw fn_e3_dataon
 
-			; E3.cls 90: Palette E3Data.PalAt
+			; E3.cls 91: Palette E3Data.PalAt
 			dw fn_e3_palette, lit_m8704
 
-			; E3.cls 91: txs = 1
+			; E3.cls 92: txs = 1
 			dw kw_ltov, 1, var_e3_txs
 
-			; E3.cls 92: stymax = 192
+			; E3.cls 93: stymax = 192
 			dw kw_ltov, 192, var_e3_stymax
 
-			; E3.cls 93: CamReset
+			; E3.cls 94: CamReset
 			dw p_e3_camreset_c
 
-			; E3.cls 94: sun(0) = -6000 : sun(1) = 12000 : sun(2) = -9000
+			; E3.cls 95: sun(0) = -6000 : sun(1) = 12000 : sun(2) = -9000
 			dw kw_ltov, -6000, arr_e3_sun
 			dw kw_ltov, 12000, arr_e3_sun+2
 			dw kw_ltov, -9000, arr_e3_sun+4
 
-			; E3.cls 95: nstar = E3Data.NStars
+			; E3.cls 96: nstar = E3Data.NStars
 			dw kw_ltov, 64, var_e3_nstar
-
-			; E3.cls 96: Begin 0 : Flip
-			dw fn_e3_begin, lit_0
-			dw p_e3_flip_c
 
 			; E3.cls 97: Begin 0 : Flip
 			dw fn_e3_begin, lit_0
 			dw p_e3_flip_c
 
-			; E3.cls 98: UWipe
+			; E3.cls 98: Begin 0 : Flip
+			dw fn_e3_begin, lit_0
+			dw p_e3_flip_c
+
+			; E3.cls 99: UWipe
 			dw fn_e3_uwipe
 
-			; E3.cls 99: For ta = 16 To 31
+			; E3.cls 100: For ta = 16 To 31
 			dw kw_ltov, 16, var_e3_ta
 for35_t:
 
-			; E3.cls 100: Nx.PalEntry Nx.PalULA, ta, &HE3
+			; E3.cls 101: Nx.PalEntry Nx.PalULA, ta, &HE3
 			dw fn_nx_palentry, lit_0, var_e3_ta, lit_227
 
-			; E3.cls 101: Next
+			; E3.cls 102: Next
 			dw kw_next1l, var_e3_ta, 31, for35_t
 for35_e:
 
-			; E3.cls 102: Nx.PalEntry Nx.PalULA, 0, &HE3
+			; E3.cls 103: Nx.PalEntry Nx.PalULA, 0, &HE3
 			dw fn_nx_palentry, lit_0, lit_0, lit_227
 			dw p_e3_init_r
 
 ntc_rg11_e:
-			IF ($ < 65536) && (ntc_rg12_e - ntc_rg12 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg12_e - ntc_rg12 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg12:
@@ -975,42 +980,42 @@ ntc_rg12:
 
 p_e3_camreset:
 
-			; E3.cls 107: Dim k As Integer
+			; E3.cls 108: Dim k As Integer
 
-			; E3.cls 108: For k = 0 To 8
+			; E3.cls 109: For k = 0 To 8
 			dw kw_ztov, var_e3_camreset_k
 for36_t:
 
-			; E3.cls 109: cm(k) = 0
+			; E3.cls 110: cm(k) = 0
 			dw kw_asetl, arr_e3_cm, var_e3_camreset_k, 0
 
-			; E3.cls 110: Next
+			; E3.cls 111: Next
 			dw kw_next1l, var_e3_camreset_k, 8, for36_t
 for36_e:
 
-			; E3.cls 111: cm(0) = 16384 : cm(4) = 16384 : cm(8) = 16384
+			; E3.cls 112: cm(0) = 16384 : cm(4) = 16384 : cm(8) = 16384
 			dw kw_ltov, 16384, arr_e3_cm
 			dw kw_ltov, 16384, arr_e3_cm+8
 			dw kw_ltov, 16384, arr_e3_cm+16
 
-			; E3.cls 112: For k = 0 To 5
+			; E3.cls 113: For k = 0 To 5
 			dw kw_ztov, var_e3_camreset_k
 for37_t:
 
-			; E3.cls 113: cp(k) = 0
+			; E3.cls 114: cp(k) = 0
 			dw kw_asetl, arr_e3_cp, var_e3_camreset_k, 0
 
-			; E3.cls 114: Next
+			; E3.cls 115: Next
 			dw kw_next1l, var_e3_camreset_k, 5, for37_t
 for37_e:
 
-			; E3.cls 115: CamTurn 0, 0, 0                        ' (squared up: the camera's copies worked out)
+			; E3.cls 116: CamTurn 0, 0, 0                        ' (squared up: the camera's copies worked out)
 			dw fn_e3_camturn, lit_0, lit_0, lit_0
 			dw p_e3_camreset_r
 
 ntc_rg12_e:
-			IF ($ < 65536) && (ntc_rg13_e - ntc_rg13 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg13_e - ntc_rg13 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg13:
@@ -1020,20 +1025,20 @@ ntc_rg13:
 
 p_e3_flip:
 
-			; E3.cls 331: Dim t As Integer
+			; E3.cls 332: Dim t As Integer
 
-			; E3.cls 332: Nx.Reg &H12, back
+			; E3.cls 333: Nx.Reg &H12, back
 			dw fn_nx_reg, lit_18, var_e3_back
 
-			; E3.cls 333: t = front : front = back : back = t
+			; E3.cls 334: t = front : front = back : back = t
 			dw kw_vtov, var_e3_front, var_e3_flip_t
 			dw kw_vtov, var_e3_back, var_e3_front
 			dw kw_vtov, var_e3_flip_t, var_e3_back
 			dw p_e3_flip_r
 
 ntc_rg13_e:
-			IF ($ < 65536) && (ntc_rg14_e - ntc_rg14 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg14_e - ntc_rg14 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg14:
@@ -1043,7 +1048,7 @@ ntc_rg14:
 
 p_e3_uink:
 
-			; E3.cls 873: Nx.PalEntry Nx.PalULA, i, Peek(E3Data.PalAt + c * 2)
+			; E3.cls 874: Nx.PalEntry Nx.PalULA, i, Peek(E3Data.PalAt + c * 2)
 			dw kw_2x, var_e3_uink_c, tmp3
 			dw kw_addl, tmp3, -8704, tmp2
 			dw kw_vptrtov8, tmp2, tmp2
@@ -1051,8 +1056,8 @@ p_e3_uink:
 			dw p_e3_uink_r
 
 ntc_rg14_e:
-			IF ($ < 65536) && (ntc_rg15_e - ntc_rg15 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg15_e - ntc_rg15 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg15:
@@ -1093,8 +1098,8 @@ p_obj3d_init:
 			dw p_obj3d_init_r
 
 ntc_rg15_e:
-			IF ($ < 65536) && (ntc_rg16_e - ntc_rg16 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg16_e - ntc_rg16 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg16:
@@ -1121,8 +1126,8 @@ for38_e:
 			dw p_obj3d_clear_r
 
 ntc_rg16_e:
-			IF ($ < 65536) && (ntc_rg17_e - ntc_rg17 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg17_e - ntc_rg17 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg17:
@@ -1142,8 +1147,8 @@ p_obj3d_kill:
 			dw p_obj3d_kill_r
 
 ntc_rg17_e:
-			IF ($ < 65536) && (ntc_rg18_e - ntc_rg18 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg18_e - ntc_rg18 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg18:
@@ -1161,8 +1166,8 @@ p_obj3d_spawn:
 			dw p_obj3d_spawn_r
 
 ntc_rg18_e:
-			IF ($ < 65536) && (ntc_rg19_e - ntc_rg19 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg19_e - ntc_rg19 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg19:
@@ -1179,8 +1184,8 @@ p_obj3d_setvel:
 			dw p_obj3d_setvel_r
 
 ntc_rg19_e:
-			IF ($ < 65536) && (ntc_rg20_e - ntc_rg20 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg20_e - ntc_rg20 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg20:
@@ -1198,8 +1203,8 @@ p_obj3d_setmover:
 			dw p_obj3d_setmover_r
 
 ntc_rg20_e:
-			IF ($ < 65536) && (ntc_rg21_e - ntc_rg21 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg21_e - ntc_rg21 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg21:
@@ -1220,8 +1225,8 @@ p_obj3d_spin:
 			dw p_obj3d_spin_r
 
 ntc_rg21_e:
-			IF ($ < 65536) && (ntc_rg22_e - ntc_rg22 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg22_e - ntc_rg22 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg22:
@@ -1244,8 +1249,8 @@ p_obj3d_mark:
 			dw p_obj3d_mark_r
 
 ntc_rg22_e:
-			IF ($ < 65536) && (ntc_rg23_e - ntc_rg23 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg23_e - ntc_rg23 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg23:
@@ -1267,8 +1272,8 @@ p_obj3d_pos:
 			dw p_obj3d_pos_r
 
 ntc_rg23_e:
-			IF ($ < 65536) && (ntc_rg24_e - ntc_rg24 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg24_e - ntc_rg24 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg24:
@@ -1338,8 +1343,8 @@ if44_1:
 			dw p_obj3d_aimat_r
 
 ntc_rg24_e:
-			IF ($ < 65536) && (ntc_rg25_e - ntc_rg25 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg25_e - ntc_rg25 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg25:
@@ -1356,8 +1361,8 @@ p_obj3d_boltmodel:
 			dw p_obj3d_boltmodel_r
 
 ntc_rg25_e:
-			IF ($ < 65536) && (ntc_rg26_e - ntc_rg26 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg26_e - ntc_rg26 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg26:
@@ -1375,8 +1380,8 @@ p_obj3d_debrismodel:
 			dw p_obj3d_debrismodel_r
 
 ntc_rg26_e:
-			IF ($ < 65536) && (ntc_rg27_e - ntc_rg27 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg27_e - ntc_rg27 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg27:
@@ -1392,8 +1397,8 @@ p_obj3d_blastmodel:
 			dw p_obj3d_blastmodel_r
 
 ntc_rg27_e:
-			IF ($ < 65536) && (ntc_rg28_e - ntc_rg28 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg28_e - ntc_rg28 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg28:
@@ -1446,8 +1451,8 @@ if45_1:
 			dw p_obj3d_fireat_r
 
 ntc_rg28_e:
-			IF ($ < 65536) && (ntc_rg29_e - ntc_rg29 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg29_e - ntc_rg29 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg29:
@@ -1526,8 +1531,8 @@ if47_1:
 			dw p_obj3d_fire_r
 
 ntc_rg29_e:
-			IF ($ < 65536) && (ntc_rg30_e - ntc_rg30 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg30_e - ntc_rg30 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg30:
@@ -1591,8 +1596,8 @@ for48_e:
 			dw p_obj3d_burst_r
 
 ntc_rg30_e:
-			IF ($ < 65536) && (ntc_rg31_e - ntc_rg31 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg31_e - ntc_rg31 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg31:
@@ -1639,8 +1644,8 @@ p_obj3d_boom:
 			dw p_obj3d_boom_r
 
 ntc_rg31_e:
-			IF ($ < 65536) && (ntc_rg32_e - ntc_rg32 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg32_e - ntc_rg32 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg32:
@@ -1675,8 +1680,8 @@ for50_e:
 			dw p_obj3d_count_r
 
 ntc_rg32_e:
-			IF ($ < 65536) && (ntc_rg33_e - ntc_rg33 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg33_e - ntc_rg33 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg33:
@@ -1713,8 +1718,8 @@ if52_1:
 			dw p_obj3d_nextevent_r
 
 ntc_rg33_e:
-			IF ($ < 65536) && (ntc_rg34_e - ntc_rg34 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg34_e - ntc_rg34 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg34:
@@ -1739,8 +1744,8 @@ p_obj3d_update:
 			dw p_obj3d_update_r
 
 ntc_rg34_e:
-			IF ($ < 65536) && (ntc_rg35_e - ntc_rg35 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg35_e - ntc_rg35 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg35:
@@ -1765,8 +1770,8 @@ p_obj3d_draw:
 			dw p_obj3d_draw_r
 
 ntc_rg35_e:
-			IF ($ < 65536) && (ntc_rg36_e - ntc_rg36 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg36_e - ntc_rg36 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg36:
@@ -1798,8 +1803,8 @@ p_fly3d_init:
 			dw p_fly3d_init_r
 
 ntc_rg36_e:
-			IF ($ < 65536) && (ntc_rg37_e - ntc_rg37 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg37_e - ntc_rg37 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg37:
@@ -1823,8 +1828,8 @@ p_fly3d_reset:
 			dw p_fly3d_reset_r
 
 ntc_rg37_e:
-			IF ($ < 65536) && (ntc_rg38_e - ntc_rg38 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg38_e - ntc_rg38 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg38:
@@ -1841,8 +1846,8 @@ p_fly3d_getcam:
 			dw p_fly3d_getcam_r
 
 ntc_rg38_e:
-			IF ($ < 65536) && (ntc_rg39_e - ntc_rg39 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg39_e - ntc_rg39 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg39:
@@ -2022,8 +2027,8 @@ if70_1:
 			dw p_fly3d_steer_r
 
 ntc_rg39_e:
-			IF ($ < 65536) && (ntc_rg40_e - ntc_rg40 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg40_e - ntc_rg40 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg40:
@@ -2071,8 +2076,8 @@ p_fly3d_track:
 			dw p_fly3d_track_r
 
 ntc_rg40_e:
-			IF ($ < 65536) && (ntc_rg41_e - ntc_rg41 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg41_e - ntc_rg41 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg41:
@@ -2156,8 +2161,8 @@ if81_1:
 			dw p_fly3d_rebase_r
 
 ntc_rg41_e:
-			IF ($ < 65536) && (ntc_rg42_e - ntc_rg42 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg42_e - ntc_rg42 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg42:
@@ -2176,8 +2181,8 @@ p_hud3d_ink:
 			dw p_hud3d_ink_r
 
 ntc_rg42_e:
-			IF ($ < 65536) && (ntc_rg43_e - ntc_rg43 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg43_e - ntc_rg43 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg43:
@@ -2192,8 +2197,8 @@ p_hud3d_wipe:
 			dw p_hud3d_wipe_r
 
 ntc_rg43_e:
-			IF ($ < 65536) && (ntc_rg44_e - ntc_rg44 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg44_e - ntc_rg44 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg44:
@@ -2214,8 +2219,8 @@ p_hud3d_text:
 			dw p_hud3d_text_r
 
 ntc_rg44_e:
-			IF ($ < 65536) && (ntc_rg45_e - ntc_rg45 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg45_e - ntc_rg45 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg45:
@@ -2242,8 +2247,8 @@ p_hud3d_num:
 			dw p_hud3d_num_r
 
 ntc_rg45_e:
-			IF ($ < 65536) && (ntc_rg46_e - ntc_rg46 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg46_e - ntc_rg46 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg46:
@@ -2271,8 +2276,8 @@ p_hud3d_cross:
 			dw p_hud3d_cross_r
 
 ntc_rg46_e:
-			IF ($ < 65536) && (ntc_rg47_e - ntc_rg47 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg47_e - ntc_rg47 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg47:
@@ -2316,8 +2321,8 @@ if83_1:
 			dw p_hud3d_bar_r
 
 ntc_rg47_e:
-			IF ($ < 65536) && (ntc_rg48_e - ntc_rg48 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg48_e - ntc_rg48 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg48:
@@ -2359,8 +2364,8 @@ p_hud3d_scanner:
 			dw p_hud3d_scanner_r
 
 ntc_rg48_e:
-			IF ($ < 65536) && (ntc_rg49_e - ntc_rg49 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg49_e - ntc_rg49 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg49:
@@ -2388,8 +2393,8 @@ if84_1:
 			dw p_e3w_on_r
 
 ntc_rg49_e:
-			IF ($ < 65536) && (ntc_rg50_e - ntc_rg50 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg50_e - ntc_rg50 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg50:
@@ -2413,8 +2418,8 @@ if85_1:
 			dw p_e3w_off_r
 
 ntc_rg50_e:
-			IF ($ < 65536) && (ntc_rg51_e - ntc_rg51 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg51_e - ntc_rg51 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg51:
@@ -3124,8 +3129,8 @@ p_e3w_off_r:		; end of off
 			ret
 
 ntc_rg51_e:
-			IF ($ < 65536) && (ntc_rg52_e - ntc_rg52 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg52_e - ntc_rg52 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg52:
@@ -3268,6133 +3273,6133 @@ fn_e3data_datat:		; function datat (asm keyword), E3Data.cls line 153
 fn_e3data_datat_dat_e:		; E3Data.cls 166
 			ret			; end of #asm
 
-fn_e3_dataon:		; sub dataon (asm keyword), E3.cls line 122
-            ld a, (ntc_nexdata + 1)		; E3.cls 123
-            add a, a		; E3.cls 124
-            ld (fn_e3_lib_dpage), a		; E3.cls 125
-            db #ED, #92, #56		; E3.cls 126
-            inc a		; E3.cls 127
-            db #ED, #92, #57		; E3.cls 128
+fn_e3_dataon:		; sub dataon (asm keyword), E3.cls line 123
+            ld a, 3                 ; <--- CHANGED (20261116-7; was Option NexData's first bank)   the data's page: Option SaveNex "FILE", 3 - the Next's bank 3 [124]
+            add a, a		; E3.cls 125
+            ld (fn_e3_lib_dpage), a		; E3.cls 126
+            db #ED, #92, #56		; E3.cls 127
+            inc a		; E3.cls 128
+            db #ED, #92, #57		; E3.cls 129
 			ret			; end of #asm
 
-fn_e3_palette:		; sub palette (asm keyword), E3.cls line 134
-            pop hl		; E3.cls 135
-            ld a, (hl)		; E3.cls 136
-            inc hl		; E3.cls 137
-            ld h, (hl)		; E3.cls 138
-            ld l, a		; E3.cls 139
-            ld bc, #243B		; E3.cls 140
-            ld a, #43		; E3.cls 141
-            out (c), a		; E3.cls 142
-            inc b		; E3.cls 143
-            ld a, %00010000         ; Layer 2's first palette, auto increment [144]
-            out (c), a		; E3.cls 145
-            dec b		; E3.cls 146
-            ld a, #40		; E3.cls 147
-            out (c), a		; E3.cls 148
-            inc b		; E3.cls 149
-            xor a		; E3.cls 150
-            out (c), a		; E3.cls 151
-            dec b		; E3.cls 152
-            ld a, #44		; E3.cls 153
-            out (c), a		; E3.cls 154
-            inc b		; E3.cls 155
-            ld d, 0                 ; 256 colours, 2 bytes each [156]
-fn_e3_palette_pl_lp:		; E3.cls 157
-            ld a, (hl)		; E3.cls 158
-            out (c), a		; E3.cls 159
-            inc hl		; E3.cls 160
-            ld a, (hl)		; E3.cls 161
-            out (c), a		; E3.cls 162
-            inc hl		; E3.cls 163
-            dec d		; E3.cls 164
-            jr nz, fn_e3_palette_pl_lp		; E3.cls 165
+fn_e3_palette:		; sub palette (asm keyword), E3.cls line 135
+            pop hl		; E3.cls 136
+            ld a, (hl)		; E3.cls 137
+            inc hl		; E3.cls 138
+            ld h, (hl)		; E3.cls 139
+            ld l, a		; E3.cls 140
+            ld bc, #243B		; E3.cls 141
+            ld a, #43		; E3.cls 142
+            out (c), a		; E3.cls 143
+            inc b		; E3.cls 144
+            ld a, %00010000         ; Layer 2's first palette, auto increment [145]
+            out (c), a		; E3.cls 146
+            dec b		; E3.cls 147
+            ld a, #40		; E3.cls 148
+            out (c), a		; E3.cls 149
+            inc b		; E3.cls 150
+            xor a		; E3.cls 151
+            out (c), a		; E3.cls 152
+            dec b		; E3.cls 153
+            ld a, #44		; E3.cls 154
+            out (c), a		; E3.cls 155
+            inc b		; E3.cls 156
+            ld d, 0                 ; 256 colours, 2 bytes each [157]
+fn_e3_palette_pl_lp:		; E3.cls 158
+            ld a, (hl)		; E3.cls 159
+            out (c), a		; E3.cls 160
+            inc hl		; E3.cls 161
+            ld a, (hl)		; E3.cls 162
+            out (c), a		; E3.cls 163
+            inc hl		; E3.cls 164
+            dec d		; E3.cls 165
+            jr nz, fn_e3_palette_pl_lp		; E3.cls 166
 			ret			; end of #asm
 
-fn_e3_begin:		; sub begin (asm keyword), E3.cls line 171
-            pop hl		; E3.cls 172
-            ld a, (hl)		; E3.cls 173
-            inc hl		; E3.cls 174
-            ld h, (hl)		; E3.cls 175
-            ld l, a		; E3.cls 176
-            ld (var_e3_sps), sp		; E3.cls 177
-            ld sp, (ntc_csp)		; E3.cls 178
-            bit 7, h		; E3.cls 179
-            jr nz, fn_e3_begin_bg_end		; E3.cls 180
-            ld a, l		; E3.cls 181
-            ld (fn_e3_begin_bg_src), a		; E3.cls 182
-            ld a, (var_e3_back)		; E3.cls 183
-            add a, a		; E3.cls 184
-            ld e, a                 ; the buffer's first page [185]
-            ld b, 3		; E3.cls 186
-fn_e3_begin_bg_bank:		; E3.cls 187
-            ld a, e		; E3.cls 188
-            db #ED, #92, #56		; E3.cls 189
-            inc a		; E3.cls 190
-            db #ED, #92, #57		; E3.cls 191
-            push bc		; E3.cls 192
-            ld hl, fn_e3_begin_bg_prog		; E3.cls 193
-            ld bc, 14 * 256 + #6B		; E3.cls 194
-            otir		; E3.cls 195
-            pop bc		; E3.cls 196
-            inc e		; E3.cls 197
+fn_e3_begin:		; sub begin (asm keyword), E3.cls line 172
+            pop hl		; E3.cls 173
+            ld a, (hl)		; E3.cls 174
+            inc hl		; E3.cls 175
+            ld h, (hl)		; E3.cls 176
+            ld l, a		; E3.cls 177
+            ld (var_e3_sps), sp		; E3.cls 178
+            ld sp, (ntc_csp)		; E3.cls 179
+            bit 7, h		; E3.cls 180
+            jr nz, fn_e3_begin_bg_end		; E3.cls 181
+            ld a, l		; E3.cls 182
+            ld (fn_e3_begin_bg_src), a		; E3.cls 183
+            ld a, (var_e3_back)		; E3.cls 184
+            add a, a		; E3.cls 185
+            ld e, a                 ; the buffer's first page [186]
+            ld b, 3		; E3.cls 187
+fn_e3_begin_bg_bank:		; E3.cls 188
+            ld a, e		; E3.cls 189
+            db #ED, #92, #56		; E3.cls 190
+            inc a		; E3.cls 191
+            db #ED, #92, #57		; E3.cls 192
+            push bc		; E3.cls 193
+            ld hl, fn_e3_begin_bg_prog		; E3.cls 194
+            ld bc, 14 * 256 + #6B		; E3.cls 195
+            otir		; E3.cls 196
+            pop bc		; E3.cls 197
             inc e		; E3.cls 198
-            djnz fn_e3_begin_bg_bank		; E3.cls 199
-            ld a, (fn_e3_lib_dpage)		; E3.cls 200
-            db #ED, #92, #56		; E3.cls 201
-            inc a		; E3.cls 202
-            db #ED, #92, #57		; E3.cls 203
-            jr fn_e3_begin_bg_end		; E3.cls 204
-fn_e3_begin_bg_prog:		; E3.cls 205
-            db #83, #7D		; E3.cls 206
-            dw fn_e3_begin_bg_src		; E3.cls 207
-            dw #4000		; E3.cls 208
-            db #24, #10, #AD		; E3.cls 209
-            dw #C000		; E3.cls 210
-            db #82, #CF, #87		; E3.cls 211
-fn_e3_begin_bg_src:     db 0		; E3.cls 212
-fn_e3_begin_bg_end:		; E3.cls 213
-            ld sp, (var_e3_sps)		; E3.cls 214
+            inc e		; E3.cls 199
+            djnz fn_e3_begin_bg_bank		; E3.cls 200
+            ld a, (fn_e3_lib_dpage)		; E3.cls 201
+            db #ED, #92, #56		; E3.cls 202
+            inc a		; E3.cls 203
+            db #ED, #92, #57		; E3.cls 204
+            jr fn_e3_begin_bg_end		; E3.cls 205
+fn_e3_begin_bg_prog:		; E3.cls 206
+            db #83, #7D		; E3.cls 207
+            dw fn_e3_begin_bg_src		; E3.cls 208
+            dw #4000		; E3.cls 209
+            db #24, #10, #AD		; E3.cls 210
+            dw #C000		; E3.cls 211
+            db #82, #CF, #87		; E3.cls 212
+fn_e3_begin_bg_src:     db 0		; E3.cls 213
+fn_e3_begin_bg_end:		; E3.cls 214
+            ld sp, (var_e3_sps)		; E3.cls 215
 			ret			; end of #asm
 
-fn_e3_campos:		; sub campos (asm keyword), E3.cls line 355
-            ld de, arr_e3_cp		; E3.cls 356
-            ld b, 3		; E3.cls 357
-fn_e3_campos_cps_lp:		; E3.cls 358
-            pop hl		; E3.cls 359
-            ld a, (hl)		; E3.cls 360
-            inc hl		; E3.cls 361
-            ld h, (hl)		; E3.cls 362
-            ld l, a                 ; the value [363]
-            xor a		; E3.cls 364
-            ld (de), a              ; the fraction [365]
-            inc de		; E3.cls 366
-            ld a, l		; E3.cls 367
-            ld (de), a		; E3.cls 368
-            inc de		; E3.cls 369
-            ld a, h		; E3.cls 370
-            ld (de), a		; E3.cls 371
-            inc de		; E3.cls 372
-            rla		; E3.cls 373
-            sbc a, a		; E3.cls 374
-            ld (de), a              ; the sign [375]
-            inc de		; E3.cls 376
-            djnz fn_e3_campos_cps_lp		; E3.cls 377
+fn_e3_campos:		; sub campos (asm keyword), E3.cls line 356
+            ld de, arr_e3_cp		; E3.cls 357
+            ld b, 3		; E3.cls 358
+fn_e3_campos_cps_lp:		; E3.cls 359
+            pop hl		; E3.cls 360
+            ld a, (hl)		; E3.cls 361
+            inc hl		; E3.cls 362
+            ld h, (hl)		; E3.cls 363
+            ld l, a                 ; the value [364]
+            xor a		; E3.cls 365
+            ld (de), a              ; the fraction [366]
+            inc de		; E3.cls 367
+            ld a, l		; E3.cls 368
+            ld (de), a		; E3.cls 369
+            inc de		; E3.cls 370
+            ld a, h		; E3.cls 371
+            ld (de), a		; E3.cls 372
+            inc de		; E3.cls 373
+            rla		; E3.cls 374
+            sbc a, a		; E3.cls 375
+            ld (de), a              ; the sign [376]
+            inc de		; E3.cls 377
+            djnz fn_e3_campos_cps_lp		; E3.cls 378
 			ret			; end of #asm
 
-fn_e3_camget:		; function camget (asm keyword), E3.cls line 434
-            pop hl		; E3.cls 435
-            ld a, (hl)              ; k [436]
-            add a, a		; E3.cls 437
+fn_e3_camget:		; function camget (asm keyword), E3.cls line 435
+            pop hl		; E3.cls 436
+            ld a, (hl)              ; k [437]
             add a, a		; E3.cls 438
-            ld e, a		; E3.cls 439
-            ld d, 0		; E3.cls 440
-            ld hl, arr_e3_cp + 1		; E3.cls 441
-            add hl, de		; E3.cls 442
-            ld e, (hl)		; E3.cls 443
-            inc hl		; E3.cls 444
-            ld d, (hl)		; E3.cls 445
-            pop hl		; E3.cls 446
-            ld (hl), e		; E3.cls 447
-            inc hl		; E3.cls 448
-            ld (hl), d		; E3.cls 449
+            add a, a		; E3.cls 439
+            ld e, a		; E3.cls 440
+            ld d, 0		; E3.cls 441
+            ld hl, arr_e3_cp + 1		; E3.cls 442
+            add hl, de		; E3.cls 443
+            ld e, (hl)		; E3.cls 444
+            inc hl		; E3.cls 445
+            ld d, (hl)		; E3.cls 446
+            pop hl		; E3.cls 447
+            ld (hl), e		; E3.cls 448
+            inc hl		; E3.cls 449
+            ld (hl), d		; E3.cls 450
 			ret			; end of #asm
 
-fn_e3_camturn:		; sub camturn (asm keyword), E3.cls line 456
-            pop hl		; E3.cls 457
-            ld e, (hl)		; E3.cls 458
-            inc hl		; E3.cls 459
-            ld d, (hl)		; E3.cls 460
-            ld (fn_e3_camturn_ct_p), de		; E3.cls 461
-            pop hl		; E3.cls 462
-            ld e, (hl)		; E3.cls 463
-            inc hl		; E3.cls 464
-            ld d, (hl)		; E3.cls 465
-            ld (fn_e3_camturn_ct_y), de		; E3.cls 466
-            pop hl		; E3.cls 467
-            ld e, (hl)		; E3.cls 468
-            inc hl		; E3.cls 469
-            ld d, (hl)		; E3.cls 470
-            ld (fn_e3_camturn_ct_r), de		; E3.cls 471
-            ld (var_e3_sps), sp		; E3.cls 472
-            ld sp, (ntc_csp)		; E3.cls 473
-            ld (var_e3_six), ix		; E3.cls 474
-            push iy		; E3.cls 475
-            ld hl, (fn_e3_camturn_ct_p)           ; pitch: F toward U [476]
-            ld ix, arr_e3_cm + 12		; E3.cls 477
-            ld iy, arr_e3_cm + 6		; E3.cls 478
-            call fn_e3_lib_rotp		; E3.cls 479
-            ld hl, (fn_e3_camturn_ct_y)           ; yaw: F toward R [480]
-            ld ix, arr_e3_cm + 12		; E3.cls 481
-            ld iy, arr_e3_cm		; E3.cls 482
-            call fn_e3_lib_rotp		; E3.cls 483
-            ld hl, (fn_e3_camturn_ct_r)           ; roll: U toward R [484]
-            ld ix, arr_e3_cm + 6		; E3.cls 485
-            ld iy, arr_e3_cm		; E3.cls 486
-            call fn_e3_lib_rotp		; E3.cls 487
-            call fn_e3_lib_renorm		; E3.cls 488
-            pop iy		; E3.cls 489
-            ld ix, (var_e3_six)		; E3.cls 490
-            ld sp, (var_e3_sps)		; E3.cls 491
-            jr fn_e3_camturn_ct_end		; E3.cls 492
-fn_e3_camturn_ct_p:       dw 0		; E3.cls 493
-fn_e3_camturn_ct_y:       dw 0		; E3.cls 494
-fn_e3_camturn_ct_r:       dw 0		; E3.cls 495
-fn_e3_camturn_ct_end:		; E3.cls 496
+fn_e3_camturn:		; sub camturn (asm keyword), E3.cls line 457
+            pop hl		; E3.cls 458
+            ld e, (hl)		; E3.cls 459
+            inc hl		; E3.cls 460
+            ld d, (hl)		; E3.cls 461
+            ld (fn_e3_camturn_ct_p), de		; E3.cls 462
+            pop hl		; E3.cls 463
+            ld e, (hl)		; E3.cls 464
+            inc hl		; E3.cls 465
+            ld d, (hl)		; E3.cls 466
+            ld (fn_e3_camturn_ct_y), de		; E3.cls 467
+            pop hl		; E3.cls 468
+            ld e, (hl)		; E3.cls 469
+            inc hl		; E3.cls 470
+            ld d, (hl)		; E3.cls 471
+            ld (fn_e3_camturn_ct_r), de		; E3.cls 472
+            ld (var_e3_sps), sp		; E3.cls 473
+            ld sp, (ntc_csp)		; E3.cls 474
+            ld (var_e3_six), ix		; E3.cls 475
+            push iy		; E3.cls 476
+            ld hl, (fn_e3_camturn_ct_p)           ; pitch: F toward U [477]
+            ld ix, arr_e3_cm + 12		; E3.cls 478
+            ld iy, arr_e3_cm + 6		; E3.cls 479
+            call fn_e3_lib_rotp		; E3.cls 480
+            ld hl, (fn_e3_camturn_ct_y)           ; yaw: F toward R [481]
+            ld ix, arr_e3_cm + 12		; E3.cls 482
+            ld iy, arr_e3_cm		; E3.cls 483
+            call fn_e3_lib_rotp		; E3.cls 484
+            ld hl, (fn_e3_camturn_ct_r)           ; roll: U toward R [485]
+            ld ix, arr_e3_cm + 6		; E3.cls 486
+            ld iy, arr_e3_cm		; E3.cls 487
+            call fn_e3_lib_rotp		; E3.cls 488
+            call fn_e3_lib_renorm		; E3.cls 489
+            pop iy		; E3.cls 490
+            ld ix, (var_e3_six)		; E3.cls 491
+            ld sp, (var_e3_sps)		; E3.cls 492
+            jr fn_e3_camturn_ct_end		; E3.cls 493
+fn_e3_camturn_ct_p:       dw 0		; E3.cls 494
+fn_e3_camturn_ct_y:       dw 0		; E3.cls 495
+fn_e3_camturn_ct_r:       dw 0		; E3.cls 496
+fn_e3_camturn_ct_end:		; E3.cls 497
 			ret			; end of #asm
 
-fn_e3_cammove:		; sub cammove (asm keyword), E3.cls line 502
-            pop hl		; E3.cls 503
-            ld e, (hl)		; E3.cls 504
-            inc hl		; E3.cls 505
-            ld d, (hl)		; E3.cls 506
-            ld (var_e3_sps), sp		; E3.cls 507
-            ld sp, (ntc_csp)		; E3.cls 508
-            ld (var_e3_six), ix		; E3.cls 509
-            ld (fn_e3_cammove_cmv_s), de		; E3.cls 510
-            ld ix, arr_e3_cm + 12		; E3.cls 511
-            ld iy, arr_e3_cp		; E3.cls 512
-            ld b, 3		; E3.cls 513
-fn_e3_cammove_cmv_lp:		; E3.cls 514
-            push bc		; E3.cls 515
-            ld c, (ix + 0)		; E3.cls 516
-            ld b, (ix + 1)		; E3.cls 517
-            ld de, (fn_e3_cammove_cmv_s)		; E3.cls 518
-            call fn_e3_lib_ssmul    ; HL:DE = F * s (s1.14 x 12.4) - the move is that >> 10 (24.8) [519]
-            ld b, 2		; E3.cls 520
-fn_e3_cammove_cmv_sh:		; E3.cls 521
-            sra h		; E3.cls 522
-            rr l		; E3.cls 523
-            rr d		; E3.cls 524
-            rr e		; E3.cls 525
-            djnz fn_e3_cammove_cmv_sh             ; >> 2, then the top 3 bytes are >> 10 [526]
-            ld a, h                 ; (the sign) [527]
-            rla		; E3.cls 528
-            sbc a, a		; E3.cls 529
-            ld c, a		; E3.cls 530
-            ld a, (iy + 0)		; E3.cls 531
-            add a, d		; E3.cls 532
-            ld (iy + 0), a		; E3.cls 533
-            ld a, (iy + 1)		; E3.cls 534
-            adc a, l		; E3.cls 535
-            ld (iy + 1), a		; E3.cls 536
-            ld a, (iy + 2)		; E3.cls 537
-            adc a, h		; E3.cls 538
-            ld (iy + 2), a		; E3.cls 539
-            ld a, (iy + 3)		; E3.cls 540
-            adc a, c		; E3.cls 541
-            ld (iy + 3), a		; E3.cls 542
-            inc ix		; E3.cls 543
+fn_e3_cammove:		; sub cammove (asm keyword), E3.cls line 503
+            pop hl		; E3.cls 504
+            ld e, (hl)		; E3.cls 505
+            inc hl		; E3.cls 506
+            ld d, (hl)		; E3.cls 507
+            ld (var_e3_sps), sp		; E3.cls 508
+            ld sp, (ntc_csp)		; E3.cls 509
+            ld (var_e3_six), ix		; E3.cls 510
+            ld (fn_e3_cammove_cmv_s), de		; E3.cls 511
+            ld ix, arr_e3_cm + 12		; E3.cls 512
+            ld iy, arr_e3_cp		; E3.cls 513
+            ld b, 3		; E3.cls 514
+fn_e3_cammove_cmv_lp:		; E3.cls 515
+            push bc		; E3.cls 516
+            ld c, (ix + 0)		; E3.cls 517
+            ld b, (ix + 1)		; E3.cls 518
+            ld de, (fn_e3_cammove_cmv_s)		; E3.cls 519
+            call fn_e3_lib_ssmul    ; HL:DE = F * s (s1.14 x 12.4) - the move is that >> 10 (24.8) [520]
+            ld b, 2		; E3.cls 521
+fn_e3_cammove_cmv_sh:		; E3.cls 522
+            sra h		; E3.cls 523
+            rr l		; E3.cls 524
+            rr d		; E3.cls 525
+            rr e		; E3.cls 526
+            djnz fn_e3_cammove_cmv_sh             ; >> 2, then the top 3 bytes are >> 10 [527]
+            ld a, h                 ; (the sign) [528]
+            rla		; E3.cls 529
+            sbc a, a		; E3.cls 530
+            ld c, a		; E3.cls 531
+            ld a, (iy + 0)		; E3.cls 532
+            add a, d		; E3.cls 533
+            ld (iy + 0), a		; E3.cls 534
+            ld a, (iy + 1)		; E3.cls 535
+            adc a, l		; E3.cls 536
+            ld (iy + 1), a		; E3.cls 537
+            ld a, (iy + 2)		; E3.cls 538
+            adc a, h		; E3.cls 539
+            ld (iy + 2), a		; E3.cls 540
+            ld a, (iy + 3)		; E3.cls 541
+            adc a, c		; E3.cls 542
+            ld (iy + 3), a		; E3.cls 543
             inc ix		; E3.cls 544
-            ld de, 4		; E3.cls 545
-            add iy, de		; E3.cls 546
-            pop bc		; E3.cls 547
-            djnz fn_e3_cammove_cmv_lp		; E3.cls 548
-            ld ix, (var_e3_six)		; E3.cls 549
-            ld sp, (var_e3_sps)		; E3.cls 550
-            jr fn_e3_cammove_cmv_end		; E3.cls 551
-fn_e3_cammove_cmv_s:      dw 0		; E3.cls 552
-fn_e3_cammove_cmv_end:		; E3.cls 553
+            inc ix		; E3.cls 545
+            ld de, 4		; E3.cls 546
+            add iy, de		; E3.cls 547
+            pop bc		; E3.cls 548
+            djnz fn_e3_cammove_cmv_lp		; E3.cls 549
+            ld ix, (var_e3_six)		; E3.cls 550
+            ld sp, (var_e3_sps)		; E3.cls 551
+            jr fn_e3_cammove_cmv_end		; E3.cls 552
+fn_e3_cammove_cmv_s:      dw 0		; E3.cls 553
+fn_e3_cammove_cmv_end:		; E3.cls 554
 			ret			; end of #asm
 
-fn_e3_stars:		; sub stars (asm keyword), E3.cls line 559
-            ld (var_e3_sps), sp		; E3.cls 560
-            ld sp, (ntc_csp)		; E3.cls 561
-            ld (var_e3_six), ix		; E3.cls 562
-            push iy		; E3.cls 563
-            call fn_e3_lib_stars		; E3.cls 564
-            pop iy		; E3.cls 565
-            ld ix, (var_e3_six)		; E3.cls 566
-            ld sp, (var_e3_sps)		; E3.cls 567
+fn_e3_stars:		; sub stars (asm keyword), E3.cls line 560
+            ld (var_e3_sps), sp		; E3.cls 561
+            ld sp, (ntc_csp)		; E3.cls 562
+            ld (var_e3_six), ix		; E3.cls 563
+            push iy		; E3.cls 564
+            call fn_e3_lib_stars		; E3.cls 565
+            pop iy		; E3.cls 566
+            ld ix, (var_e3_six)		; E3.cls 567
+            ld sp, (var_e3_sps)		; E3.cls 568
 			ret			; end of #asm
 
-fn_e3_text:		; sub text (asm keyword), E3.cls line 614
-            pop hl		; E3.cls 615
-            ld a, (hl)		; E3.cls 616
-            ld (fn_e3_lib_tx_x), a		; E3.cls 617
-            pop hl		; E3.cls 618
-            ld a, (hl)		; E3.cls 619
-            ld (fn_e3_lib_tx_y), a		; E3.cls 620
-            pop hl		; E3.cls 621
-            ld (fn_e3_text_te_p), hl		; E3.cls 622
-            pop hl		; E3.cls 623
-            ld a, (hl)		; E3.cls 624
-            ld (fn_e3_lib_tx_c), a		; E3.cls 625
-            ld (var_e3_sps), sp		; E3.cls 626
-            ld sp, (ntc_csp)		; E3.cls 627
-fn_e3_text_te_lp:		; E3.cls 628
-            ld hl, (fn_e3_text_te_p)		; E3.cls 629
-            ld a, (hl)		; E3.cls 630
-            or a		; E3.cls 631
-            jr z, fn_e3_text_te_end		; E3.cls 632
-            inc hl		; E3.cls 633
-            ld (fn_e3_text_te_p), hl		; E3.cls 634
-            call fn_e3_lib_chr		; E3.cls 635
-            call fn_e3_lib_tx_step		; E3.cls 636
-            jr fn_e3_text_te_lp		; E3.cls 637
-fn_e3_text_te_p:       dw 0		; E3.cls 638
-fn_e3_text_te_end:		; E3.cls 639
-            ld sp, (var_e3_sps)		; E3.cls 640
+fn_e3_text:		; sub text (asm keyword), E3.cls line 615
+            pop hl		; E3.cls 616
+            ld a, (hl)		; E3.cls 617
+            ld (fn_e3_lib_tx_x), a		; E3.cls 618
+            pop hl		; E3.cls 619
+            ld a, (hl)		; E3.cls 620
+            ld (fn_e3_lib_tx_y), a		; E3.cls 621
+            pop hl		; E3.cls 622
+            ld (fn_e3_text_te_p), hl		; E3.cls 623
+            pop hl		; E3.cls 624
+            ld a, (hl)		; E3.cls 625
+            ld (fn_e3_lib_tx_c), a		; E3.cls 626
+            ld (var_e3_sps), sp		; E3.cls 627
+            ld sp, (ntc_csp)		; E3.cls 628
+fn_e3_text_te_lp:		; E3.cls 629
+            ld hl, (fn_e3_text_te_p)		; E3.cls 630
+            ld a, (hl)		; E3.cls 631
+            or a		; E3.cls 632
+            jr z, fn_e3_text_te_end		; E3.cls 633
+            inc hl		; E3.cls 634
+            ld (fn_e3_text_te_p), hl		; E3.cls 635
+            call fn_e3_lib_chr		; E3.cls 636
+            call fn_e3_lib_tx_step		; E3.cls 637
+            jr fn_e3_text_te_lp		; E3.cls 638
+fn_e3_text_te_p:       dw 0		; E3.cls 639
+fn_e3_text_te_end:		; E3.cls 640
+            ld sp, (var_e3_sps)		; E3.cls 641
 			ret			; end of #asm
 
-fn_e3_num:		; sub num (asm keyword), E3.cls line 696
-            pop hl		; E3.cls 697
-            ld a, (hl)		; E3.cls 698
-            ld (fn_e3_num_nm_x), a		; E3.cls 699
-            pop hl		; E3.cls 700
-            ld a, (hl)		; E3.cls 701
-            ld (fn_e3_lib_tx_y), a		; E3.cls 702
-            pop hl		; E3.cls 703
-            ld e, (hl)		; E3.cls 704
-            inc hl		; E3.cls 705
-            ld d, (hl)		; E3.cls 706
-            ld (fn_e3_num_nm_v), de		; E3.cls 707
-            pop hl		; E3.cls 708
-            ld a, (hl)		; E3.cls 709
-            ld (fn_e3_num_nm_n), a		; E3.cls 710
-            pop hl		; E3.cls 711
-            ld a, (hl)		; E3.cls 712
-            ld (fn_e3_lib_tx_c), a		; E3.cls 713
-            ld (var_e3_sps), sp		; E3.cls 714
-            ld sp, (ntc_csp)		; E3.cls 715
-            ld hl, (fn_e3_num_nm_v)		; E3.cls 716
-            bit 7, h		; E3.cls 717
-            jr z, fn_e3_num_nm_pos		; E3.cls 718
-            ld hl, 0		; E3.cls 719
-            ld (fn_e3_num_nm_v), hl		; E3.cls 720
-fn_e3_num_nm_pos:		; E3.cls 721
-            ld a, (fn_e3_num_nm_n)            ; the last digit's place: x + (n - 1) 6 txs [722]
-            ld b, a		; E3.cls 723
-            ld a, (fn_e3_num_nm_x)		; E3.cls 724
-            jr fn_e3_num_nm_s1		; E3.cls 725
-fn_e3_num_nm_sl:		; E3.cls 726
-            ld (fn_e3_lib_tx_x), a		; E3.cls 727
-            push bc		; E3.cls 728
-            call fn_e3_lib_tx_step		; E3.cls 729
-            pop bc		; E3.cls 730
-            ld a, (fn_e3_lib_tx_x)		; E3.cls 731
-fn_e3_num_nm_s1:		; E3.cls 732
-            ld (fn_e3_lib_tx_x), a		; E3.cls 733
-            djnz fn_e3_num_nm_sl		; E3.cls 734
-            ld a, (fn_e3_num_nm_n)		; E3.cls 735
-            ld b, a		; E3.cls 736
-            ld c, 1                 ; (the first digit: always) [737]
-fn_e3_num_nm_lp:		; E3.cls 738
-            push bc		; E3.cls 739
-            ld hl, (fn_e3_num_nm_v)		; E3.cls 740
-            call fn_e3_lib_div10		; E3.cls 741
-            ld (fn_e3_num_nm_v), hl		; E3.cls 742
-            ld b, a                 ; the digit [743]
-            ld a, h		; E3.cls 744
-            or l		; E3.cls 745
-            or b		; E3.cls 746
-            or c		; E3.cls 747
-            jr z, fn_e3_num_nm_sp             ; (a leading 0: a space) [748]
-            ld a, (fn_e3_lib_tx_x)		; E3.cls 749
-            push af		; E3.cls 750
-            ld a, b		; E3.cls 751
-            add a, 48		; E3.cls 752
-            call fn_e3_lib_chr		; E3.cls 753
-            pop af		; E3.cls 754
-            ld (fn_e3_lib_tx_x), a		; E3.cls 755
-fn_e3_num_nm_sp:		; E3.cls 756
-            ld a, (var_e3_txs)           ; back a place [757]
-            ld b, a		; E3.cls 758
-            ld a, (fn_e3_lib_tx_x)		; E3.cls 759
-fn_e3_num_nm_bk:		; E3.cls 760
-            sub 6		; E3.cls 761
-            djnz fn_e3_num_nm_bk		; E3.cls 762
-            ld (fn_e3_lib_tx_x), a		; E3.cls 763
-            pop bc		; E3.cls 764
-            ld c, 0		; E3.cls 765
-            djnz fn_e3_num_nm_lp		; E3.cls 766
-            ld sp, (var_e3_sps)		; E3.cls 767
-            jr fn_e3_num_nm_e		; E3.cls 768
-fn_e3_num_nm_x:       db 0		; E3.cls 769
-fn_e3_num_nm_n:       db 0		; E3.cls 770
-fn_e3_num_nm_v:       dw 0		; E3.cls 771
-fn_e3_num_nm_e:		; E3.cls 772
+fn_e3_num:		; sub num (asm keyword), E3.cls line 697
+            pop hl		; E3.cls 698
+            ld a, (hl)		; E3.cls 699
+            ld (fn_e3_num_nm_x), a		; E3.cls 700
+            pop hl		; E3.cls 701
+            ld a, (hl)		; E3.cls 702
+            ld (fn_e3_lib_tx_y), a		; E3.cls 703
+            pop hl		; E3.cls 704
+            ld e, (hl)		; E3.cls 705
+            inc hl		; E3.cls 706
+            ld d, (hl)		; E3.cls 707
+            ld (fn_e3_num_nm_v), de		; E3.cls 708
+            pop hl		; E3.cls 709
+            ld a, (hl)		; E3.cls 710
+            ld (fn_e3_num_nm_n), a		; E3.cls 711
+            pop hl		; E3.cls 712
+            ld a, (hl)		; E3.cls 713
+            ld (fn_e3_lib_tx_c), a		; E3.cls 714
+            ld (var_e3_sps), sp		; E3.cls 715
+            ld sp, (ntc_csp)		; E3.cls 716
+            ld hl, (fn_e3_num_nm_v)		; E3.cls 717
+            bit 7, h		; E3.cls 718
+            jr z, fn_e3_num_nm_pos		; E3.cls 719
+            ld hl, 0		; E3.cls 720
+            ld (fn_e3_num_nm_v), hl		; E3.cls 721
+fn_e3_num_nm_pos:		; E3.cls 722
+            ld a, (fn_e3_num_nm_n)            ; the last digit's place: x + (n - 1) 6 txs [723]
+            ld b, a		; E3.cls 724
+            ld a, (fn_e3_num_nm_x)		; E3.cls 725
+            jr fn_e3_num_nm_s1		; E3.cls 726
+fn_e3_num_nm_sl:		; E3.cls 727
+            ld (fn_e3_lib_tx_x), a		; E3.cls 728
+            push bc		; E3.cls 729
+            call fn_e3_lib_tx_step		; E3.cls 730
+            pop bc		; E3.cls 731
+            ld a, (fn_e3_lib_tx_x)		; E3.cls 732
+fn_e3_num_nm_s1:		; E3.cls 733
+            ld (fn_e3_lib_tx_x), a		; E3.cls 734
+            djnz fn_e3_num_nm_sl		; E3.cls 735
+            ld a, (fn_e3_num_nm_n)		; E3.cls 736
+            ld b, a		; E3.cls 737
+            ld c, 1                 ; (the first digit: always) [738]
+fn_e3_num_nm_lp:		; E3.cls 739
+            push bc		; E3.cls 740
+            ld hl, (fn_e3_num_nm_v)		; E3.cls 741
+            call fn_e3_lib_div10		; E3.cls 742
+            ld (fn_e3_num_nm_v), hl		; E3.cls 743
+            ld b, a                 ; the digit [744]
+            ld a, h		; E3.cls 745
+            or l		; E3.cls 746
+            or b		; E3.cls 747
+            or c		; E3.cls 748
+            jr z, fn_e3_num_nm_sp             ; (a leading 0: a space) [749]
+            ld a, (fn_e3_lib_tx_x)		; E3.cls 750
+            push af		; E3.cls 751
+            ld a, b		; E3.cls 752
+            add a, 48		; E3.cls 753
+            call fn_e3_lib_chr		; E3.cls 754
+            pop af		; E3.cls 755
+            ld (fn_e3_lib_tx_x), a		; E3.cls 756
+fn_e3_num_nm_sp:		; E3.cls 757
+            ld a, (var_e3_txs)           ; back a place [758]
+            ld b, a		; E3.cls 759
+            ld a, (fn_e3_lib_tx_x)		; E3.cls 760
+fn_e3_num_nm_bk:		; E3.cls 761
+            sub 6		; E3.cls 762
+            djnz fn_e3_num_nm_bk		; E3.cls 763
+            ld (fn_e3_lib_tx_x), a		; E3.cls 764
+            pop bc		; E3.cls 765
+            ld c, 0		; E3.cls 766
+            djnz fn_e3_num_nm_lp		; E3.cls 767
+            ld sp, (var_e3_sps)		; E3.cls 768
+            jr fn_e3_num_nm_e		; E3.cls 769
+fn_e3_num_nm_x:       db 0		; E3.cls 770
+fn_e3_num_nm_n:       db 0		; E3.cls 771
+fn_e3_num_nm_v:       dw 0		; E3.cls 772
+fn_e3_num_nm_e:		; E3.cls 773
 			ret			; end of #asm
 
-fn_e3_uclr:		; sub uclr (asm keyword), E3.cls line 779
-            pop hl		; E3.cls 780
-            ld a, (hl)		; E3.cls 781
-            ld (fn_e3_uclr_uc_y), a		; E3.cls 782
-            pop hl		; E3.cls 783
-            ld a, (hl)		; E3.cls 784
-            ld (fn_e3_lib_tx_x), a		; E3.cls 785
-            rrca		; E3.cls 786
+fn_e3_uclr:		; sub uclr (asm keyword), E3.cls line 780
+            pop hl		; E3.cls 781
+            ld a, (hl)		; E3.cls 782
+            ld (fn_e3_uclr_uc_y), a		; E3.cls 783
+            pop hl		; E3.cls 784
+            ld a, (hl)		; E3.cls 785
+            ld (fn_e3_lib_tx_x), a		; E3.cls 786
             rrca		; E3.cls 787
             rrca		; E3.cls 788
-            and 31		; E3.cls 789
-            ld b, a		; E3.cls 790
-            pop hl		; E3.cls 791
-            ld a, (hl)		; E3.cls 792
-            rrca		; E3.cls 793
+            rrca		; E3.cls 789
+            and 31		; E3.cls 790
+            ld b, a		; E3.cls 791
+            pop hl		; E3.cls 792
+            ld a, (hl)		; E3.cls 793
             rrca		; E3.cls 794
             rrca		; E3.cls 795
-            and 31		; E3.cls 796
-            sub b		; E3.cls 797
-            inc a		; E3.cls 798
-            ld (fn_e3_uclr_uc_n), a		; E3.cls 799
-            ld (var_e3_sps), sp		; E3.cls 800
-            ld sp, (ntc_csp)		; E3.cls 801
-            ld a, 10		; E3.cls 802
-            db #ED, #92, #56		; E3.cls 803
-            ld a, (fn_e3_uclr_uc_y)		; E3.cls 804
-            and #F8		; E3.cls 805
-            call fn_e3_uclr_uc_row		; E3.cls 806
-            ld a, (fn_e3_uclr_uc_y)		; E3.cls 807
-            add a, 6		; E3.cls 808
-            and #F8		; E3.cls 809
-            ld b, a		; E3.cls 810
-            ld a, (fn_e3_uclr_uc_y)		; E3.cls 811
-            and #F8		; E3.cls 812
-            cp b		; E3.cls 813
-            ld a, b		; E3.cls 814
-            call nz, fn_e3_uclr_uc_row		; E3.cls 815
-            ld a, (fn_e3_lib_dpage)		; E3.cls 816
-            db #ED, #92, #56		; E3.cls 817
-            ld sp, (var_e3_sps)		; E3.cls 818
-            jr fn_e3_uclr_uc_end		; E3.cls 819
-fn_e3_uclr_uc_row:                             ; the cells of pixel rows A .. A + 7 [820]
-            cp 192		; E3.cls 821
-            ret nc		; E3.cls 822
-            ld e, a                 ; <--- NEW [823]
-            ld a, (var_e3_uca)           ; <--- NEW (uca: the cells' attributes to 0 too - see-through, a backing paper gone) [824]
-            or a                    ; <--- NEW [825]
-            ld a, e                 ; <--- NEW [826]
-            jr z, fn_e3_uclr_uc_px             ; <--- NEW [827]
-            push af                 ; <--- NEW [828]
-            ld l, a                 ; <--- NEW (#D800 + row / 8 * 32 + x0 / 8) [829]
-            ld h, 0                 ; <--- NEW [830]
-            add hl, hl              ; <--- NEW [831]
+            rrca		; E3.cls 796
+            and 31		; E3.cls 797
+            sub b		; E3.cls 798
+            inc a		; E3.cls 799
+            ld (fn_e3_uclr_uc_n), a		; E3.cls 800
+            ld (var_e3_sps), sp		; E3.cls 801
+            ld sp, (ntc_csp)		; E3.cls 802
+            ld a, 10		; E3.cls 803
+            db #ED, #92, #56		; E3.cls 804
+            ld a, (fn_e3_uclr_uc_y)		; E3.cls 805
+            and #F8		; E3.cls 806
+            call fn_e3_uclr_uc_row		; E3.cls 807
+            ld a, (fn_e3_uclr_uc_y)		; E3.cls 808
+            add a, 6		; E3.cls 809
+            and #F8		; E3.cls 810
+            ld b, a		; E3.cls 811
+            ld a, (fn_e3_uclr_uc_y)		; E3.cls 812
+            and #F8		; E3.cls 813
+            cp b		; E3.cls 814
+            ld a, b		; E3.cls 815
+            call nz, fn_e3_uclr_uc_row		; E3.cls 816
+            ld a, (fn_e3_lib_dpage)		; E3.cls 817
+            db #ED, #92, #56		; E3.cls 818
+            ld sp, (var_e3_sps)		; E3.cls 819
+            jr fn_e3_uclr_uc_end		; E3.cls 820
+fn_e3_uclr_uc_row:                             ; the cells of pixel rows A .. A + 7 [821]
+            cp 192		; E3.cls 822
+            ret nc		; E3.cls 823
+            ld e, a                 ; <--- NEW [824]
+            ld a, (var_e3_uca)           ; <--- NEW (uca: the cells' attributes to 0 too - see-through, a backing paper gone) [825]
+            or a                    ; <--- NEW [826]
+            ld a, e                 ; <--- NEW [827]
+            jr z, fn_e3_uclr_uc_px             ; <--- NEW [828]
+            push af                 ; <--- NEW [829]
+            ld l, a                 ; <--- NEW (#D800 + row / 8 * 32 + x0 / 8) [830]
+            ld h, 0                 ; <--- NEW [831]
             add hl, hl              ; <--- NEW [832]
-            ld a, (fn_e3_lib_tx_x)  ; <--- NEW [833]
-            rrca                    ; <--- NEW [834]
+            add hl, hl              ; <--- NEW [833]
+            ld a, (fn_e3_lib_tx_x)  ; <--- NEW [834]
             rrca                    ; <--- NEW [835]
             rrca                    ; <--- NEW [836]
-            and 31                  ; <--- NEW [837]
-            add a, l                ; <--- NEW [838]
-            ld l, a                 ; <--- NEW [839]
-            ld de, #D800            ; <--- NEW [840]
-            add hl, de              ; <--- NEW [841]
-            ld a, (fn_e3_uclr_uc_n)            ; <--- NEW [842]
-            ld b, a                 ; <--- NEW [843]
-            xor a                   ; <--- NEW [844]
-fn_e3_uclr_uc_at:      ld (hl), a              ; <--- NEW [845]
-            inc l                   ; <--- NEW [846]
-            djnz fn_e3_uclr_uc_at              ; <--- NEW [847]
-            pop af                  ; <--- NEW [848]
-fn_e3_uclr_uc_px:      ld c, 8                 ; <--- CHANGED (label) [849]
-fn_e3_uclr_uc_ln:		; E3.cls 850
-            push af		; E3.cls 851
-            call fn_e3_lib_cu_addr		; E3.cls 852
-            ld a, (fn_e3_uclr_uc_n)		; E3.cls 853
-            ld b, a		; E3.cls 854
-            xor a		; E3.cls 855
-fn_e3_uclr_uc_b:		; E3.cls 856
-            ld (hl), a		; E3.cls 857
-            inc l		; E3.cls 858
-            djnz fn_e3_uclr_uc_b		; E3.cls 859
-            pop af		; E3.cls 860
-            inc a		; E3.cls 861
-            dec c		; E3.cls 862
-            jr nz, fn_e3_uclr_uc_ln		; E3.cls 863
-            ret		; E3.cls 864
-fn_e3_uclr_uc_y:       db 0		; E3.cls 865
-fn_e3_uclr_uc_n:       db 0		; E3.cls 866
-fn_e3_uclr_uc_end:		; E3.cls 867
+            rrca                    ; <--- NEW [837]
+            and 31                  ; <--- NEW [838]
+            add a, l                ; <--- NEW [839]
+            ld l, a                 ; <--- NEW [840]
+            ld de, #D800            ; <--- NEW [841]
+            add hl, de              ; <--- NEW [842]
+            ld a, (fn_e3_uclr_uc_n)            ; <--- NEW [843]
+            ld b, a                 ; <--- NEW [844]
+            xor a                   ; <--- NEW [845]
+fn_e3_uclr_uc_at:      ld (hl), a              ; <--- NEW [846]
+            inc l                   ; <--- NEW [847]
+            djnz fn_e3_uclr_uc_at              ; <--- NEW [848]
+            pop af                  ; <--- NEW [849]
+fn_e3_uclr_uc_px:      ld c, 8                 ; <--- CHANGED (label) [850]
+fn_e3_uclr_uc_ln:		; E3.cls 851
+            push af		; E3.cls 852
+            call fn_e3_lib_cu_addr		; E3.cls 853
+            ld a, (fn_e3_uclr_uc_n)		; E3.cls 854
+            ld b, a		; E3.cls 855
+            xor a		; E3.cls 856
+fn_e3_uclr_uc_b:		; E3.cls 857
+            ld (hl), a		; E3.cls 858
+            inc l		; E3.cls 859
+            djnz fn_e3_uclr_uc_b		; E3.cls 860
+            pop af		; E3.cls 861
+            inc a		; E3.cls 862
+            dec c		; E3.cls 863
+            jr nz, fn_e3_uclr_uc_ln		; E3.cls 864
+            ret		; E3.cls 865
+fn_e3_uclr_uc_y:       db 0		; E3.cls 866
+fn_e3_uclr_uc_n:       db 0		; E3.cls 867
+fn_e3_uclr_uc_end:		; E3.cls 868
 			ret			; end of #asm
 
-fn_e3_ubox:		; sub ubox (asm keyword), E3.cls line 878
-            pop hl		; E3.cls 879
-            ld a, (hl)		; E3.cls 880
-            ld (fn_e3_ubox_ub_x), a		; E3.cls 881
-            pop hl		; E3.cls 882
-            ld a, (hl)		; E3.cls 883
-            ld (fn_e3_ubox_ub_y), a		; E3.cls 884
-            pop hl		; E3.cls 885
-            ld a, (hl)		; E3.cls 886
-            ld (fn_e3_ubox_ub_w), a		; E3.cls 887
-            pop hl		; E3.cls 888
-            ld a, (hl)		; E3.cls 889
-            ld (fn_e3_ubox_ub_h), a		; E3.cls 890
-            pop hl		; E3.cls 891
-            ld a, (hl)		; E3.cls 892
-            ld (fn_e3_lib_tx_c), a		; E3.cls 893
-            ld (var_e3_sps), sp		; E3.cls 894
-            ld sp, (ntc_csp)		; E3.cls 895
-            ld a, 10		; E3.cls 896
-            db #ED, #92, #56		; E3.cls 897
-fn_e3_ubox_ub_row:		; E3.cls 898
-            ld a, (fn_e3_ubox_ub_x)		; E3.cls 899
-            ld (fn_e3_lib_tx_x), a		; E3.cls 900
-            ld a, (fn_e3_ubox_ub_w)		; E3.cls 901
-            ld b, a		; E3.cls 902
-fn_e3_ubox_ub_px:		; E3.cls 903
-            push bc		; E3.cls 904
-            ld a, (fn_e3_ubox_ub_y)		; E3.cls 905
-            call fn_e3_lib_cu_addr		; E3.cls 906
-            ld a, (fn_e3_lib_tx_x)		; E3.cls 907
-            and 7		; E3.cls 908
-            ld b, a		; E3.cls 909
-            inc b		; E3.cls 910
-            xor a		; E3.cls 911
-            scf		; E3.cls 912
-fn_e3_ubox_ub_m:		; E3.cls 913
-            rra		; E3.cls 914
-            djnz fn_e3_ubox_ub_m		; E3.cls 915
-            or (hl)		; E3.cls 916
-            ld (hl), a		; E3.cls 917
-            ld a, (fn_e3_ubox_ub_y)		; E3.cls 918
-            call fn_e3_lib_cu_at		; E3.cls 919
-            ld hl, fn_e3_lib_tx_x		; E3.cls 920
-            inc (hl)		; E3.cls 921
-            pop bc		; E3.cls 922
-            djnz fn_e3_ubox_ub_px		; E3.cls 923
-            ld hl, fn_e3_ubox_ub_y		; E3.cls 924
-            inc (hl)		; E3.cls 925
-            ld hl, fn_e3_ubox_ub_h		; E3.cls 926
-            dec (hl)		; E3.cls 927
-            jr nz, fn_e3_ubox_ub_row		; E3.cls 928
-            ld a, (fn_e3_lib_dpage)		; E3.cls 929
-            db #ED, #92, #56		; E3.cls 930
-            ld sp, (var_e3_sps)		; E3.cls 931
-            jr fn_e3_ubox_ub_e		; E3.cls 932
-fn_e3_ubox_ub_x:       db 0		; E3.cls 933
-fn_e3_ubox_ub_y:       db 0		; E3.cls 934
-fn_e3_ubox_ub_w:       db 0		; E3.cls 935
-fn_e3_ubox_ub_h:       db 0		; E3.cls 936
-fn_e3_ubox_ub_e:		; E3.cls 937
+fn_e3_ubox:		; sub ubox (asm keyword), E3.cls line 879
+            pop hl		; E3.cls 880
+            ld a, (hl)		; E3.cls 881
+            ld (fn_e3_ubox_ub_x), a		; E3.cls 882
+            pop hl		; E3.cls 883
+            ld a, (hl)		; E3.cls 884
+            ld (fn_e3_ubox_ub_y), a		; E3.cls 885
+            pop hl		; E3.cls 886
+            ld a, (hl)		; E3.cls 887
+            ld (fn_e3_ubox_ub_w), a		; E3.cls 888
+            pop hl		; E3.cls 889
+            ld a, (hl)		; E3.cls 890
+            ld (fn_e3_ubox_ub_h), a		; E3.cls 891
+            pop hl		; E3.cls 892
+            ld a, (hl)		; E3.cls 893
+            ld (fn_e3_lib_tx_c), a		; E3.cls 894
+            ld (var_e3_sps), sp		; E3.cls 895
+            ld sp, (ntc_csp)		; E3.cls 896
+            ld a, 10		; E3.cls 897
+            db #ED, #92, #56		; E3.cls 898
+fn_e3_ubox_ub_row:		; E3.cls 899
+            ld a, (fn_e3_ubox_ub_x)		; E3.cls 900
+            ld (fn_e3_lib_tx_x), a		; E3.cls 901
+            ld a, (fn_e3_ubox_ub_w)		; E3.cls 902
+            ld b, a		; E3.cls 903
+fn_e3_ubox_ub_px:		; E3.cls 904
+            push bc		; E3.cls 905
+            ld a, (fn_e3_ubox_ub_y)		; E3.cls 906
+            call fn_e3_lib_cu_addr		; E3.cls 907
+            ld a, (fn_e3_lib_tx_x)		; E3.cls 908
+            and 7		; E3.cls 909
+            ld b, a		; E3.cls 910
+            inc b		; E3.cls 911
+            xor a		; E3.cls 912
+            scf		; E3.cls 913
+fn_e3_ubox_ub_m:		; E3.cls 914
+            rra		; E3.cls 915
+            djnz fn_e3_ubox_ub_m		; E3.cls 916
+            or (hl)		; E3.cls 917
+            ld (hl), a		; E3.cls 918
+            ld a, (fn_e3_ubox_ub_y)		; E3.cls 919
+            call fn_e3_lib_cu_at		; E3.cls 920
+            ld hl, fn_e3_lib_tx_x		; E3.cls 921
+            inc (hl)		; E3.cls 922
+            pop bc		; E3.cls 923
+            djnz fn_e3_ubox_ub_px		; E3.cls 924
+            ld hl, fn_e3_ubox_ub_y		; E3.cls 925
+            inc (hl)		; E3.cls 926
+            ld hl, fn_e3_ubox_ub_h		; E3.cls 927
+            dec (hl)		; E3.cls 928
+            jr nz, fn_e3_ubox_ub_row		; E3.cls 929
+            ld a, (fn_e3_lib_dpage)		; E3.cls 930
+            db #ED, #92, #56		; E3.cls 931
+            ld sp, (var_e3_sps)		; E3.cls 932
+            jr fn_e3_ubox_ub_e		; E3.cls 933
+fn_e3_ubox_ub_x:       db 0		; E3.cls 934
+fn_e3_ubox_ub_y:       db 0		; E3.cls 935
+fn_e3_ubox_ub_w:       db 0		; E3.cls 936
+fn_e3_ubox_ub_h:       db 0		; E3.cls 937
+fn_e3_ubox_ub_e:		; E3.cls 938
 			ret			; end of #asm
 
-fn_e3_uwipe:		; sub uwipe (asm keyword), E3.cls line 943
-            ld a, 10		; E3.cls 944
-            db #ED, #92, #56		; E3.cls 945
-            ld hl, #C000		; E3.cls 946
-            ld de, #C001		; E3.cls 947
-            ld bc, 6911		; E3.cls 948
-            ld (hl), 0		; E3.cls 949
-            ldir		; E3.cls 950
-            ld a, (fn_e3_lib_dpage)		; E3.cls 951
-            db #ED, #92, #56		; E3.cls 952
+fn_e3_uwipe:		; sub uwipe (asm keyword), E3.cls line 944
+            ld a, 10		; E3.cls 945
+            db #ED, #92, #56		; E3.cls 946
+            ld hl, #C000		; E3.cls 947
+            ld de, #C001		; E3.cls 948
+            ld bc, 6911		; E3.cls 949
+            ld (hl), 0		; E3.cls 950
+            ldir		; E3.cls 951
+            ld a, (fn_e3_lib_dpage)		; E3.cls 952
+            db #ED, #92, #56		; E3.cls 953
 			ret			; end of #asm
 
-fn_e3_poll:		; sub poll (asm keyword), E3.cls line 960
-            ld (var_e3_sps), sp		; E3.cls 961
-            ld sp, (ntc_csp)		; E3.cls 962
-            call fn_e3_lib_vpoll		; E3.cls 963
-            ld hl, (fn_e3_lib_vp_now)		; E3.cls 964
-            ld (var_e3_rline), hl		; E3.cls 965
-            ld sp, (var_e3_sps)		; E3.cls 966
+fn_e3_poll:		; sub poll (asm keyword), E3.cls line 961
+            ld (var_e3_sps), sp		; E3.cls 962
+            ld sp, (ntc_csp)		; E3.cls 963
+            call fn_e3_lib_vpoll		; E3.cls 964
+            ld hl, (fn_e3_lib_vp_now)		; E3.cls 965
+            ld (var_e3_rline), hl		; E3.cls 966
+            ld sp, (var_e3_sps)		; E3.cls 967
 			ret			; end of #asm
 
-fn_e3_radar:		; sub radar (asm keyword), E3.cls line 1121
-            pop hl		; E3.cls 1122
-            ld a, (hl)		; E3.cls 1123
-            ld (fn_e3_radar_rd_cx), a		; E3.cls 1124
-            pop hl		; E3.cls 1125
-            ld a, (hl)		; E3.cls 1126
-            ld (fn_e3_radar_rd_cy), a		; E3.cls 1127
-            ld (var_e3_sps), sp		; E3.cls 1128
-            ld sp, (ntc_csp)		; E3.cls 1129
-            ld a, (var_e3_scene0)		; E3.cls 1130
-            ld b, a		; E3.cls 1131
-            ld a, (var_e3_nobj)		; E3.cls 1132
-            sub b		; E3.cls 1133
-            jr z, fn_e3_radar_rd_end		; E3.cls 1134
-            jr c, fn_e3_radar_rd_end		; E3.cls 1135
-            ld c, a                 ; how many [1136]
-            ld l, b		; E3.cls 1137
-            ld h, 0		; E3.cls 1138
-            add hl, hl		; E3.cls 1139
-            ld (fn_e3_radar_rd_o), hl		; E3.cls 1140
-fn_e3_radar_rd_lp:		; E3.cls 1141
-            push bc		; E3.cls 1142
-            ld hl, (fn_e3_radar_rd_o)		; E3.cls 1143
-            add hl, hl		; E3.cls 1144
+fn_e3_radar:		; sub radar (asm keyword), E3.cls line 1122
+            pop hl		; E3.cls 1123
+            ld a, (hl)		; E3.cls 1124
+            ld (fn_e3_radar_rd_cx), a		; E3.cls 1125
+            pop hl		; E3.cls 1126
+            ld a, (hl)		; E3.cls 1127
+            ld (fn_e3_radar_rd_cy), a		; E3.cls 1128
+            ld (var_e3_sps), sp		; E3.cls 1129
+            ld sp, (ntc_csp)		; E3.cls 1130
+            ld a, (var_e3_scene0)		; E3.cls 1131
+            ld b, a		; E3.cls 1132
+            ld a, (var_e3_nobj)		; E3.cls 1133
+            sub b		; E3.cls 1134
+            jr z, fn_e3_radar_rd_end		; E3.cls 1135
+            jr c, fn_e3_radar_rd_end		; E3.cls 1136
+            ld c, a                 ; how many [1137]
+            ld l, b		; E3.cls 1138
+            ld h, 0		; E3.cls 1139
+            add hl, hl		; E3.cls 1140
+            ld (fn_e3_radar_rd_o), hl		; E3.cls 1141
+fn_e3_radar_rd_lp:		; E3.cls 1142
+            push bc		; E3.cls 1143
+            ld hl, (fn_e3_radar_rd_o)		; E3.cls 1144
             add hl, hl		; E3.cls 1145
             add hl, hl		; E3.cls 1146
-            ld de, arr_e3_obj + 15		; E3.cls 1147
-            add hl, de		; E3.cls 1148
-            ld a, (hl)              ; the scanner colour [1149]
-            or a		; E3.cls 1150
-            jr z, fn_e3_radar_rd_nx		; E3.cls 1151
-            ld (fn_e3_radar_rd_c), a		; E3.cls 1152
-            ld hl, (fn_e3_radar_rd_o)		; E3.cls 1153
-            ld de, arr_e3_vwz		; E3.cls 1154
-            add hl, de		; E3.cls 1155
-            ld e, (hl)		; E3.cls 1156
-            inc hl		; E3.cls 1157
-            ld d, (hl)		; E3.cls 1158
-            ld a, d                 ; z / 1024: -10 .. 10 on the scanner [1159]
-            sra a		; E3.cls 1160
+            add hl, hl		; E3.cls 1147
+            ld de, arr_e3_obj + 15		; E3.cls 1148
+            add hl, de		; E3.cls 1149
+            ld a, (hl)              ; the scanner colour [1150]
+            or a		; E3.cls 1151
+            jr z, fn_e3_radar_rd_nx		; E3.cls 1152
+            ld (fn_e3_radar_rd_c), a		; E3.cls 1153
+            ld hl, (fn_e3_radar_rd_o)		; E3.cls 1154
+            ld de, arr_e3_vwz		; E3.cls 1155
+            add hl, de		; E3.cls 1156
+            ld e, (hl)		; E3.cls 1157
+            inc hl		; E3.cls 1158
+            ld d, (hl)		; E3.cls 1159
+            ld a, d                 ; z / 1024: -10 .. 10 on the scanner [1160]
             sra a		; E3.cls 1161
-            cp 11		; E3.cls 1162
-            jp p, fn_e3_radar_rd_out            ; (ahead too far, or kind 255 / too far: 32767 or -32768) [1163]
-            cp -10		; E3.cls 1164
-            jp m, fn_e3_radar_rd_out		; E3.cls 1165
-            neg		; E3.cls 1166
-            ld hl, fn_e3_radar_rd_cy		; E3.cls 1167
-            add a, (hl)		; E3.cls 1168
-            ld e, a		; E3.cls 1169
-            ld d, 0		; E3.cls 1170
-            push de		; E3.cls 1171
-            ld hl, (fn_e3_radar_rd_o)		; E3.cls 1172
-            ld bc, arr_e3_vwx		; E3.cls 1173
-            add hl, bc		; E3.cls 1174
-            ld e, (hl)		; E3.cls 1175
-            inc hl		; E3.cls 1176
-            ld d, (hl)		; E3.cls 1177
-            sra d                   ; x / 1024 [1178]
-            ld a, d		; E3.cls 1179
-            sra a		; E3.cls 1180
-            pop de		; E3.cls 1181
-            cp 17		; E3.cls 1182
-            jp p, fn_e3_radar_rd_nx		; E3.cls 1183
-            cp -16		; E3.cls 1184
-            jp m, fn_e3_radar_rd_nx		; E3.cls 1185
-            ld hl, fn_e3_radar_rd_cx		; E3.cls 1186
-            add a, (hl)		; E3.cls 1187
-            ld l, a		; E3.cls 1188
-            ld h, 0		; E3.cls 1189
-            ld a, (fn_e3_radar_rd_c)		; E3.cls 1190
-            call fn_e3_lib_dot		; E3.cls 1191
-            jr fn_e3_radar_rd_nx		; E3.cls 1192
-fn_e3_radar_rd_out:		; E3.cls 1193
-fn_e3_radar_rd_nx:		; E3.cls 1194
-            ld hl, (fn_e3_radar_rd_o)		; E3.cls 1195
-            inc hl		; E3.cls 1196
+            sra a		; E3.cls 1162
+            cp 11		; E3.cls 1163
+            jp p, fn_e3_radar_rd_out            ; (ahead too far, or kind 255 / too far: 32767 or -32768) [1164]
+            cp -10		; E3.cls 1165
+            jp m, fn_e3_radar_rd_out		; E3.cls 1166
+            neg		; E3.cls 1167
+            ld hl, fn_e3_radar_rd_cy		; E3.cls 1168
+            add a, (hl)		; E3.cls 1169
+            ld e, a		; E3.cls 1170
+            ld d, 0		; E3.cls 1171
+            push de		; E3.cls 1172
+            ld hl, (fn_e3_radar_rd_o)		; E3.cls 1173
+            ld bc, arr_e3_vwx		; E3.cls 1174
+            add hl, bc		; E3.cls 1175
+            ld e, (hl)		; E3.cls 1176
+            inc hl		; E3.cls 1177
+            ld d, (hl)		; E3.cls 1178
+            sra d                   ; x / 1024 [1179]
+            ld a, d		; E3.cls 1180
+            sra a		; E3.cls 1181
+            pop de		; E3.cls 1182
+            cp 17		; E3.cls 1183
+            jp p, fn_e3_radar_rd_nx		; E3.cls 1184
+            cp -16		; E3.cls 1185
+            jp m, fn_e3_radar_rd_nx		; E3.cls 1186
+            ld hl, fn_e3_radar_rd_cx		; E3.cls 1187
+            add a, (hl)		; E3.cls 1188
+            ld l, a		; E3.cls 1189
+            ld h, 0		; E3.cls 1190
+            ld a, (fn_e3_radar_rd_c)		; E3.cls 1191
+            call fn_e3_lib_dot		; E3.cls 1192
+            jr fn_e3_radar_rd_nx		; E3.cls 1193
+fn_e3_radar_rd_out:		; E3.cls 1194
+fn_e3_radar_rd_nx:		; E3.cls 1195
+            ld hl, (fn_e3_radar_rd_o)		; E3.cls 1196
             inc hl		; E3.cls 1197
-            ld (fn_e3_radar_rd_o), hl		; E3.cls 1198
-            pop bc		; E3.cls 1199
-            dec c		; E3.cls 1200
-            jr nz, fn_e3_radar_rd_lp		; E3.cls 1201
-fn_e3_radar_rd_end:		; E3.cls 1202
-            ld sp, (var_e3_sps)		; E3.cls 1203
-            jr fn_e3_radar_rd_e		; E3.cls 1204
-fn_e3_radar_rd_cx:      db 0		; E3.cls 1205
-fn_e3_radar_rd_cy:      db 0		; E3.cls 1206
-fn_e3_radar_rd_c:       db 0		; E3.cls 1207
-fn_e3_radar_rd_o:       dw 0		; E3.cls 1208
-fn_e3_radar_rd_e:		; E3.cls 1209
+            inc hl		; E3.cls 1198
+            ld (fn_e3_radar_rd_o), hl		; E3.cls 1199
+            pop bc		; E3.cls 1200
+            dec c		; E3.cls 1201
+            jr nz, fn_e3_radar_rd_lp		; E3.cls 1202
+fn_e3_radar_rd_end:		; E3.cls 1203
+            ld sp, (var_e3_sps)		; E3.cls 1204
+            jr fn_e3_radar_rd_e		; E3.cls 1205
+fn_e3_radar_rd_cx:      db 0		; E3.cls 1206
+fn_e3_radar_rd_cy:      db 0		; E3.cls 1207
+fn_e3_radar_rd_c:       db 0		; E3.cls 1208
+fn_e3_radar_rd_o:       dw 0		; E3.cls 1209
+fn_e3_radar_rd_e:		; E3.cls 1210
 			ret			; end of #asm
 
-fn_e3_box:		; sub box (asm keyword), E3.cls line 1682
-            pop hl		; E3.cls 1683
-            ld e, (hl)		; E3.cls 1684
-            inc hl		; E3.cls 1685
-            ld d, (hl)		; E3.cls 1686
-            ld (arr_e3_pvx), de		; E3.cls 1687
-            ld (arr_e3_pvx + 6), de		; E3.cls 1688
-            ex de, hl		; E3.cls 1689
-            ld (fn_e3_box_bx_x), hl		; E3.cls 1690
-            pop hl		; E3.cls 1691
-            ld e, (hl)		; E3.cls 1692
-            inc hl		; E3.cls 1693
-            ld d, (hl)		; E3.cls 1694
-            ld (arr_e3_pvy), de		; E3.cls 1695
-            ld (arr_e3_pvy + 2), de		; E3.cls 1696
-            ex de, hl		; E3.cls 1697
-            ld (fn_e3_box_bx_y), hl		; E3.cls 1698
-            pop hl		; E3.cls 1699
-            ld e, (hl)		; E3.cls 1700
-            inc hl		; E3.cls 1701
-            ld d, (hl)		; E3.cls 1702
-            ld hl, (fn_e3_box_bx_x)		; E3.cls 1703
-            add hl, de		; E3.cls 1704
-            ld (arr_e3_pvx + 2), hl		; E3.cls 1705
-            ld (arr_e3_pvx + 4), hl		; E3.cls 1706
-            pop hl		; E3.cls 1707
-            ld e, (hl)		; E3.cls 1708
-            inc hl		; E3.cls 1709
-            ld d, (hl)		; E3.cls 1710
-            ld hl, (fn_e3_box_bx_y)		; E3.cls 1711
-            add hl, de		; E3.cls 1712
-            ld (arr_e3_pvy + 4), hl		; E3.cls 1713
-            ld (arr_e3_pvy + 6), hl		; E3.cls 1714
-            pop hl		; E3.cls 1715
-            ld a, (hl)		; E3.cls 1716
-            ld (var_e3_pc), a		; E3.cls 1717
-            ld (var_e3_pc + 1), a		; E3.cls 1718
-            ld a, 4		; E3.cls 1719
-            ld (var_e3_pn), a		; E3.cls 1720
-            ld (var_e3_sps), sp		; E3.cls 1721
-            ld sp, (ntc_csp)		; E3.cls 1722
-            call fn_e3_lib_fill		; E3.cls 1723
-            ld sp, (var_e3_sps)		; E3.cls 1724
-            jr fn_e3_box_bx_e		; E3.cls 1725
-fn_e3_box_bx_x:       dw 0		; E3.cls 1726
-fn_e3_box_bx_y:       dw 0		; E3.cls 1727
-fn_e3_box_bx_e:		; E3.cls 1728
+fn_e3_box:		; sub box (asm keyword), E3.cls line 1683
+            pop hl		; E3.cls 1684
+            ld e, (hl)		; E3.cls 1685
+            inc hl		; E3.cls 1686
+            ld d, (hl)		; E3.cls 1687
+            ld (arr_e3_pvx), de		; E3.cls 1688
+            ld (arr_e3_pvx + 6), de		; E3.cls 1689
+            ex de, hl		; E3.cls 1690
+            ld (fn_e3_box_bx_x), hl		; E3.cls 1691
+            pop hl		; E3.cls 1692
+            ld e, (hl)		; E3.cls 1693
+            inc hl		; E3.cls 1694
+            ld d, (hl)		; E3.cls 1695
+            ld (arr_e3_pvy), de		; E3.cls 1696
+            ld (arr_e3_pvy + 2), de		; E3.cls 1697
+            ex de, hl		; E3.cls 1698
+            ld (fn_e3_box_bx_y), hl		; E3.cls 1699
+            pop hl		; E3.cls 1700
+            ld e, (hl)		; E3.cls 1701
+            inc hl		; E3.cls 1702
+            ld d, (hl)		; E3.cls 1703
+            ld hl, (fn_e3_box_bx_x)		; E3.cls 1704
+            add hl, de		; E3.cls 1705
+            ld (arr_e3_pvx + 2), hl		; E3.cls 1706
+            ld (arr_e3_pvx + 4), hl		; E3.cls 1707
+            pop hl		; E3.cls 1708
+            ld e, (hl)		; E3.cls 1709
+            inc hl		; E3.cls 1710
+            ld d, (hl)		; E3.cls 1711
+            ld hl, (fn_e3_box_bx_y)		; E3.cls 1712
+            add hl, de		; E3.cls 1713
+            ld (arr_e3_pvy + 4), hl		; E3.cls 1714
+            ld (arr_e3_pvy + 6), hl		; E3.cls 1715
+            pop hl		; E3.cls 1716
+            ld a, (hl)		; E3.cls 1717
+            ld (var_e3_pc), a		; E3.cls 1718
+            ld (var_e3_pc + 1), a		; E3.cls 1719
+            ld a, 4		; E3.cls 1720
+            ld (var_e3_pn), a		; E3.cls 1721
+            ld (var_e3_sps), sp		; E3.cls 1722
+            ld sp, (ntc_csp)		; E3.cls 1723
+            call fn_e3_lib_fill		; E3.cls 1724
+            ld sp, (var_e3_sps)		; E3.cls 1725
+            jr fn_e3_box_bx_e		; E3.cls 1726
+fn_e3_box_bx_x:       dw 0		; E3.cls 1727
+fn_e3_box_bx_y:       dw 0		; E3.cls 1728
+fn_e3_box_bx_e:		; E3.cls 1729
 			ret			; end of #asm
 
-fn_e3_waitwrap:		; sub waitwrap (asm keyword), E3.cls line 1973
-            ld (var_e3_sps), sp		; E3.cls 1974
-            ld sp, (ntc_csp)		; E3.cls 1975
-            ld a, (var_e3_vbl)		; E3.cls 1976
-            ld e, a		; E3.cls 1977
-fn_e3_waitwrap_ww_lp:		; E3.cls 1978
-            call fn_e3_lib_vpoll		; E3.cls 1979
-            ld a, (var_e3_vbl)		; E3.cls 1980
-            cp e		; E3.cls 1981
-            jr z, fn_e3_waitwrap_ww_lp		; E3.cls 1982
-            ld sp, (var_e3_sps)		; E3.cls 1983
+fn_e3_waitwrap:		; sub waitwrap (asm keyword), E3.cls line 1974
+            ld (var_e3_sps), sp		; E3.cls 1975
+            ld sp, (ntc_csp)		; E3.cls 1976
+            ld a, (var_e3_vbl)		; E3.cls 1977
+            ld e, a		; E3.cls 1978
+fn_e3_waitwrap_ww_lp:		; E3.cls 1979
+            call fn_e3_lib_vpoll		; E3.cls 1980
+            ld a, (var_e3_vbl)		; E3.cls 1981
+            cp e		; E3.cls 1982
+            jr z, fn_e3_waitwrap_ww_lp		; E3.cls 1983
+            ld sp, (var_e3_sps)		; E3.cls 1984
 			ret			; end of #asm
 
-fn_e3_dot:		; sub dot (asm keyword), E3.cls line 1989
-            pop hl		; E3.cls 1990
-            ld e, (hl)		; E3.cls 1991
-            inc hl		; E3.cls 1992
-            ld d, (hl)		; E3.cls 1993
-            ld (fn_e3_dot_dw_x), de		; E3.cls 1994
-            pop hl		; E3.cls 1995
-            ld e, (hl)		; E3.cls 1996
-            inc hl		; E3.cls 1997
-            ld d, (hl)		; E3.cls 1998
-            ld (fn_e3_dot_dw_y), de		; E3.cls 1999
-            pop hl		; E3.cls 2000
-            ld a, (hl)		; E3.cls 2001
-            ld (var_e3_sps), sp		; E3.cls 2002
-            ld sp, (ntc_csp)		; E3.cls 2003
-            ld hl, (fn_e3_dot_dw_x)		; E3.cls 2004
-            ld de, (fn_e3_dot_dw_y)		; E3.cls 2005
-            call fn_e3_lib_dot		; E3.cls 2006
-            ld sp, (var_e3_sps)		; E3.cls 2007
-            jr fn_e3_dot_dw_e		; E3.cls 2008
-fn_e3_dot_dw_x:       dw 0		; E3.cls 2009
-fn_e3_dot_dw_y:       dw 0		; E3.cls 2010
-fn_e3_dot_dw_e:		; E3.cls 2011
+fn_e3_dot:		; sub dot (asm keyword), E3.cls line 1990
+            pop hl		; E3.cls 1991
+            ld e, (hl)		; E3.cls 1992
+            inc hl		; E3.cls 1993
+            ld d, (hl)		; E3.cls 1994
+            ld (fn_e3_dot_dw_x), de		; E3.cls 1995
+            pop hl		; E3.cls 1996
+            ld e, (hl)		; E3.cls 1997
+            inc hl		; E3.cls 1998
+            ld d, (hl)		; E3.cls 1999
+            ld (fn_e3_dot_dw_y), de		; E3.cls 2000
+            pop hl		; E3.cls 2001
+            ld a, (hl)		; E3.cls 2002
+            ld (var_e3_sps), sp		; E3.cls 2003
+            ld sp, (ntc_csp)		; E3.cls 2004
+            ld hl, (fn_e3_dot_dw_x)		; E3.cls 2005
+            ld de, (fn_e3_dot_dw_y)		; E3.cls 2006
+            call fn_e3_lib_dot		; E3.cls 2007
+            ld sp, (var_e3_sps)		; E3.cls 2008
+            jr fn_e3_dot_dw_e		; E3.cls 2009
+fn_e3_dot_dw_x:       dw 0		; E3.cls 2010
+fn_e3_dot_dw_y:       dw 0		; E3.cls 2011
+fn_e3_dot_dw_e:		; E3.cls 2012
 			ret			; end of #asm
 
-fn_e3_viewall:		; sub viewall (asm keyword), E3.cls line 2018
-            ld (var_e3_sps), sp		; E3.cls 2019
-            ld sp, (ntc_csp)		; E3.cls 2020
-            ld (var_e3_six), ix		; E3.cls 2021
-            push iy		; E3.cls 2022
-            call fn_e3_lib_vall		; E3.cls 2023
-            pop iy		; E3.cls 2024
-            ld ix, (var_e3_six)		; E3.cls 2025
-            ld sp, (var_e3_sps)		; E3.cls 2026
+fn_e3_viewall:		; sub viewall (asm keyword), E3.cls line 2019
+            ld (var_e3_sps), sp		; E3.cls 2020
+            ld sp, (ntc_csp)		; E3.cls 2021
+            ld (var_e3_six), ix		; E3.cls 2022
+            push iy		; E3.cls 2023
+            call fn_e3_lib_vall		; E3.cls 2024
+            pop iy		; E3.cls 2025
+            ld ix, (var_e3_six)		; E3.cls 2026
+            ld sp, (var_e3_sps)		; E3.cls 2027
 			ret			; end of #asm
 
-fn_e3_scene:		; sub scene (asm keyword), E3.cls line 2032
-            ld (var_e3_sps), sp		; E3.cls 2033
-            ld sp, (ntc_csp)		; E3.cls 2034
-            ld (var_e3_six), ix		; E3.cls 2035
-            push iy		; E3.cls 2036
-            call fn_e3_lib_scene		; E3.cls 2037
-            pop iy		; E3.cls 2038
-            ld ix, (var_e3_six)		; E3.cls 2039
-            ld sp, (var_e3_sps)		; E3.cls 2040
+fn_e3_scene:		; sub scene (asm keyword), E3.cls line 2033
+            ld (var_e3_sps), sp		; E3.cls 2034
+            ld sp, (ntc_csp)		; E3.cls 2035
+            ld (var_e3_six), ix		; E3.cls 2036
+            push iy		; E3.cls 2037
+            call fn_e3_lib_scene		; E3.cls 2038
+            pop iy		; E3.cls 2039
+            ld ix, (var_e3_six)		; E3.cls 2040
+            ld sp, (var_e3_sps)		; E3.cls 2041
 			ret			; end of #asm
 
-fn_e3_lib:		; sub lib (asm keyword), E3.cls line 2103
-            ret		; E3.cls 2104
-fn_e3_lib_dpage:      db 10                   ; the data's first page (DataOn): slots 6 and 7 between drawings [2105]
+fn_e3_lib:		; sub lib (asm keyword), E3.cls line 2104
+            ret		; E3.cls 2105
+fn_e3_lib_dpage:      db 10                   ; the data's first page (DataOn): slots 6 and 7 between drawings [2106]
 ; ============================================================================ the multiplies
 ; umul: BC x DE (unsigned) -> HL:DE
-fn_e3_lib_umul:		; E3.cls 2108
-            ld a, e		; E3.cls 2109
-            ld l, d                 ; (d0 kept in L) [2110]
-            ld d, c		; E3.cls 2111
-            mul d, e                ; c * e0 [2112]
-            push de		; E3.cls 2113
-            ld d, b		; E3.cls 2114
-            ld e, a		; E3.cls 2115
-            mul d, e                ; b * e0 [2116]
-            ld a, l		; E3.cls 2117
-            ld h, d		; E3.cls 2118
-            ld l, e		; E3.cls 2119
-            ld d, c		; E3.cls 2120
-            ld e, a		; E3.cls 2121
-            mul d, e                ; c * d0 [2122]
-            add hl, de              ; the middle (17 bits) [2123]
-            ld c, 0		; E3.cls 2124
-            rl c		; E3.cls 2125
-            ld d, b		; E3.cls 2126
-            ld e, a		; E3.cls 2127
-            mul d, e                ; b * d0 [2128]
-            ld a, h		; E3.cls 2129
-            ld b, l		; E3.cls 2130
-            ex de, hl               ; HL = b * d0 [2131]
-            ld e, a		; E3.cls 2132
-            ld d, c		; E3.cls 2133
-            add hl, de              ; + the middle's top [2134]
-            pop de                  ; c * e0 [2135]
-            ld a, d		; E3.cls 2136
-            add a, b                ; + the middle's bottom [2137]
-            ld d, a		; E3.cls 2138
-            ret nc		; E3.cls 2139
-            inc hl		; E3.cls 2140
-            ret		; E3.cls 2141
+fn_e3_lib_umul:		; E3.cls 2109
+            ld a, e		; E3.cls 2110
+            ld l, d                 ; (d0 kept in L) [2111]
+            ld d, c		; E3.cls 2112
+            mul d, e                ; c * e0 [2113]
+            push de		; E3.cls 2114
+            ld d, b		; E3.cls 2115
+            ld e, a		; E3.cls 2116
+            mul d, e                ; b * e0 [2117]
+            ld a, l		; E3.cls 2118
+            ld h, d		; E3.cls 2119
+            ld l, e		; E3.cls 2120
+            ld d, c		; E3.cls 2121
+            ld e, a		; E3.cls 2122
+            mul d, e                ; c * d0 [2123]
+            add hl, de              ; the middle (17 bits) [2124]
+            ld c, 0		; E3.cls 2125
+            rl c		; E3.cls 2126
+            ld d, b		; E3.cls 2127
+            ld e, a		; E3.cls 2128
+            mul d, e                ; b * d0 [2129]
+            ld a, h		; E3.cls 2130
+            ld b, l		; E3.cls 2131
+            ex de, hl               ; HL = b * d0 [2132]
+            ld e, a		; E3.cls 2133
+            ld d, c		; E3.cls 2134
+            add hl, de              ; + the middle's top [2135]
+            pop de                  ; c * e0 [2136]
+            ld a, d		; E3.cls 2137
+            add a, b                ; + the middle's bottom [2138]
+            ld d, a		; E3.cls 2139
+            ret nc		; E3.cls 2140
+            inc hl		; E3.cls 2141
+            ret		; E3.cls 2142
 ; smul: BC (signed) x DE (unsigned) -> HL:DE (signed)
-fn_e3_lib_smul:		; E3.cls 2143
-            bit 7, b		; E3.cls 2144
-            jp z, fn_e3_lib_umul		; E3.cls 2145
-            push de		; E3.cls 2146
-            call fn_e3_lib_umul		; E3.cls 2147
-            ex (sp), hl		; E3.cls 2148
-            ex de, hl		; E3.cls 2149
-            ex (sp), hl		; E3.cls 2150
-            or a		; E3.cls 2151
-            sbc hl, de		; E3.cls 2152
-            pop de		; E3.cls 2153
-            ret		; E3.cls 2154
+fn_e3_lib_smul:		; E3.cls 2144
+            bit 7, b		; E3.cls 2145
+            jp z, fn_e3_lib_umul		; E3.cls 2146
+            push de		; E3.cls 2147
+            call fn_e3_lib_umul		; E3.cls 2148
+            ex (sp), hl		; E3.cls 2149
+            ex de, hl		; E3.cls 2150
+            ex (sp), hl		; E3.cls 2151
+            or a		; E3.cls 2152
+            sbc hl, de		; E3.cls 2153
+            pop de		; E3.cls 2154
+            ret		; E3.cls 2155
 ; ssmul: BC x DE (both signed) -> HL:DE
-fn_e3_lib_ssmul:		; E3.cls 2156
-            push bc		; E3.cls 2157
-            push de		; E3.cls 2158
-            call fn_e3_lib_umul		; E3.cls 2159
-            ld (fn_e3_lib_ss_lo), de		; E3.cls 2160
-            pop de		; E3.cls 2161
-            pop bc		; E3.cls 2162
-            bit 7, b		; E3.cls 2163
-            jr z, fn_e3_lib_ss_1		; E3.cls 2164
-            or a		; E3.cls 2165
-            sbc hl, de		; E3.cls 2166
-fn_e3_lib_ss_1:		; E3.cls 2167
-            bit 7, d		; E3.cls 2168
-            jr z, fn_e3_lib_ss_2		; E3.cls 2169
-            or a		; E3.cls 2170
-            sbc hl, bc		; E3.cls 2171
-fn_e3_lib_ss_2:		; E3.cls 2172
-            ld de, (fn_e3_lib_ss_lo)		; E3.cls 2173
-            ret		; E3.cls 2174
-fn_e3_lib_ss_lo:      dw 0		; E3.cls 2175
+fn_e3_lib_ssmul:		; E3.cls 2157
+            push bc		; E3.cls 2158
+            push de		; E3.cls 2159
+            call fn_e3_lib_umul		; E3.cls 2160
+            ld (fn_e3_lib_ss_lo), de		; E3.cls 2161
+            pop de		; E3.cls 2162
+            pop bc		; E3.cls 2163
+            bit 7, b		; E3.cls 2164
+            jr z, fn_e3_lib_ss_1		; E3.cls 2165
+            or a		; E3.cls 2166
+            sbc hl, de		; E3.cls 2167
+fn_e3_lib_ss_1:		; E3.cls 2168
+            bit 7, d		; E3.cls 2169
+            jr z, fn_e3_lib_ss_2		; E3.cls 2170
+            or a		; E3.cls 2171
+            sbc hl, bc		; E3.cls 2172
+fn_e3_lib_ss_2:		; E3.cls 2173
+            ld de, (fn_e3_lib_ss_lo)		; E3.cls 2174
+            ret		; E3.cls 2175
+fn_e3_lib_ss_lo:      dw 0		; E3.cls 2176
 ; m14: (BC x DE) >> 14 -> HL (s1.14 products)
-fn_e3_lib_m14:		; E3.cls 2177
-            call fn_e3_lib_ssmul		; E3.cls 2178
-            ld a, d		; E3.cls 2179
-            add a, a		; E3.cls 2180
-            adc hl, hl		; E3.cls 2181
-            add a, a		; E3.cls 2182
-            adc hl, hl		; E3.cls 2183
-            ret		; E3.cls 2184
+fn_e3_lib_m14:		; E3.cls 2178
+            call fn_e3_lib_ssmul		; E3.cls 2179
+            ld a, d		; E3.cls 2180
+            add a, a		; E3.cls 2181
+            adc hl, hl		; E3.cls 2182
+            add a, a		; E3.cls 2183
+            adc hl, hl		; E3.cls 2184
+            ret		; E3.cls 2185
 ; m816: A (signed) x DE (signed) -> A:HL (24 bits signed)
-fn_e3_lib_m816:		; E3.cls 2186
-            ld c, a		; E3.cls 2187
-            xor d		; E3.cls 2188
-            ld (fn_e3_lib_m8_sg), a		; E3.cls 2189
-            ld a, c		; E3.cls 2190
-            or a		; E3.cls 2191
-            jp p, fn_e3_lib_m8_1		; E3.cls 2192
-            neg		; E3.cls 2193
-fn_e3_lib_m8_1:		; E3.cls 2194
-            ld c, a                 ; |a| [2195]
-            bit 7, d		; E3.cls 2196
-            jr z, fn_e3_lib_m8_2		; E3.cls 2197
-            xor a		; E3.cls 2198
-            sub e		; E3.cls 2199
-            ld e, a		; E3.cls 2200
-            sbc a, a		; E3.cls 2201
-            sub d		; E3.cls 2202
-            ld d, a                 ; |de| [2203]
-fn_e3_lib_m8_2:		; E3.cls 2204
-            ld a, d		; E3.cls 2205
-            ld d, c		; E3.cls 2206
-            mul d, e                ; |a| * e [2207]
-            ld h, d		; E3.cls 2208
-            ld l, e		; E3.cls 2209
-            ld e, a		; E3.cls 2210
-            ld d, c		; E3.cls 2211
-            mul d, e                ; |a| * d [2212]
-            ld a, e		; E3.cls 2213
-            add a, h		; E3.cls 2214
-            ld h, a		; E3.cls 2215
-            ld a, d		; E3.cls 2216
-            adc a, 0		; E3.cls 2217
-            ld c, a		; E3.cls 2218
-            ld a, (fn_e3_lib_m8_sg)		; E3.cls 2219
-            or a		; E3.cls 2220
-            ld a, c		; E3.cls 2221
-            ret p		; E3.cls 2222
-            ld c, a		; E3.cls 2223
-            xor a		; E3.cls 2224
-            sub l		; E3.cls 2225
-            ld l, a		; E3.cls 2226
-            ld a, 0		; E3.cls 2227
-            sbc a, h		; E3.cls 2228
-            ld h, a		; E3.cls 2229
-            ld a, 0		; E3.cls 2230
-            sbc a, c		; E3.cls 2231
-            ret		; E3.cls 2232
-fn_e3_lib_m8_sg:      db 0		; E3.cls 2233
+fn_e3_lib_m816:		; E3.cls 2187
+            ld c, a		; E3.cls 2188
+            xor d		; E3.cls 2189
+            ld (fn_e3_lib_m8_sg), a		; E3.cls 2190
+            ld a, c		; E3.cls 2191
+            or a		; E3.cls 2192
+            jp p, fn_e3_lib_m8_1		; E3.cls 2193
+            neg		; E3.cls 2194
+fn_e3_lib_m8_1:		; E3.cls 2195
+            ld c, a                 ; |a| [2196]
+            bit 7, d		; E3.cls 2197
+            jr z, fn_e3_lib_m8_2		; E3.cls 2198
+            xor a		; E3.cls 2199
+            sub e		; E3.cls 2200
+            ld e, a		; E3.cls 2201
+            sbc a, a		; E3.cls 2202
+            sub d		; E3.cls 2203
+            ld d, a                 ; |de| [2204]
+fn_e3_lib_m8_2:		; E3.cls 2205
+            ld a, d		; E3.cls 2206
+            ld d, c		; E3.cls 2207
+            mul d, e                ; |a| * e [2208]
+            ld h, d		; E3.cls 2209
+            ld l, e		; E3.cls 2210
+            ld e, a		; E3.cls 2211
+            ld d, c		; E3.cls 2212
+            mul d, e                ; |a| * d [2213]
+            ld a, e		; E3.cls 2214
+            add a, h		; E3.cls 2215
+            ld h, a		; E3.cls 2216
+            ld a, d		; E3.cls 2217
+            adc a, 0		; E3.cls 2218
+            ld c, a		; E3.cls 2219
+            ld a, (fn_e3_lib_m8_sg)		; E3.cls 2220
+            or a		; E3.cls 2221
+            ld a, c		; E3.cls 2222
+            ret p		; E3.cls 2223
+            ld c, a		; E3.cls 2224
+            xor a		; E3.cls 2225
+            sub l		; E3.cls 2226
+            ld l, a		; E3.cls 2227
+            ld a, 0		; E3.cls 2228
+            sbc a, h		; E3.cls 2229
+            ld h, a		; E3.cls 2230
+            ld a, 0		; E3.cls 2231
+            sbc a, c		; E3.cls 2232
+            ret		; E3.cls 2233
+fn_e3_lib_m8_sg:      db 0		; E3.cls 2234
 ; udivf: HL / DE (unsigned, HL < DE) -> HL = HL * 65536 / DE (HL >= DE: 65535)
-fn_e3_lib_udivf:		; E3.cls 2235
-            push hl		; E3.cls 2236
-            or a		; E3.cls 2237
-            sbc hl, de		; E3.cls 2238
-            pop hl		; E3.cls 2239
-            jr c, fn_e3_lib_ud_go		; E3.cls 2240
-            ld hl, 65535		; E3.cls 2241
-            ret		; E3.cls 2242
-fn_e3_lib_ud_go:		; E3.cls 2243
-            ld bc, 0		; E3.cls 2244
-            ld a, 16		; E3.cls 2245
-fn_e3_lib_ud_lp:		; E3.cls 2246
-            add hl, hl		; E3.cls 2247
-            jr c, fn_e3_lib_ud_sub		; E3.cls 2248
-            or a		; E3.cls 2249
-            sbc hl, de		; E3.cls 2250
-            jr nc, fn_e3_lib_ud_one		; E3.cls 2251
-            add hl, de		; E3.cls 2252
-            sla c		; E3.cls 2253
-            rl b		; E3.cls 2254
-            dec a		; E3.cls 2255
-            jr nz, fn_e3_lib_ud_lp		; E3.cls 2256
-            jr fn_e3_lib_ud_end		; E3.cls 2257
-fn_e3_lib_ud_sub:		; E3.cls 2258
-            or a		; E3.cls 2259
-            sbc hl, de		; E3.cls 2260
-fn_e3_lib_ud_one:		; E3.cls 2261
-            scf		; E3.cls 2262
-            rl c		; E3.cls 2263
-            rl b		; E3.cls 2264
-            dec a		; E3.cls 2265
-            jr nz, fn_e3_lib_ud_lp		; E3.cls 2266
-fn_e3_lib_ud_end:		; E3.cls 2267
-            ld h, b		; E3.cls 2268
-            ld l, c		; E3.cls 2269
-            ret		; E3.cls 2270
+fn_e3_lib_udivf:		; E3.cls 2236
+            push hl		; E3.cls 2237
+            or a		; E3.cls 2238
+            sbc hl, de		; E3.cls 2239
+            pop hl		; E3.cls 2240
+            jr c, fn_e3_lib_ud_go		; E3.cls 2241
+            ld hl, 65535		; E3.cls 2242
+            ret		; E3.cls 2243
+fn_e3_lib_ud_go:		; E3.cls 2244
+            ld bc, 0		; E3.cls 2245
+            ld a, 16		; E3.cls 2246
+fn_e3_lib_ud_lp:		; E3.cls 2247
+            add hl, hl		; E3.cls 2248
+            jr c, fn_e3_lib_ud_sub		; E3.cls 2249
+            or a		; E3.cls 2250
+            sbc hl, de		; E3.cls 2251
+            jr nc, fn_e3_lib_ud_one		; E3.cls 2252
+            add hl, de		; E3.cls 2253
+            sla c		; E3.cls 2254
+            rl b		; E3.cls 2255
+            dec a		; E3.cls 2256
+            jr nz, fn_e3_lib_ud_lp		; E3.cls 2257
+            jr fn_e3_lib_ud_end		; E3.cls 2258
+fn_e3_lib_ud_sub:		; E3.cls 2259
+            or a		; E3.cls 2260
+            sbc hl, de		; E3.cls 2261
+fn_e3_lib_ud_one:		; E3.cls 2262
+            scf		; E3.cls 2263
+            rl c		; E3.cls 2264
+            rl b		; E3.cls 2265
+            dec a		; E3.cls 2266
+            jr nz, fn_e3_lib_ud_lp		; E3.cls 2267
+fn_e3_lib_ud_end:		; E3.cls 2268
+            ld h, b		; E3.cls 2269
+            ld l, c		; E3.cls 2270
+            ret		; E3.cls 2271
 ; absh: HL = |HL|
-fn_e3_lib_absh:		; E3.cls 2272
-            bit 7, h		; E3.cls 2273
-            ret z		; E3.cls 2274
-            ex de, hl		; E3.cls 2275
-            ld hl, 0		; E3.cls 2276
-            or a		; E3.cls 2277
-            sbc hl, de		; E3.cls 2278
-            ret		; E3.cls 2279
+fn_e3_lib_absh:		; E3.cls 2273
+            bit 7, h		; E3.cls 2274
+            ret z		; E3.cls 2275
+            ex de, hl		; E3.cls 2276
+            ld hl, 0		; E3.cls 2277
+            or a		; E3.cls 2278
+            sbc hl, de		; E3.cls 2279
+            ret		; E3.cls 2280
 ; mrow: (IX: 3 words) . (IY: 3 words) >> 14 -> HL (32 bit sum)
-fn_e3_lib_mrow:		; E3.cls 2281
-            ld c, (ix + 0)		; E3.cls 2282
-            ld b, (ix + 1)		; E3.cls 2283
-            ld e, (iy + 0)		; E3.cls 2284
-            ld d, (iy + 1)		; E3.cls 2285
-            call fn_e3_lib_ssmul		; E3.cls 2286
-            ld (fn_e3_lib_mr_l), de		; E3.cls 2287
-            ld (fn_e3_lib_mr_h), hl		; E3.cls 2288
-            ld c, (ix + 2)		; E3.cls 2289
-            ld b, (ix + 3)		; E3.cls 2290
-            ld e, (iy + 2)		; E3.cls 2291
-            ld d, (iy + 3)		; E3.cls 2292
-            call fn_e3_lib_ssmul		; E3.cls 2293
-            call fn_e3_lib_mr_add		; E3.cls 2294
-            ld c, (ix + 4)		; E3.cls 2295
-            ld b, (ix + 5)		; E3.cls 2296
-            ld e, (iy + 4)		; E3.cls 2297
-            ld d, (iy + 5)		; E3.cls 2298
-            call fn_e3_lib_ssmul		; E3.cls 2299
-            call fn_e3_lib_mr_add		; E3.cls 2300
-            ld hl, (fn_e3_lib_mr_h)		; E3.cls 2301
-            ld a, (fn_e3_lib_mr_l + 1)		; E3.cls 2302
-            add a, a		; E3.cls 2303
-            adc hl, hl		; E3.cls 2304
-            add a, a		; E3.cls 2305
-            adc hl, hl		; E3.cls 2306
-            ret		; E3.cls 2307
-fn_e3_lib_mr_add:		; E3.cls 2308
-            push hl		; E3.cls 2309
-            ld hl, (fn_e3_lib_mr_l)		; E3.cls 2310
-            add hl, de		; E3.cls 2311
-            ld (fn_e3_lib_mr_l), hl		; E3.cls 2312
-            pop de		; E3.cls 2313
-            ld hl, (fn_e3_lib_mr_h)		; E3.cls 2314
-            adc hl, de		; E3.cls 2315
-            ld (fn_e3_lib_mr_h), hl		; E3.cls 2316
-            ret		; E3.cls 2317
-fn_e3_lib_mr_l:       dw 0		; E3.cls 2318
-fn_e3_lib_mr_h:       dw 0		; E3.cls 2319
+fn_e3_lib_mrow:		; E3.cls 2282
+            ld c, (ix + 0)		; E3.cls 2283
+            ld b, (ix + 1)		; E3.cls 2284
+            ld e, (iy + 0)		; E3.cls 2285
+            ld d, (iy + 1)		; E3.cls 2286
+            call fn_e3_lib_ssmul		; E3.cls 2287
+            ld (fn_e3_lib_mr_l), de		; E3.cls 2288
+            ld (fn_e3_lib_mr_h), hl		; E3.cls 2289
+            ld c, (ix + 2)		; E3.cls 2290
+            ld b, (ix + 3)		; E3.cls 2291
+            ld e, (iy + 2)		; E3.cls 2292
+            ld d, (iy + 3)		; E3.cls 2293
+            call fn_e3_lib_ssmul		; E3.cls 2294
+            call fn_e3_lib_mr_add		; E3.cls 2295
+            ld c, (ix + 4)		; E3.cls 2296
+            ld b, (ix + 5)		; E3.cls 2297
+            ld e, (iy + 4)		; E3.cls 2298
+            ld d, (iy + 5)		; E3.cls 2299
+            call fn_e3_lib_ssmul		; E3.cls 2300
+            call fn_e3_lib_mr_add		; E3.cls 2301
+            ld hl, (fn_e3_lib_mr_h)		; E3.cls 2302
+            ld a, (fn_e3_lib_mr_l + 1)		; E3.cls 2303
+            add a, a		; E3.cls 2304
+            adc hl, hl		; E3.cls 2305
+            add a, a		; E3.cls 2306
+            adc hl, hl		; E3.cls 2307
+            ret		; E3.cls 2308
+fn_e3_lib_mr_add:		; E3.cls 2309
+            push hl		; E3.cls 2310
+            ld hl, (fn_e3_lib_mr_l)		; E3.cls 2311
+            add hl, de		; E3.cls 2312
+            ld (fn_e3_lib_mr_l), hl		; E3.cls 2313
+            pop de		; E3.cls 2314
+            ld hl, (fn_e3_lib_mr_h)		; E3.cls 2315
+            adc hl, de		; E3.cls 2316
+            ld (fn_e3_lib_mr_h), hl		; E3.cls 2317
+            ret		; E3.cls 2318
+fn_e3_lib_mr_l:       dw 0		; E3.cls 2319
+fn_e3_lib_mr_h:       dw 0		; E3.cls 2320
 ; ============================================================================ the camera
 ; rotp: rows IX (A) and IY (B) of the camera turned by HL / 16384 radians: A = A c + B s,
 ; B = B c - A s (s = a, c = 1 - a^2 / 2)
-fn_e3_lib_rotp:		; E3.cls 2323
-            ld a, h		; E3.cls 2324
-            or l		; E3.cls 2325
-            ret z		; E3.cls 2326
-            ld (fn_e3_lib_rp_s), hl		; E3.cls 2327
-            ld b, h		; E3.cls 2328
-            ld c, l		; E3.cls 2329
-            ld d, h		; E3.cls 2330
-            ld e, l		; E3.cls 2331
-            call fn_e3_lib_ssmul              ; a^2 (s2.28) -> a^2 / 2 in s1.14 is HL:DE >> 15 [2332]
-            ld a, d		; E3.cls 2333
-            add a, a		; E3.cls 2334
-            adc hl, hl              ; HL = a^2 >> 15 [2335]
-            ex de, hl		; E3.cls 2336
-            ld hl, 16384		; E3.cls 2337
-            or a		; E3.cls 2338
-            sbc hl, de		; E3.cls 2339
-            ld (fn_e3_lib_rp_c), hl		; E3.cls 2340
-            ld b, 3		; E3.cls 2341
-fn_e3_lib_rp_lp:		; E3.cls 2342
-            push bc		; E3.cls 2343
-            ld c, (ix + 0)          ; A c [2344]
-            ld b, (ix + 1)		; E3.cls 2345
-            ld de, (fn_e3_lib_rp_c)		; E3.cls 2346
-            call fn_e3_lib_m14		; E3.cls 2347
-            ld (fn_e3_lib_rp_t), hl		; E3.cls 2348
-            ld c, (iy + 0)          ; + B s [2349]
-            ld b, (iy + 1)		; E3.cls 2350
-            ld de, (fn_e3_lib_rp_s)		; E3.cls 2351
-            call fn_e3_lib_m14		; E3.cls 2352
-            ld de, (fn_e3_lib_rp_t)		; E3.cls 2353
-            add hl, de		; E3.cls 2354
-            ld (fn_e3_lib_rp_na), hl		; E3.cls 2355
-            ld c, (iy + 0)          ; B c [2356]
-            ld b, (iy + 1)		; E3.cls 2357
-            ld de, (fn_e3_lib_rp_c)		; E3.cls 2358
-            call fn_e3_lib_m14		; E3.cls 2359
-            ld (fn_e3_lib_rp_t), hl		; E3.cls 2360
-            ld c, (ix + 0)          ; - A s [2361]
-            ld b, (ix + 1)		; E3.cls 2362
-            ld de, (fn_e3_lib_rp_s)		; E3.cls 2363
-            call fn_e3_lib_m14		; E3.cls 2364
-            ex de, hl		; E3.cls 2365
-            ld hl, (fn_e3_lib_rp_t)		; E3.cls 2366
-            or a		; E3.cls 2367
-            sbc hl, de		; E3.cls 2368
-            ld (iy + 0), l		; E3.cls 2369
-            ld (iy + 1), h		; E3.cls 2370
-            ld hl, (fn_e3_lib_rp_na)		; E3.cls 2371
-            ld (ix + 0), l		; E3.cls 2372
-            ld (ix + 1), h		; E3.cls 2373
-            inc ix		; E3.cls 2374
+fn_e3_lib_rotp:		; E3.cls 2324
+            ld a, h		; E3.cls 2325
+            or l		; E3.cls 2326
+            ret z		; E3.cls 2327
+            ld (fn_e3_lib_rp_s), hl		; E3.cls 2328
+            ld b, h		; E3.cls 2329
+            ld c, l		; E3.cls 2330
+            ld d, h		; E3.cls 2331
+            ld e, l		; E3.cls 2332
+            call fn_e3_lib_ssmul              ; a^2 (s2.28) -> a^2 / 2 in s1.14 is HL:DE >> 15 [2333]
+            ld a, d		; E3.cls 2334
+            add a, a		; E3.cls 2335
+            adc hl, hl              ; HL = a^2 >> 15 [2336]
+            ex de, hl		; E3.cls 2337
+            ld hl, 16384		; E3.cls 2338
+            or a		; E3.cls 2339
+            sbc hl, de		; E3.cls 2340
+            ld (fn_e3_lib_rp_c), hl		; E3.cls 2341
+            ld b, 3		; E3.cls 2342
+fn_e3_lib_rp_lp:		; E3.cls 2343
+            push bc		; E3.cls 2344
+            ld c, (ix + 0)          ; A c [2345]
+            ld b, (ix + 1)		; E3.cls 2346
+            ld de, (fn_e3_lib_rp_c)		; E3.cls 2347
+            call fn_e3_lib_m14		; E3.cls 2348
+            ld (fn_e3_lib_rp_t), hl		; E3.cls 2349
+            ld c, (iy + 0)          ; + B s [2350]
+            ld b, (iy + 1)		; E3.cls 2351
+            ld de, (fn_e3_lib_rp_s)		; E3.cls 2352
+            call fn_e3_lib_m14		; E3.cls 2353
+            ld de, (fn_e3_lib_rp_t)		; E3.cls 2354
+            add hl, de		; E3.cls 2355
+            ld (fn_e3_lib_rp_na), hl		; E3.cls 2356
+            ld c, (iy + 0)          ; B c [2357]
+            ld b, (iy + 1)		; E3.cls 2358
+            ld de, (fn_e3_lib_rp_c)		; E3.cls 2359
+            call fn_e3_lib_m14		; E3.cls 2360
+            ld (fn_e3_lib_rp_t), hl		; E3.cls 2361
+            ld c, (ix + 0)          ; - A s [2362]
+            ld b, (ix + 1)		; E3.cls 2363
+            ld de, (fn_e3_lib_rp_s)		; E3.cls 2364
+            call fn_e3_lib_m14		; E3.cls 2365
+            ex de, hl		; E3.cls 2366
+            ld hl, (fn_e3_lib_rp_t)		; E3.cls 2367
+            or a		; E3.cls 2368
+            sbc hl, de		; E3.cls 2369
+            ld (iy + 0), l		; E3.cls 2370
+            ld (iy + 1), h		; E3.cls 2371
+            ld hl, (fn_e3_lib_rp_na)		; E3.cls 2372
+            ld (ix + 0), l		; E3.cls 2373
+            ld (ix + 1), h		; E3.cls 2374
             inc ix		; E3.cls 2375
-            inc iy		; E3.cls 2376
+            inc ix		; E3.cls 2376
             inc iy		; E3.cls 2377
-            pop bc		; E3.cls 2378
-            djnz fn_e3_lib_rp_lp		; E3.cls 2379
-            ret		; E3.cls 2380
-fn_e3_lib_rp_s:       dw 0		; E3.cls 2381
-fn_e3_lib_rp_c:       dw 0		; E3.cls 2382
-fn_e3_lib_rp_t:       dw 0		; E3.cls 2383
-fn_e3_lib_rp_na:      dw 0		; E3.cls 2384
+            inc iy		; E3.cls 2378
+            pop bc		; E3.cls 2379
+            djnz fn_e3_lib_rp_lp		; E3.cls 2380
+            ret		; E3.cls 2381
+fn_e3_lib_rp_s:       dw 0		; E3.cls 2382
+fn_e3_lib_rp_c:       dw 0		; E3.cls 2383
+fn_e3_lib_rp_t:       dw 0		; E3.cls 2384
+fn_e3_lib_rp_na:      dw 0		; E3.cls 2385
 ; renorm: F unit length, U square to F and unit, R = U x F; then the sun in the view
-fn_e3_lib_renorm:		; E3.cls 2386
-            ld ix, arr_e3_cm + 12		; E3.cls 2387
-            call fn_e3_lib_rn_unit		; E3.cls 2388
-            ld ix, arr_e3_cm + 6         ; U -= (U . F) F [2389]
-            ld iy, arr_e3_cm + 12		; E3.cls 2390
-            call fn_e3_lib_mrow		; E3.cls 2391
-            ld (fn_e3_lib_rn_d), hl		; E3.cls 2392
-            ld b, 3		; E3.cls 2393
-fn_e3_lib_rn_lp:		; E3.cls 2394
-            push bc		; E3.cls 2395
-            ld c, (iy + 0)		; E3.cls 2396
-            ld b, (iy + 1)		; E3.cls 2397
-            ld de, (fn_e3_lib_rn_d)		; E3.cls 2398
-            call fn_e3_lib_m14		; E3.cls 2399
-            ex de, hl		; E3.cls 2400
-            ld l, (ix + 0)		; E3.cls 2401
-            ld h, (ix + 1)		; E3.cls 2402
-            or a		; E3.cls 2403
-            sbc hl, de		; E3.cls 2404
-            ld (ix + 0), l		; E3.cls 2405
-            ld (ix + 1), h		; E3.cls 2406
-            inc ix		; E3.cls 2407
+fn_e3_lib_renorm:		; E3.cls 2387
+            ld ix, arr_e3_cm + 12		; E3.cls 2388
+            call fn_e3_lib_rn_unit		; E3.cls 2389
+            ld ix, arr_e3_cm + 6         ; U -= (U . F) F [2390]
+            ld iy, arr_e3_cm + 12		; E3.cls 2391
+            call fn_e3_lib_mrow		; E3.cls 2392
+            ld (fn_e3_lib_rn_d), hl		; E3.cls 2393
+            ld b, 3		; E3.cls 2394
+fn_e3_lib_rn_lp:		; E3.cls 2395
+            push bc		; E3.cls 2396
+            ld c, (iy + 0)		; E3.cls 2397
+            ld b, (iy + 1)		; E3.cls 2398
+            ld de, (fn_e3_lib_rn_d)		; E3.cls 2399
+            call fn_e3_lib_m14		; E3.cls 2400
+            ex de, hl		; E3.cls 2401
+            ld l, (ix + 0)		; E3.cls 2402
+            ld h, (ix + 1)		; E3.cls 2403
+            or a		; E3.cls 2404
+            sbc hl, de		; E3.cls 2405
+            ld (ix + 0), l		; E3.cls 2406
+            ld (ix + 1), h		; E3.cls 2407
             inc ix		; E3.cls 2408
-            inc iy		; E3.cls 2409
+            inc ix		; E3.cls 2409
             inc iy		; E3.cls 2410
-            pop bc		; E3.cls 2411
-            djnz fn_e3_lib_rn_lp		; E3.cls 2412
-            ld ix, arr_e3_cm + 6		; E3.cls 2413
-            call fn_e3_lib_rn_unit		; E3.cls 2414
+            inc iy		; E3.cls 2411
+            pop bc		; E3.cls 2412
+            djnz fn_e3_lib_rn_lp		; E3.cls 2413
+            ld ix, arr_e3_cm + 6		; E3.cls 2414
+            call fn_e3_lib_rn_unit		; E3.cls 2415
             ; R = U x F: Rx = Uy Fz - Uz Fy, Ry = Uz Fx - Ux Fz, Rz = Ux Fy - Uy Fx
-            ld hl, arr_e3_cm + 8		; E3.cls 2416
-            ld de, arr_e3_cm + 16		; E3.cls 2417
-            ld bc, arr_e3_cm + 10		; E3.cls 2418
-            ld ix, arr_e3_cm + 14		; E3.cls 2419
-            call fn_e3_lib_rn_cross		; E3.cls 2420
-            ld (arr_e3_cm), hl		; E3.cls 2421
-            ld hl, arr_e3_cm + 10		; E3.cls 2422
-            ld de, arr_e3_cm + 12		; E3.cls 2423
-            ld bc, arr_e3_cm + 6		; E3.cls 2424
-            ld ix, arr_e3_cm + 16		; E3.cls 2425
-            call fn_e3_lib_rn_cross		; E3.cls 2426
-            ld (arr_e3_cm + 2), hl		; E3.cls 2427
-            ld hl, arr_e3_cm + 6		; E3.cls 2428
-            ld de, arr_e3_cm + 14		; E3.cls 2429
-            ld bc, arr_e3_cm + 8		; E3.cls 2430
-            ld ix, arr_e3_cm + 12		; E3.cls 2431
-            call fn_e3_lib_rn_cross		; E3.cls 2432
-            ld (arr_e3_cm + 4), hl		; E3.cls 2433
-fn_e3_lib_sunv:		; E3.cls 2434
-            ld iy, arr_e3_sun            ; the sun in the view [2435]
-            ld ix, arr_e3_cm		; E3.cls 2436
-            call fn_e3_lib_mrow		; E3.cls 2437
-            ld (arr_e3_suc), hl		; E3.cls 2438
-            ld ix, arr_e3_cm + 6		; E3.cls 2439
-            call fn_e3_lib_mrow		; E3.cls 2440
-            ld (arr_e3_suc + 2), hl		; E3.cls 2441
-            ld ix, arr_e3_cm + 12		; E3.cls 2442
-            call fn_e3_lib_mrow		; E3.cls 2443
-            ld (arr_e3_suc + 4), hl		; E3.cls 2444
-            ld hl, arr_e3_cm             ; the camera >> k (k 0..6, rounded): cms + 18 k [2445]
-            ld de, fn_e3_lib_cms		; E3.cls 2446
-            ld bc, 18		; E3.cls 2447
-            ldir		; E3.cls 2448
-            ld ix, fn_e3_lib_cms		; E3.cls 2449
-            ld b, 6 * 9		; E3.cls 2450
-fn_e3_lib_cs_lp:		; E3.cls 2451
-            ld l, (ix + 0)		; E3.cls 2452
-            ld h, (ix + 1)		; E3.cls 2453
-            sra h		; E3.cls 2454
-            rr l		; E3.cls 2455
-            ld de, 0		; E3.cls 2456
-            adc hl, de              ; (rounded: the bit shifted out added back) [2457]
-            ld (ix + 18), l		; E3.cls 2458
-            ld (ix + 19), h		; E3.cls 2459
-            inc ix		; E3.cls 2460
+            ld hl, arr_e3_cm + 8		; E3.cls 2417
+            ld de, arr_e3_cm + 16		; E3.cls 2418
+            ld bc, arr_e3_cm + 10		; E3.cls 2419
+            ld ix, arr_e3_cm + 14		; E3.cls 2420
+            call fn_e3_lib_rn_cross		; E3.cls 2421
+            ld (arr_e3_cm), hl		; E3.cls 2422
+            ld hl, arr_e3_cm + 10		; E3.cls 2423
+            ld de, arr_e3_cm + 12		; E3.cls 2424
+            ld bc, arr_e3_cm + 6		; E3.cls 2425
+            ld ix, arr_e3_cm + 16		; E3.cls 2426
+            call fn_e3_lib_rn_cross		; E3.cls 2427
+            ld (arr_e3_cm + 2), hl		; E3.cls 2428
+            ld hl, arr_e3_cm + 6		; E3.cls 2429
+            ld de, arr_e3_cm + 14		; E3.cls 2430
+            ld bc, arr_e3_cm + 8		; E3.cls 2431
+            ld ix, arr_e3_cm + 12		; E3.cls 2432
+            call fn_e3_lib_rn_cross		; E3.cls 2433
+            ld (arr_e3_cm + 4), hl		; E3.cls 2434
+fn_e3_lib_sunv:		; E3.cls 2435
+            ld iy, arr_e3_sun            ; the sun in the view [2436]
+            ld ix, arr_e3_cm		; E3.cls 2437
+            call fn_e3_lib_mrow		; E3.cls 2438
+            ld (arr_e3_suc), hl		; E3.cls 2439
+            ld ix, arr_e3_cm + 6		; E3.cls 2440
+            call fn_e3_lib_mrow		; E3.cls 2441
+            ld (arr_e3_suc + 2), hl		; E3.cls 2442
+            ld ix, arr_e3_cm + 12		; E3.cls 2443
+            call fn_e3_lib_mrow		; E3.cls 2444
+            ld (arr_e3_suc + 4), hl		; E3.cls 2445
+            ld hl, arr_e3_cm             ; the camera >> k (k 0..6, rounded): cms + 18 k [2446]
+            ld de, fn_e3_lib_cms		; E3.cls 2447
+            ld bc, 18		; E3.cls 2448
+            ldir		; E3.cls 2449
+            ld ix, fn_e3_lib_cms		; E3.cls 2450
+            ld b, 6 * 9		; E3.cls 2451
+fn_e3_lib_cs_lp:		; E3.cls 2452
+            ld l, (ix + 0)		; E3.cls 2453
+            ld h, (ix + 1)		; E3.cls 2454
+            sra h		; E3.cls 2455
+            rr l		; E3.cls 2456
+            ld de, 0		; E3.cls 2457
+            adc hl, de              ; (rounded: the bit shifted out added back) [2458]
+            ld (ix + 18), l		; E3.cls 2459
+            ld (ix + 19), h		; E3.cls 2460
             inc ix		; E3.cls 2461
-            djnz fn_e3_lib_cs_lp		; E3.cls 2462
-            ld hl, arr_e3_cm             ; 8 bit copies (>> 7, to +-127): the camera, the sun in the view [2463]
-            ld de, fn_e3_lib_cm8		; E3.cls 2464
-            ld b, 9		; E3.cls 2465
-fn_e3_lib_s8_lp:		; E3.cls 2466
-            call fn_e3_lib_s8_one		; E3.cls 2467
-            djnz fn_e3_lib_s8_lp		; E3.cls 2468
-            ld hl, arr_e3_suc		; E3.cls 2469
-            ld de, fn_e3_lib_suc8		; E3.cls 2470
-            ld b, 3		; E3.cls 2471
-fn_e3_lib_s8_l2:		; E3.cls 2472
-            call fn_e3_lib_s8_one		; E3.cls 2473
-            djnz fn_e3_lib_s8_l2		; E3.cls 2474
-            ld hl, arr_e3_sun		; E3.cls 2475
-            ld de, fn_e3_lib_sunw8		; E3.cls 2476
-            ld b, 3		; E3.cls 2477
-fn_e3_lib_s8_l3:		; E3.cls 2478
-            call fn_e3_lib_s8_one		; E3.cls 2479
-            djnz fn_e3_lib_s8_l3		; E3.cls 2480
-            ret		; E3.cls 2481
-fn_e3_lib_s8_one:		; E3.cls 2482
-            ld a, (hl)		; E3.cls 2483
-            inc hl		; E3.cls 2484
-            push hl		; E3.cls 2485
-            ld h, (hl)		; E3.cls 2486
-            ld l, a		; E3.cls 2487
-            push de		; E3.cls 2488
-            ld de, 64		; E3.cls 2489
-            add hl, de		; E3.cls 2490
-            pop de		; E3.cls 2491
-            add hl, hl		; E3.cls 2492
-            ld a, h		; E3.cls 2493
-            jr c, fn_e3_lib_s8_neg		; E3.cls 2494
-            cp 128		; E3.cls 2495
-            jr c, fn_e3_lib_s8_st		; E3.cls 2496
-            ld a, 127		; E3.cls 2497
-            jr fn_e3_lib_s8_st		; E3.cls 2498
-fn_e3_lib_s8_neg:		; E3.cls 2499
-            cp 129		; E3.cls 2500
-            jr nc, fn_e3_lib_s8_st		; E3.cls 2501
-            ld a, 129		; E3.cls 2502
-fn_e3_lib_s8_st:		; E3.cls 2503
-            ld (de), a		; E3.cls 2504
-            inc de		; E3.cls 2505
-            pop hl		; E3.cls 2506
-            inc hl		; E3.cls 2507
-            ret		; E3.cls 2508
-fn_e3_lib_rn_d:       dw 0		; E3.cls 2509
+            inc ix		; E3.cls 2462
+            djnz fn_e3_lib_cs_lp		; E3.cls 2463
+            ld hl, arr_e3_cm             ; 8 bit copies (>> 7, to +-127): the camera, the sun in the view [2464]
+            ld de, fn_e3_lib_cm8		; E3.cls 2465
+            ld b, 9		; E3.cls 2466
+fn_e3_lib_s8_lp:		; E3.cls 2467
+            call fn_e3_lib_s8_one		; E3.cls 2468
+            djnz fn_e3_lib_s8_lp		; E3.cls 2469
+            ld hl, arr_e3_suc		; E3.cls 2470
+            ld de, fn_e3_lib_suc8		; E3.cls 2471
+            ld b, 3		; E3.cls 2472
+fn_e3_lib_s8_l2:		; E3.cls 2473
+            call fn_e3_lib_s8_one		; E3.cls 2474
+            djnz fn_e3_lib_s8_l2		; E3.cls 2475
+            ld hl, arr_e3_sun		; E3.cls 2476
+            ld de, fn_e3_lib_sunw8		; E3.cls 2477
+            ld b, 3		; E3.cls 2478
+fn_e3_lib_s8_l3:		; E3.cls 2479
+            call fn_e3_lib_s8_one		; E3.cls 2480
+            djnz fn_e3_lib_s8_l3		; E3.cls 2481
+            ret		; E3.cls 2482
+fn_e3_lib_s8_one:		; E3.cls 2483
+            ld a, (hl)		; E3.cls 2484
+            inc hl		; E3.cls 2485
+            push hl		; E3.cls 2486
+            ld h, (hl)		; E3.cls 2487
+            ld l, a		; E3.cls 2488
+            push de		; E3.cls 2489
+            ld de, 64		; E3.cls 2490
+            add hl, de		; E3.cls 2491
+            pop de		; E3.cls 2492
+            add hl, hl		; E3.cls 2493
+            ld a, h		; E3.cls 2494
+            jr c, fn_e3_lib_s8_neg		; E3.cls 2495
+            cp 128		; E3.cls 2496
+            jr c, fn_e3_lib_s8_st		; E3.cls 2497
+            ld a, 127		; E3.cls 2498
+            jr fn_e3_lib_s8_st		; E3.cls 2499
+fn_e3_lib_s8_neg:		; E3.cls 2500
+            cp 129		; E3.cls 2501
+            jr nc, fn_e3_lib_s8_st		; E3.cls 2502
+            ld a, 129		; E3.cls 2503
+fn_e3_lib_s8_st:		; E3.cls 2504
+            ld (de), a		; E3.cls 2505
+            inc de		; E3.cls 2506
+            pop hl		; E3.cls 2507
+            inc hl		; E3.cls 2508
+            ret		; E3.cls 2509
+fn_e3_lib_rn_d:       dw 0		; E3.cls 2510
 ; rn_cross: (HL) x (DE) - (BC) x (IX) (words; s1.14 products) -> HL
-fn_e3_lib_rn_cross:		; E3.cls 2511
-            ld (fn_e3_lib_rc_b), bc		; E3.cls 2512
-            ld a, (hl)		; E3.cls 2513
-            inc hl		; E3.cls 2514
-            ld h, (hl)		; E3.cls 2515
-            ld l, a		; E3.cls 2516
-            ex de, hl		; E3.cls 2517
-            ld a, (hl)		; E3.cls 2518
-            inc hl		; E3.cls 2519
-            ld h, (hl)		; E3.cls 2520
-            ld l, a		; E3.cls 2521
-            ld b, d		; E3.cls 2522
-            ld c, e		; E3.cls 2523
-            ex de, hl		; E3.cls 2524
-            call fn_e3_lib_m14		; E3.cls 2525
-            ld (fn_e3_lib_rc_t), hl		; E3.cls 2526
-            ld hl, (fn_e3_lib_rc_b)		; E3.cls 2527
-            ld c, (hl)		; E3.cls 2528
-            inc hl		; E3.cls 2529
-            ld b, (hl)		; E3.cls 2530
-            ld e, (ix + 0)		; E3.cls 2531
-            ld d, (ix + 1)		; E3.cls 2532
-            call fn_e3_lib_m14		; E3.cls 2533
-            ex de, hl		; E3.cls 2534
-            ld hl, (fn_e3_lib_rc_t)		; E3.cls 2535
-            or a		; E3.cls 2536
-            sbc hl, de		; E3.cls 2537
-            ret		; E3.cls 2538
-fn_e3_lib_rc_b:       dw 0		; E3.cls 2539
-fn_e3_lib_rc_t:       dw 0		; E3.cls 2540
+fn_e3_lib_rn_cross:		; E3.cls 2512
+            ld (fn_e3_lib_rc_b), bc		; E3.cls 2513
+            ld a, (hl)		; E3.cls 2514
+            inc hl		; E3.cls 2515
+            ld h, (hl)		; E3.cls 2516
+            ld l, a		; E3.cls 2517
+            ex de, hl		; E3.cls 2518
+            ld a, (hl)		; E3.cls 2519
+            inc hl		; E3.cls 2520
+            ld h, (hl)		; E3.cls 2521
+            ld l, a		; E3.cls 2522
+            ld b, d		; E3.cls 2523
+            ld c, e		; E3.cls 2524
+            ex de, hl		; E3.cls 2525
+            call fn_e3_lib_m14		; E3.cls 2526
+            ld (fn_e3_lib_rc_t), hl		; E3.cls 2527
+            ld hl, (fn_e3_lib_rc_b)		; E3.cls 2528
+            ld c, (hl)		; E3.cls 2529
+            inc hl		; E3.cls 2530
+            ld b, (hl)		; E3.cls 2531
+            ld e, (ix + 0)		; E3.cls 2532
+            ld d, (ix + 1)		; E3.cls 2533
+            call fn_e3_lib_m14		; E3.cls 2534
+            ex de, hl		; E3.cls 2535
+            ld hl, (fn_e3_lib_rc_t)		; E3.cls 2536
+            or a		; E3.cls 2537
+            sbc hl, de		; E3.cls 2538
+            ret		; E3.cls 2539
+fn_e3_lib_rc_b:       dw 0		; E3.cls 2540
+fn_e3_lib_rc_t:       dw 0		; E3.cls 2541
 ; rn_unit: the vector at IX (3 words, near unit length) scaled by (3 - |v|^2) / 2
-fn_e3_lib_rn_unit:		; E3.cls 2542
-            push ix		; E3.cls 2543
-            pop iy		; E3.cls 2544
-            call fn_e3_lib_mrow               ; |v|^2 (s1.14) [2545]
-            ex de, hl		; E3.cls 2546
-            ld hl, 49152		; E3.cls 2547
-            or a		; E3.cls 2548
-            sbc hl, de		; E3.cls 2549
-            srl h		; E3.cls 2550
-            rr l                    ; (3 - k) / 2 [2551]
-            ld (fn_e3_lib_rn_k), hl		; E3.cls 2552
-            ld b, 3		; E3.cls 2553
-fn_e3_lib_ru_lp:		; E3.cls 2554
-            push bc		; E3.cls 2555
-            ld c, (ix + 0)		; E3.cls 2556
-            ld b, (ix + 1)		; E3.cls 2557
-            ld de, (fn_e3_lib_rn_k)		; E3.cls 2558
-            call fn_e3_lib_m14		; E3.cls 2559
-            ld (ix + 0), l		; E3.cls 2560
-            ld (ix + 1), h		; E3.cls 2561
-            inc ix		; E3.cls 2562
+fn_e3_lib_rn_unit:		; E3.cls 2543
+            push ix		; E3.cls 2544
+            pop iy		; E3.cls 2545
+            call fn_e3_lib_mrow               ; |v|^2 (s1.14) [2546]
+            ex de, hl		; E3.cls 2547
+            ld hl, 49152		; E3.cls 2548
+            or a		; E3.cls 2549
+            sbc hl, de		; E3.cls 2550
+            srl h		; E3.cls 2551
+            rr l                    ; (3 - k) / 2 [2552]
+            ld (fn_e3_lib_rn_k), hl		; E3.cls 2553
+            ld b, 3		; E3.cls 2554
+fn_e3_lib_ru_lp:		; E3.cls 2555
+            push bc		; E3.cls 2556
+            ld c, (ix + 0)		; E3.cls 2557
+            ld b, (ix + 1)		; E3.cls 2558
+            ld de, (fn_e3_lib_rn_k)		; E3.cls 2559
+            call fn_e3_lib_m14		; E3.cls 2560
+            ld (ix + 0), l		; E3.cls 2561
+            ld (ix + 1), h		; E3.cls 2562
             inc ix		; E3.cls 2563
-            pop bc		; E3.cls 2564
-            djnz fn_e3_lib_ru_lp		; E3.cls 2565
-            ret		; E3.cls 2566
-fn_e3_lib_rn_k:       dw 0		; E3.cls 2567
+            inc ix		; E3.cls 2564
+            pop bc		; E3.cls 2565
+            djnz fn_e3_lib_ru_lp		; E3.cls 2566
+            ret		; E3.cls 2567
+fn_e3_lib_rn_k:       dw 0		; E3.cls 2568
 ; ============================================================================ the polygon filler
 ; fill: pvx, pvy (pn vertices, clockwise on the screen) in the colours pc
-fn_e3_lib_fill:		; E3.cls 2570
-            ld a, (var_e3_pn)		; E3.cls 2571
-            cp 3		; E3.cls 2572
-            ret c		; E3.cls 2573
-            push iy		; E3.cls 2574
-            push ix		; E3.cls 2575
-            ld (fn_e3_lib_fl_ssp), sp		; E3.cls 2576
+fn_e3_lib_fill:		; E3.cls 2571
+            ld a, (var_e3_pn)		; E3.cls 2572
+            cp 3		; E3.cls 2573
+            ret c		; E3.cls 2574
+            push iy		; E3.cls 2575
+            push ix		; E3.cls 2576
+            ld (fn_e3_lib_fl_ssp), sp		; E3.cls 2577
             ; all on the screen (x 1..255, y 0..192)? Then the fast way, the points as bytes
-            cp 49		; E3.cls 2578
-            jp nc, fn_e3_lib_fl_exit		; E3.cls 2579
-            ld b, a		; E3.cls 2580
-            ld hl, arr_e3_pvx		; E3.cls 2581
-            ld de, arr_e3_pvy		; E3.cls 2582
-            ld ix, fn_e3_lib_ff_v		; E3.cls 2583
-            ld c, 0		; E3.cls 2584
-            ld a, 255		; E3.cls 2585
-            ld (fn_e3_lib_ff_ytop), a		; E3.cls 2586
-            xor a		; E3.cls 2587
-            ld (fn_e3_lib_ff_ybot), a		; E3.cls 2588
-fn_e3_lib_fs_lp:		; E3.cls 2589
-            ld a, (hl)		; E3.cls 2590
-            inc hl		; E3.cls 2591
-            or a		; E3.cls 2592
-            jp z, fn_e3_lib_fl_slow           ; x = 0 [2593]
-            ld (ix + 0), a		; E3.cls 2594
-            ld a, (hl)		; E3.cls 2595
-            inc hl		; E3.cls 2596
-            or a		; E3.cls 2597
-            jp nz, fn_e3_lib_fl_slow          ; x < 0 or over 255 [2598]
-            ld a, (de)		; E3.cls 2599
-            inc de		; E3.cls 2600
-            ld (ix + 1), a		; E3.cls 2601
-            cp 193		; E3.cls 2602
-            jp nc, fn_e3_lib_fl_slow		; E3.cls 2603
-            ld a, (de)		; E3.cls 2604
-            inc de		; E3.cls 2605
-            or a		; E3.cls 2606
-            jp nz, fn_e3_lib_fl_slow          ; y < 0 or over 192 [2607]
-            ld a, (ix + 1)          ; the top (the first), the bottom [2608]
-            push hl		; E3.cls 2609
-            ld hl, fn_e3_lib_ff_ytop		; E3.cls 2610
-            cp (hl)		; E3.cls 2611
-            jr nc, fn_e3_lib_fs_1		; E3.cls 2612
-            ld (hl), a		; E3.cls 2613
-            ld a, c		; E3.cls 2614
-            ld (fn_e3_lib_ff_top), a		; E3.cls 2615
-            ld a, (ix + 1)		; E3.cls 2616
-fn_e3_lib_fs_1:		; E3.cls 2617
-            ld hl, fn_e3_lib_ff_ybot		; E3.cls 2618
-            cp (hl)		; E3.cls 2619
-            jr c, fn_e3_lib_fs_2		; E3.cls 2620
-            ld (hl), a		; E3.cls 2621
-fn_e3_lib_fs_2:		; E3.cls 2622
-            pop hl		; E3.cls 2623
-            inc ix		; E3.cls 2624
+            cp 49		; E3.cls 2579
+            jp nc, fn_e3_lib_fl_exit		; E3.cls 2580
+            ld b, a		; E3.cls 2581
+            ld hl, arr_e3_pvx		; E3.cls 2582
+            ld de, arr_e3_pvy		; E3.cls 2583
+            ld ix, fn_e3_lib_ff_v		; E3.cls 2584
+            ld c, 0		; E3.cls 2585
+            ld a, 255		; E3.cls 2586
+            ld (fn_e3_lib_ff_ytop), a		; E3.cls 2587
+            xor a		; E3.cls 2588
+            ld (fn_e3_lib_ff_ybot), a		; E3.cls 2589
+fn_e3_lib_fs_lp:		; E3.cls 2590
+            ld a, (hl)		; E3.cls 2591
+            inc hl		; E3.cls 2592
+            or a		; E3.cls 2593
+            jp z, fn_e3_lib_fl_slow           ; x = 0 [2594]
+            ld (ix + 0), a		; E3.cls 2595
+            ld a, (hl)		; E3.cls 2596
+            inc hl		; E3.cls 2597
+            or a		; E3.cls 2598
+            jp nz, fn_e3_lib_fl_slow          ; x < 0 or over 255 [2599]
+            ld a, (de)		; E3.cls 2600
+            inc de		; E3.cls 2601
+            ld (ix + 1), a		; E3.cls 2602
+            cp 193		; E3.cls 2603
+            jp nc, fn_e3_lib_fl_slow		; E3.cls 2604
+            ld a, (de)		; E3.cls 2605
+            inc de		; E3.cls 2606
+            or a		; E3.cls 2607
+            jp nz, fn_e3_lib_fl_slow          ; y < 0 or over 192 [2608]
+            ld a, (ix + 1)          ; the top (the first), the bottom [2609]
+            push hl		; E3.cls 2610
+            ld hl, fn_e3_lib_ff_ytop		; E3.cls 2611
+            cp (hl)		; E3.cls 2612
+            jr nc, fn_e3_lib_fs_1		; E3.cls 2613
+            ld (hl), a		; E3.cls 2614
+            ld a, c		; E3.cls 2615
+            ld (fn_e3_lib_ff_top), a		; E3.cls 2616
+            ld a, (ix + 1)		; E3.cls 2617
+fn_e3_lib_fs_1:		; E3.cls 2618
+            ld hl, fn_e3_lib_ff_ybot		; E3.cls 2619
+            cp (hl)		; E3.cls 2620
+            jr c, fn_e3_lib_fs_2		; E3.cls 2621
+            ld (hl), a		; E3.cls 2622
+fn_e3_lib_fs_2:		; E3.cls 2623
+            pop hl		; E3.cls 2624
             inc ix		; E3.cls 2625
-            inc c		; E3.cls 2626
-            djnz fn_e3_lib_fs_lp		; E3.cls 2627
-            jp fn_e3_lib_ff		; E3.cls 2628
-fn_e3_lib_fl_exit:		; E3.cls 2629
-            ld sp, (fn_e3_lib_fl_ssp)		; E3.cls 2630
-            ld a, (fn_e3_lib_dpage)		; E3.cls 2631
-            db #ED, #92, #56		; E3.cls 2632
-            inc a		; E3.cls 2633
-            db #ED, #92, #57		; E3.cls 2634
-            pop ix		; E3.cls 2635
-            pop iy		; E3.cls 2636
-            ret		; E3.cls 2637
-fn_e3_lib_fl_slow:		; E3.cls 2638
+            inc ix		; E3.cls 2626
+            inc c		; E3.cls 2627
+            djnz fn_e3_lib_fs_lp		; E3.cls 2628
+            jp fn_e3_lib_ff		; E3.cls 2629
+fn_e3_lib_fl_exit:		; E3.cls 2630
+            ld sp, (fn_e3_lib_fl_ssp)		; E3.cls 2631
+            ld a, (fn_e3_lib_dpage)		; E3.cls 2632
+            db #ED, #92, #56		; E3.cls 2633
+            inc a		; E3.cls 2634
+            db #ED, #92, #57		; E3.cls 2635
+            pop ix		; E3.cls 2636
+            pop iy		; E3.cls 2637
+            ret		; E3.cls 2638
+fn_e3_lib_fl_slow:		; E3.cls 2639
             ; not all on the screen: the sides crossed (x < 1, x > 255, y < 0, y > 192); all off one
             ; side: nothing; else cut to them into ff_v, then the fast way
-            ld a, (var_e3_pn)		; E3.cls 2641
-            cp 49		; E3.cls 2642
-            jp nc, fn_e3_lib_fl_exit		; E3.cls 2643
-            ld b, a		; E3.cls 2644
-            ld hl, arr_e3_pvx		; E3.cls 2645
-            ld de, arr_e3_pvy		; E3.cls 2646
-            ld c, 0		; E3.cls 2647
-            ld a, #0F		; E3.cls 2648
-            ld (fn_e3_lib_c2_and), a		; E3.cls 2649
-fn_e3_lib_fo_lp:		; E3.cls 2650
-            push bc		; E3.cls 2651
-            ld c, (hl)		; E3.cls 2652
-            inc hl		; E3.cls 2653
-            ld b, (hl)		; E3.cls 2654
-            inc hl		; E3.cls 2655
-            push hl		; E3.cls 2656
-            ld l, 0		; E3.cls 2657
-            bit 7, b		; E3.cls 2658
-            jr nz, fn_e3_lib_fo_x0		; E3.cls 2659
-            ld a, b		; E3.cls 2660
-            or a		; E3.cls 2661
-            jr nz, fn_e3_lib_fo_x1		; E3.cls 2662
-            ld a, c		; E3.cls 2663
-            or a		; E3.cls 2664
-            jr nz, fn_e3_lib_fo_y		; E3.cls 2665
-fn_e3_lib_fo_x0:		; E3.cls 2666
-            set 0, l		; E3.cls 2667
-            jr fn_e3_lib_fo_y		; E3.cls 2668
-fn_e3_lib_fo_x1:		; E3.cls 2669
-            set 1, l		; E3.cls 2670
-fn_e3_lib_fo_y:		; E3.cls 2671
-            ld a, (de)		; E3.cls 2672
-            ld c, a		; E3.cls 2673
-            inc de		; E3.cls 2674
-            ld a, (de)		; E3.cls 2675
-            inc de		; E3.cls 2676
-            ld b, a		; E3.cls 2677
-            bit 7, b		; E3.cls 2678
-            jr nz, fn_e3_lib_fo_y0		; E3.cls 2679
-            or a		; E3.cls 2680
-            jr nz, fn_e3_lib_fo_y1		; E3.cls 2681
-            ld a, c		; E3.cls 2682
-            cp 193		; E3.cls 2683
-            jr c, fn_e3_lib_fo_ok		; E3.cls 2684
-fn_e3_lib_fo_y1:		; E3.cls 2685
-            set 3, l		; E3.cls 2686
-            jr fn_e3_lib_fo_ok		; E3.cls 2687
-fn_e3_lib_fo_y0:		; E3.cls 2688
-            set 2, l		; E3.cls 2689
-fn_e3_lib_fo_ok:		; E3.cls 2690
-            ld a, (fn_e3_lib_c2_and)		; E3.cls 2691
-            and l		; E3.cls 2692
-            ld (fn_e3_lib_c2_and), a		; E3.cls 2693
-            ld a, l		; E3.cls 2694
-            pop hl		; E3.cls 2695
-            pop bc		; E3.cls 2696
-            or c		; E3.cls 2697
-            ld c, a		; E3.cls 2698
-            djnz fn_e3_lib_fo_lp		; E3.cls 2699
-            ld a, (fn_e3_lib_c2_and)		; E3.cls 2700
-            or a		; E3.cls 2701
-            jp nz, fn_e3_lib_fl_exit		; E3.cls 2702
-            ld a, c		; E3.cls 2703
-            ld (fn_e3_lib_c2_mask), a		; E3.cls 2704
-            call fn_e3_lib_clip2		; E3.cls 2705
-            ld a, (var_e3_pn)		; E3.cls 2706
-            cp 3		; E3.cls 2707
-            jp c, fn_e3_lib_fl_exit		; E3.cls 2708
-            jp fn_e3_lib_ff		; E3.cls 2709
+            ld a, (var_e3_pn)		; E3.cls 2642
+            cp 49		; E3.cls 2643
+            jp nc, fn_e3_lib_fl_exit		; E3.cls 2644
+            ld b, a		; E3.cls 2645
+            ld hl, arr_e3_pvx		; E3.cls 2646
+            ld de, arr_e3_pvy		; E3.cls 2647
+            ld c, 0		; E3.cls 2648
+            ld a, #0F		; E3.cls 2649
+            ld (fn_e3_lib_c2_and), a		; E3.cls 2650
+fn_e3_lib_fo_lp:		; E3.cls 2651
+            push bc		; E3.cls 2652
+            ld c, (hl)		; E3.cls 2653
+            inc hl		; E3.cls 2654
+            ld b, (hl)		; E3.cls 2655
+            inc hl		; E3.cls 2656
+            push hl		; E3.cls 2657
+            ld l, 0		; E3.cls 2658
+            bit 7, b		; E3.cls 2659
+            jr nz, fn_e3_lib_fo_x0		; E3.cls 2660
+            ld a, b		; E3.cls 2661
+            or a		; E3.cls 2662
+            jr nz, fn_e3_lib_fo_x1		; E3.cls 2663
+            ld a, c		; E3.cls 2664
+            or a		; E3.cls 2665
+            jr nz, fn_e3_lib_fo_y		; E3.cls 2666
+fn_e3_lib_fo_x0:		; E3.cls 2667
+            set 0, l		; E3.cls 2668
+            jr fn_e3_lib_fo_y		; E3.cls 2669
+fn_e3_lib_fo_x1:		; E3.cls 2670
+            set 1, l		; E3.cls 2671
+fn_e3_lib_fo_y:		; E3.cls 2672
+            ld a, (de)		; E3.cls 2673
+            ld c, a		; E3.cls 2674
+            inc de		; E3.cls 2675
+            ld a, (de)		; E3.cls 2676
+            inc de		; E3.cls 2677
+            ld b, a		; E3.cls 2678
+            bit 7, b		; E3.cls 2679
+            jr nz, fn_e3_lib_fo_y0		; E3.cls 2680
+            or a		; E3.cls 2681
+            jr nz, fn_e3_lib_fo_y1		; E3.cls 2682
+            ld a, c		; E3.cls 2683
+            cp 193		; E3.cls 2684
+            jr c, fn_e3_lib_fo_ok		; E3.cls 2685
+fn_e3_lib_fo_y1:		; E3.cls 2686
+            set 3, l		; E3.cls 2687
+            jr fn_e3_lib_fo_ok		; E3.cls 2688
+fn_e3_lib_fo_y0:		; E3.cls 2689
+            set 2, l		; E3.cls 2690
+fn_e3_lib_fo_ok:		; E3.cls 2691
+            ld a, (fn_e3_lib_c2_and)		; E3.cls 2692
+            and l		; E3.cls 2693
+            ld (fn_e3_lib_c2_and), a		; E3.cls 2694
+            ld a, l		; E3.cls 2695
+            pop hl		; E3.cls 2696
+            pop bc		; E3.cls 2697
+            or c		; E3.cls 2698
+            ld c, a		; E3.cls 2699
+            djnz fn_e3_lib_fo_lp		; E3.cls 2700
+            ld a, (fn_e3_lib_c2_and)		; E3.cls 2701
+            or a		; E3.cls 2702
+            jp nz, fn_e3_lib_fl_exit		; E3.cls 2703
+            ld a, c		; E3.cls 2704
+            ld (fn_e3_lib_c2_mask), a		; E3.cls 2705
+            call fn_e3_lib_clip2		; E3.cls 2706
+            ld a, (var_e3_pn)		; E3.cls 2707
+            cp 3		; E3.cls 2708
+            jp c, fn_e3_lib_fl_exit		; E3.cls 2709
+            jp fn_e3_lib_ff		; E3.cls 2710
 ; ---- the fast way: both sides stepped in registers (8.8), no tables. The left side: HL' x,
 ; DE' its step; the right: IX x (the last pixel), BC' its step; IYH the row's address (high),
 ; IYL the rows to go; DE the colours
-fn_e3_lib_ff:		; E3.cls 2713
-            call fn_e3_lib_vpoll		; E3.cls 2714
-            ld a, (fn_e3_lib_ff_ytop)		; E3.cls 2715
-            ld b, a		; E3.cls 2716
-            ld a, (fn_e3_lib_ff_ybot)		; E3.cls 2717
-            cp b		; E3.cls 2718
-            jp z, fn_e3_lib_fl_exit           ; (flat) [2719]
-            ld a, b		; E3.cls 2720
-            ld (fn_e3_lib_ff_y), a		; E3.cls 2721
-            ld a, (var_e3_pn)            ; the points' ends (for going round them) [2722]
-            add a, a		; E3.cls 2723
-            sub 2		; E3.cls 2724
-            ld (fn_e3_lib_ff_lend), a         ; the last one's (low byte) [2725]
-            add a, 2		; E3.cls 2726
-            ld (fn_e3_lib_ff_rend), a         ; one past it [2727]
-            ld a, (fn_e3_lib_ff_top)		; E3.cls 2728
-            add a, a		; E3.cls 2729
-            ld l, a		; E3.cls 2730
-            ld h, fn_e3_lib_ffpage >> 8		; E3.cls 2731
-            ld (fn_e3_lib_ff_pl), hl		; E3.cls 2732
-            ld (fn_e3_lib_ff_pr), hl		; E3.cls 2733
-            ld hl, fn_e3_lib_ff_advl          ; (the events: going round the points) [2734]
-            ld (fn_e3_lib_ff_cl + 1), hl		; E3.cls 2735
-            ld hl, fn_e3_lib_ff_advr		; E3.cls 2736
-            ld (fn_e3_lib_ff_cr + 1), hl		; E3.cls 2737
-            call fn_e3_lib_ff_advl		; E3.cls 2738
-            call fn_e3_lib_ff_advr		; E3.cls 2739
-fn_e3_lib_ff_run:		; E3.cls 2740
-            ld hl, (var_e3_pc)           ; the colours: swapped on odd rows [2741]
-            ld a, (fn_e3_lib_ff_y)		; E3.cls 2742
-            rra		; E3.cls 2743
-            jr nc, fn_e3_lib_ff_c0		; E3.cls 2744
-            ld a, h		; E3.cls 2745
-            ld h, l		; E3.cls 2746
-            ld l, a		; E3.cls 2747
-fn_e3_lib_ff_c0:		; E3.cls 2748
-            ld (fn_e3_lib_ff_de), hl		; E3.cls 2749
-            ld a, 255		; E3.cls 2750
-            ld (fn_e3_lib_ff_w), a		; E3.cls 2751
-fn_e3_lib_ff_chunk:		; E3.cls 2752
-            ld a, (fn_e3_lib_ff_y)            ; n = min(the left's end, the right's, the window's) - y [2753]
-            or 63		; E3.cls 2754
-            inc a		; E3.cls 2755
-            ld b, a		; E3.cls 2756
-            ld a, (fn_e3_lib_ff_yl)		; E3.cls 2757
-            cp b		; E3.cls 2758
-            jr nc, fn_e3_lib_ff_n1		; E3.cls 2759
-            ld b, a		; E3.cls 2760
-fn_e3_lib_ff_n1:		; E3.cls 2761
-            ld a, (fn_e3_lib_ff_yr)		; E3.cls 2762
-            cp b		; E3.cls 2763
-            jr nc, fn_e3_lib_ff_n2		; E3.cls 2764
-            ld b, a		; E3.cls 2765
-fn_e3_lib_ff_n2:		; E3.cls 2766
-            ld a, (fn_e3_lib_ff_y)		; E3.cls 2767
-            ld c, a		; E3.cls 2768
-            ld a, b		; E3.cls 2769
-            sub c		; E3.cls 2770
-            jr z, fn_e3_lib_ff_ev		; E3.cls 2771
-            ld (fn_e3_lib_ff_n), a		; E3.cls 2772
-            ld iyl, a		; E3.cls 2773
-            ld a, c                 ; the window [2774]
-            and #C0		; E3.cls 2775
-            ld b, a		; E3.cls 2776
-            ld a, (fn_e3_lib_ff_w)		; E3.cls 2777
-            cp b		; E3.cls 2778
-            jr z, fn_e3_lib_ff_wok		; E3.cls 2779
-            ld a, b		; E3.cls 2780
-            ld (fn_e3_lib_ff_w), a		; E3.cls 2781
-            rlca		; E3.cls 2782
+fn_e3_lib_ff:		; E3.cls 2714
+            call fn_e3_lib_vpoll		; E3.cls 2715
+            ld a, (fn_e3_lib_ff_ytop)		; E3.cls 2716
+            ld b, a		; E3.cls 2717
+            ld a, (fn_e3_lib_ff_ybot)		; E3.cls 2718
+            cp b		; E3.cls 2719
+            jp z, fn_e3_lib_fl_exit           ; (flat) [2720]
+            ld a, b		; E3.cls 2721
+            ld (fn_e3_lib_ff_y), a		; E3.cls 2722
+            ld a, (var_e3_pn)            ; the points' ends (for going round them) [2723]
+            add a, a		; E3.cls 2724
+            sub 2		; E3.cls 2725
+            ld (fn_e3_lib_ff_lend), a         ; the last one's (low byte) [2726]
+            add a, 2		; E3.cls 2727
+            ld (fn_e3_lib_ff_rend), a         ; one past it [2728]
+            ld a, (fn_e3_lib_ff_top)		; E3.cls 2729
+            add a, a		; E3.cls 2730
+            ld l, a		; E3.cls 2731
+            ld h, fn_e3_lib_ffpage >> 8		; E3.cls 2732
+            ld (fn_e3_lib_ff_pl), hl		; E3.cls 2733
+            ld (fn_e3_lib_ff_pr), hl		; E3.cls 2734
+            ld hl, fn_e3_lib_ff_advl          ; (the events: going round the points) [2735]
+            ld (fn_e3_lib_ff_cl + 1), hl		; E3.cls 2736
+            ld hl, fn_e3_lib_ff_advr		; E3.cls 2737
+            ld (fn_e3_lib_ff_cr + 1), hl		; E3.cls 2738
+            call fn_e3_lib_ff_advl		; E3.cls 2739
+            call fn_e3_lib_ff_advr		; E3.cls 2740
+fn_e3_lib_ff_run:		; E3.cls 2741
+            ld hl, (var_e3_pc)           ; the colours: swapped on odd rows [2742]
+            ld a, (fn_e3_lib_ff_y)		; E3.cls 2743
+            rra		; E3.cls 2744
+            jr nc, fn_e3_lib_ff_c0		; E3.cls 2745
+            ld a, h		; E3.cls 2746
+            ld h, l		; E3.cls 2747
+            ld l, a		; E3.cls 2748
+fn_e3_lib_ff_c0:		; E3.cls 2749
+            ld (fn_e3_lib_ff_de), hl		; E3.cls 2750
+            ld a, 255		; E3.cls 2751
+            ld (fn_e3_lib_ff_w), a		; E3.cls 2752
+fn_e3_lib_ff_chunk:		; E3.cls 2753
+            ld a, (fn_e3_lib_ff_y)            ; n = min(the left's end, the right's, the window's) - y [2754]
+            or 63		; E3.cls 2755
+            inc a		; E3.cls 2756
+            ld b, a		; E3.cls 2757
+            ld a, (fn_e3_lib_ff_yl)		; E3.cls 2758
+            cp b		; E3.cls 2759
+            jr nc, fn_e3_lib_ff_n1		; E3.cls 2760
+            ld b, a		; E3.cls 2761
+fn_e3_lib_ff_n1:		; E3.cls 2762
+            ld a, (fn_e3_lib_ff_yr)		; E3.cls 2763
+            cp b		; E3.cls 2764
+            jr nc, fn_e3_lib_ff_n2		; E3.cls 2765
+            ld b, a		; E3.cls 2766
+fn_e3_lib_ff_n2:		; E3.cls 2767
+            ld a, (fn_e3_lib_ff_y)		; E3.cls 2768
+            ld c, a		; E3.cls 2769
+            ld a, b		; E3.cls 2770
+            sub c		; E3.cls 2771
+            jr z, fn_e3_lib_ff_ev		; E3.cls 2772
+            ld (fn_e3_lib_ff_n), a		; E3.cls 2773
+            ld iyl, a		; E3.cls 2774
+            ld a, c                 ; the window [2775]
+            and #C0		; E3.cls 2776
+            ld b, a		; E3.cls 2777
+            ld a, (fn_e3_lib_ff_w)		; E3.cls 2778
+            cp b		; E3.cls 2779
+            jr z, fn_e3_lib_ff_wok		; E3.cls 2780
+            ld a, b		; E3.cls 2781
+            ld (fn_e3_lib_ff_w), a		; E3.cls 2782
             rlca		; E3.cls 2783
             rlca		; E3.cls 2784
-            and 6		; E3.cls 2785
-            ld c, a		; E3.cls 2786
-            ld a, (var_e3_back)		; E3.cls 2787
-            add a, a		; E3.cls 2788
-            add a, c		; E3.cls 2789
-            db #ED, #92, #56		; E3.cls 2790
-            inc a		; E3.cls 2791
-            db #ED, #92, #57		; E3.cls 2792
-fn_e3_lib_ff_wok:		; E3.cls 2793
-            ld a, (fn_e3_lib_ff_y)		; E3.cls 2794
-            and 63		; E3.cls 2795
-            or #C0		; E3.cls 2796
-            ld iyh, a		; E3.cls 2797
-            ld de, (fn_e3_lib_ff_de)		; E3.cls 2798
-            jp fn_e3_lib_fr_row		; E3.cls 2799
-fn_e3_lib_ff_after:		; E3.cls 2800
-            ld sp, (fn_e3_lib_fl_ssp)		; E3.cls 2801
-            ld (fn_e3_lib_ff_de), de		; E3.cls 2802
-            ld a, (fn_e3_lib_ff_n)		; E3.cls 2803
-            ld b, a		; E3.cls 2804
-            ld a, (fn_e3_lib_ff_y)		; E3.cls 2805
-            add a, b		; E3.cls 2806
-            ld (fn_e3_lib_ff_y), a		; E3.cls 2807
-fn_e3_lib_ff_ev:		; E3.cls 2808
-            ld a, (fn_e3_lib_ff_y)		; E3.cls 2809
-            ld b, a		; E3.cls 2810
-            ld a, (fn_e3_lib_ff_ybot)		; E3.cls 2811
-            cp b		; E3.cls 2812
-            jp z, fn_e3_lib_fl_exit		; E3.cls 2813
-            jp c, fn_e3_lib_fl_exit		; E3.cls 2814
-            ld a, (fn_e3_lib_ff_yl)		; E3.cls 2815
-            cp b		; E3.cls 2816
-fn_e3_lib_ff_cl:		; E3.cls 2817
-            call z, fn_e3_lib_ff_advl		; E3.cls 2818
-            ld a, (fn_e3_lib_ff_y)		; E3.cls 2819
-            ld b, a		; E3.cls 2820
-            ld a, (fn_e3_lib_ff_yr)		; E3.cls 2821
-            cp b		; E3.cls 2822
-fn_e3_lib_ff_cr:		; E3.cls 2823
-            call z, fn_e3_lib_ff_advr		; E3.cls 2824
-            jp fn_e3_lib_ff_chunk		; E3.cls 2825
+            rlca		; E3.cls 2785
+            and 6		; E3.cls 2786
+            ld c, a		; E3.cls 2787
+            ld a, (var_e3_back)		; E3.cls 2788
+            add a, a		; E3.cls 2789
+            add a, c		; E3.cls 2790
+            db #ED, #92, #56		; E3.cls 2791
+            inc a		; E3.cls 2792
+            db #ED, #92, #57		; E3.cls 2793
+fn_e3_lib_ff_wok:		; E3.cls 2794
+            ld a, (fn_e3_lib_ff_y)		; E3.cls 2795
+            and 63		; E3.cls 2796
+            or #C0		; E3.cls 2797
+            ld iyh, a		; E3.cls 2798
+            ld de, (fn_e3_lib_ff_de)		; E3.cls 2799
+            jp fn_e3_lib_fr_row		; E3.cls 2800
+fn_e3_lib_ff_after:		; E3.cls 2801
+            ld sp, (fn_e3_lib_fl_ssp)		; E3.cls 2802
+            ld (fn_e3_lib_ff_de), de		; E3.cls 2803
+            ld a, (fn_e3_lib_ff_n)		; E3.cls 2804
+            ld b, a		; E3.cls 2805
+            ld a, (fn_e3_lib_ff_y)		; E3.cls 2806
+            add a, b		; E3.cls 2807
+            ld (fn_e3_lib_ff_y), a		; E3.cls 2808
+fn_e3_lib_ff_ev:		; E3.cls 2809
+            ld a, (fn_e3_lib_ff_y)		; E3.cls 2810
+            ld b, a		; E3.cls 2811
+            ld a, (fn_e3_lib_ff_ybot)		; E3.cls 2812
+            cp b		; E3.cls 2813
+            jp z, fn_e3_lib_fl_exit		; E3.cls 2814
+            jp c, fn_e3_lib_fl_exit		; E3.cls 2815
+            ld a, (fn_e3_lib_ff_yl)		; E3.cls 2816
+            cp b		; E3.cls 2817
+fn_e3_lib_ff_cl:		; E3.cls 2818
+            call z, fn_e3_lib_ff_advl		; E3.cls 2819
+            ld a, (fn_e3_lib_ff_y)		; E3.cls 2820
+            ld b, a		; E3.cls 2821
+            ld a, (fn_e3_lib_ff_yr)		; E3.cls 2822
+            cp b		; E3.cls 2823
+fn_e3_lib_ff_cr:		; E3.cls 2824
+            call z, fn_e3_lib_ff_advr		; E3.cls 2825
+            jp fn_e3_lib_ff_chunk		; E3.cls 2826
 ; ff_advl, ff_advr: a side's next edge going down (left: back round the points, right: on). The
 ; points are ff_v's (x, y) bytes; ff_pl, ff_pr point at each side's current one
-fn_e3_lib_ff_advl:		; E3.cls 2828
-            ld a, (fn_e3_lib_ff_ybot)         ; (none found: to the bottom) [2829]
-            ld (fn_e3_lib_ff_yl), a		; E3.cls 2830
-            ld a, (var_e3_pn)		; E3.cls 2831
-            ld b, a                 ; (a guard) [2832]
-            ld hl, (fn_e3_lib_ff_pl)		; E3.cls 2833
-fn_e3_lib_al_lp:		; E3.cls 2834
-            ld a, l		; E3.cls 2835
-            or a		; E3.cls 2836
-            jr nz, fn_e3_lib_al_1		; E3.cls 2837
-            ld a, (fn_e3_lib_ff_lend)		; E3.cls 2838
-            jr fn_e3_lib_al_2		; E3.cls 2839
-fn_e3_lib_al_1:		; E3.cls 2840
-            sub 2		; E3.cls 2841
-fn_e3_lib_al_2:		; E3.cls 2842
-            ld e, a		; E3.cls 2843
-            ld d, h		; E3.cls 2844
-            inc l		; E3.cls 2845
-            inc e		; E3.cls 2846
-            ld a, (de)		; E3.cls 2847
-            sub (hl)		; E3.cls 2848
-            ld c, a		; E3.cls 2849
-            dec l                   ; (inc and dec keep the carry, not the zero) [2850]
-            dec e		; E3.cls 2851
-            ret c                   ; (going up: none) [2852]
-            ld a, c		; E3.cls 2853
-            or a		; E3.cls 2854
-            jr z, fn_e3_lib_al_flat		; E3.cls 2855
-            ld (fn_e3_lib_ff_pl), de		; E3.cls 2856
-            xor a		; E3.cls 2857
-            call fn_e3_lib_edge88		; E3.cls 2858
-            ld (fn_e3_lib_ff_yl), a		; E3.cls 2859
-            push hl		; E3.cls 2860
-            push bc		; E3.cls 2861
-            exx		; E3.cls 2862
-            pop de		; E3.cls 2863
-            pop hl		; E3.cls 2864
-            exx		; E3.cls 2865
-            ret		; E3.cls 2866
-fn_e3_lib_al_flat:		; E3.cls 2867
-            ex de, hl		; E3.cls 2868
-            djnz fn_e3_lib_al_lp		; E3.cls 2869
-            ret		; E3.cls 2870
-fn_e3_lib_ff_advr:		; E3.cls 2871
-            ld a, (fn_e3_lib_ff_ybot)		; E3.cls 2872
-            ld (fn_e3_lib_ff_yr), a		; E3.cls 2873
-            ld a, (var_e3_pn)		; E3.cls 2874
-            ld b, a		; E3.cls 2875
-            ld hl, (fn_e3_lib_ff_pr)		; E3.cls 2876
-fn_e3_lib_ar_lp:		; E3.cls 2877
-            ld a, (fn_e3_lib_ff_rend)		; E3.cls 2878
-            ld e, a		; E3.cls 2879
-            ld a, l		; E3.cls 2880
-            add a, 2		; E3.cls 2881
-            cp e		; E3.cls 2882
-            jr nz, fn_e3_lib_ar_1		; E3.cls 2883
-            xor a		; E3.cls 2884
-fn_e3_lib_ar_1:		; E3.cls 2885
-            ld e, a		; E3.cls 2886
-            ld d, h		; E3.cls 2887
-            inc l		; E3.cls 2888
-            inc e		; E3.cls 2889
-            ld a, (de)		; E3.cls 2890
-            sub (hl)		; E3.cls 2891
-            ld c, a		; E3.cls 2892
-            dec l		; E3.cls 2893
-            dec e		; E3.cls 2894
-            ret c		; E3.cls 2895
-            ld a, c		; E3.cls 2896
-            or a		; E3.cls 2897
-            jr z, fn_e3_lib_ar_flat		; E3.cls 2898
-            ld (fn_e3_lib_ff_pr), de		; E3.cls 2899
-            ld a, 1		; E3.cls 2900
-            call fn_e3_lib_edge88		; E3.cls 2901
-            ld (fn_e3_lib_ff_yr), a		; E3.cls 2902
-            push hl		; E3.cls 2903
-            pop ix		; E3.cls 2904
-            push bc		; E3.cls 2905
-            exx		; E3.cls 2906
-            pop bc		; E3.cls 2907
-            exx		; E3.cls 2908
-            ret		; E3.cls 2909
-fn_e3_lib_ar_flat:		; E3.cls 2910
-            ex de, hl		; E3.cls 2911
-            djnz fn_e3_lib_ar_lp		; E3.cls 2912
-            ret		; E3.cls 2913
+fn_e3_lib_ff_advl:		; E3.cls 2829
+            ld a, (fn_e3_lib_ff_ybot)         ; (none found: to the bottom) [2830]
+            ld (fn_e3_lib_ff_yl), a		; E3.cls 2831
+            ld a, (var_e3_pn)		; E3.cls 2832
+            ld b, a                 ; (a guard) [2833]
+            ld hl, (fn_e3_lib_ff_pl)		; E3.cls 2834
+fn_e3_lib_al_lp:		; E3.cls 2835
+            ld a, l		; E3.cls 2836
+            or a		; E3.cls 2837
+            jr nz, fn_e3_lib_al_1		; E3.cls 2838
+            ld a, (fn_e3_lib_ff_lend)		; E3.cls 2839
+            jr fn_e3_lib_al_2		; E3.cls 2840
+fn_e3_lib_al_1:		; E3.cls 2841
+            sub 2		; E3.cls 2842
+fn_e3_lib_al_2:		; E3.cls 2843
+            ld e, a		; E3.cls 2844
+            ld d, h		; E3.cls 2845
+            inc l		; E3.cls 2846
+            inc e		; E3.cls 2847
+            ld a, (de)		; E3.cls 2848
+            sub (hl)		; E3.cls 2849
+            ld c, a		; E3.cls 2850
+            dec l                   ; (inc and dec keep the carry, not the zero) [2851]
+            dec e		; E3.cls 2852
+            ret c                   ; (going up: none) [2853]
+            ld a, c		; E3.cls 2854
+            or a		; E3.cls 2855
+            jr z, fn_e3_lib_al_flat		; E3.cls 2856
+            ld (fn_e3_lib_ff_pl), de		; E3.cls 2857
+            xor a		; E3.cls 2858
+            call fn_e3_lib_edge88		; E3.cls 2859
+            ld (fn_e3_lib_ff_yl), a		; E3.cls 2860
+            push hl		; E3.cls 2861
+            push bc		; E3.cls 2862
+            exx		; E3.cls 2863
+            pop de		; E3.cls 2864
+            pop hl		; E3.cls 2865
+            exx		; E3.cls 2866
+            ret		; E3.cls 2867
+fn_e3_lib_al_flat:		; E3.cls 2868
+            ex de, hl		; E3.cls 2869
+            djnz fn_e3_lib_al_lp		; E3.cls 2870
+            ret		; E3.cls 2871
+fn_e3_lib_ff_advr:		; E3.cls 2872
+            ld a, (fn_e3_lib_ff_ybot)		; E3.cls 2873
+            ld (fn_e3_lib_ff_yr), a		; E3.cls 2874
+            ld a, (var_e3_pn)		; E3.cls 2875
+            ld b, a		; E3.cls 2876
+            ld hl, (fn_e3_lib_ff_pr)		; E3.cls 2877
+fn_e3_lib_ar_lp:		; E3.cls 2878
+            ld a, (fn_e3_lib_ff_rend)		; E3.cls 2879
+            ld e, a		; E3.cls 2880
+            ld a, l		; E3.cls 2881
+            add a, 2		; E3.cls 2882
+            cp e		; E3.cls 2883
+            jr nz, fn_e3_lib_ar_1		; E3.cls 2884
+            xor a		; E3.cls 2885
+fn_e3_lib_ar_1:		; E3.cls 2886
+            ld e, a		; E3.cls 2887
+            ld d, h		; E3.cls 2888
+            inc l		; E3.cls 2889
+            inc e		; E3.cls 2890
+            ld a, (de)		; E3.cls 2891
+            sub (hl)		; E3.cls 2892
+            ld c, a		; E3.cls 2893
+            dec l		; E3.cls 2894
+            dec e		; E3.cls 2895
+            ret c		; E3.cls 2896
+            ld a, c		; E3.cls 2897
+            or a		; E3.cls 2898
+            jr z, fn_e3_lib_ar_flat		; E3.cls 2899
+            ld (fn_e3_lib_ff_pr), de		; E3.cls 2900
+            ld a, 1		; E3.cls 2901
+            call fn_e3_lib_edge88		; E3.cls 2902
+            ld (fn_e3_lib_ff_yr), a		; E3.cls 2903
+            push hl		; E3.cls 2904
+            pop ix		; E3.cls 2905
+            push bc		; E3.cls 2906
+            exx		; E3.cls 2907
+            pop bc		; E3.cls 2908
+            exx		; E3.cls 2909
+            ret		; E3.cls 2910
+fn_e3_lib_ar_flat:		; E3.cls 2911
+            ex de, hl		; E3.cls 2912
+            djnz fn_e3_lib_ar_lp		; E3.cls 2913
+            ret		; E3.cls 2914
 ; edge88: the edge from point (HL) to point (DE) (both x, y; going down); A = 1: the right side ->
 ; HL = x (8.8, from a pixel's middle; the right side's - 1: its last pixel), BC = the step (mod
 ; 65536: x stays on the screen), A = the end's y
-fn_e3_lib_edge88:		; E3.cls 2917
-            ld (fn_e3_lib_e8_rt), a		; E3.cls 2918
-            ld a, (de)              ; dx = xb - xa: |dx| in C, its sign in B [2919]
-            sub (hl)		; E3.cls 2920
-            ld b, 0		; E3.cls 2921
-            jr nc, fn_e3_lib_e8_p		; E3.cls 2922
-            neg		; E3.cls 2923
-            dec b		; E3.cls 2924
-fn_e3_lib_e8_p:		; E3.cls 2925
-            ld c, a		; E3.cls 2926
-            ld a, (hl)		; E3.cls 2927
-            ld (fn_e3_lib_e8_xa), a		; E3.cls 2928
-            inc l		; E3.cls 2929
-            inc e		; E3.cls 2930
-            ld a, (de)		; E3.cls 2931
-            ld (fn_e3_lib_e8_yb), a		; E3.cls 2932
-            sub (hl)                ; dy [2933]
-            ld l, a		; E3.cls 2934
-            ld h, 0		; E3.cls 2935
-            add hl, hl		; E3.cls 2936
-            ld de, fn_e3data_redge_redge_d		; E3.cls 2937
-            add hl, de		; E3.cls 2938
-            ld e, (hl)		; E3.cls 2939
-            inc hl		; E3.cls 2940
-            ld d, (hl)              ; R = 65536 / dy [2941]
-            ld a, d		; E3.cls 2942
-            ld d, c		; E3.cls 2943
-            mul d, e                ; |dx| R low [2944]
-            ld l, d		; E3.cls 2945
-            ld e, a		; E3.cls 2946
-            ld d, c		; E3.cls 2947
-            mul d, e                ; |dx| R high [2948]
-            ld h, 0		; E3.cls 2949
-            add hl, de              ; |the step| (8.8) [2950]
-            ld a, b		; E3.cls 2951
-            or a		; E3.cls 2952
-            jr z, fn_e3_lib_e8_s		; E3.cls 2953
-            xor a		; E3.cls 2954
-            sub l		; E3.cls 2955
-            ld l, a		; E3.cls 2956
-            sbc a, a		; E3.cls 2957
-            sub h		; E3.cls 2958
-            ld h, a		; E3.cls 2959
-fn_e3_lib_e8_s:		; E3.cls 2960
-            ld b, h		; E3.cls 2961
-            ld c, l		; E3.cls 2962
-            ld a, (fn_e3_lib_e8_xa)		; E3.cls 2963
-            ld h, a		; E3.cls 2964
-            ld l, #80		; E3.cls 2965
-            ld a, (fn_e3_lib_e8_rt)		; E3.cls 2966
-            or a		; E3.cls 2967
-            jr z, fn_e3_lib_e8_l		; E3.cls 2968
-            dec h		; E3.cls 2969
-fn_e3_lib_e8_l:		; E3.cls 2970
-            ld a, (fn_e3_lib_e8_yb)		; E3.cls 2971
-            ret		; E3.cls 2972
-fn_e3_lib_e8_rt:      db 0		; E3.cls 2973
-fn_e3_lib_e8_xa:      db 0		; E3.cls 2974
-fn_e3_lib_e8_yb:      db 0		; E3.cls 2975
+fn_e3_lib_edge88:		; E3.cls 2918
+            ld (fn_e3_lib_e8_rt), a		; E3.cls 2919
+            ld a, (de)              ; dx = xb - xa: |dx| in C, its sign in B [2920]
+            sub (hl)		; E3.cls 2921
+            ld b, 0		; E3.cls 2922
+            jr nc, fn_e3_lib_e8_p		; E3.cls 2923
+            neg		; E3.cls 2924
+            dec b		; E3.cls 2925
+fn_e3_lib_e8_p:		; E3.cls 2926
+            ld c, a		; E3.cls 2927
+            ld a, (hl)		; E3.cls 2928
+            ld (fn_e3_lib_e8_xa), a		; E3.cls 2929
+            inc l		; E3.cls 2930
+            inc e		; E3.cls 2931
+            ld a, (de)		; E3.cls 2932
+            ld (fn_e3_lib_e8_yb), a		; E3.cls 2933
+            sub (hl)                ; dy [2934]
+            ld l, a		; E3.cls 2935
+            ld h, 0		; E3.cls 2936
+            add hl, hl		; E3.cls 2937
+            ld de, fn_e3data_redge_redge_d		; E3.cls 2938
+            add hl, de		; E3.cls 2939
+            ld e, (hl)		; E3.cls 2940
+            inc hl		; E3.cls 2941
+            ld d, (hl)              ; R = 65536 / dy [2942]
+            ld a, d		; E3.cls 2943
+            ld d, c		; E3.cls 2944
+            mul d, e                ; |dx| R low [2945]
+            ld l, d		; E3.cls 2946
+            ld e, a		; E3.cls 2947
+            ld d, c		; E3.cls 2948
+            mul d, e                ; |dx| R high [2949]
+            ld h, 0		; E3.cls 2950
+            add hl, de              ; |the step| (8.8) [2951]
+            ld a, b		; E3.cls 2952
+            or a		; E3.cls 2953
+            jr z, fn_e3_lib_e8_s		; E3.cls 2954
+            xor a		; E3.cls 2955
+            sub l		; E3.cls 2956
+            ld l, a		; E3.cls 2957
+            sbc a, a		; E3.cls 2958
+            sub h		; E3.cls 2959
+            ld h, a		; E3.cls 2960
+fn_e3_lib_e8_s:		; E3.cls 2961
+            ld b, h		; E3.cls 2962
+            ld c, l		; E3.cls 2963
+            ld a, (fn_e3_lib_e8_xa)		; E3.cls 2964
+            ld h, a		; E3.cls 2965
+            ld l, #80		; E3.cls 2966
+            ld a, (fn_e3_lib_e8_rt)		; E3.cls 2967
+            or a		; E3.cls 2968
+            jr z, fn_e3_lib_e8_l		; E3.cls 2969
+            dec h		; E3.cls 2970
+fn_e3_lib_e8_l:		; E3.cls 2971
+            ld a, (fn_e3_lib_e8_yb)		; E3.cls 2972
+            ret		; E3.cls 2973
+fn_e3_lib_e8_rt:      db 0		; E3.cls 2974
+fn_e3_lib_e8_xa:      db 0		; E3.cls 2975
+fn_e3_lib_e8_yb:      db 0		; E3.cls 2976
 ; ftri: the triangle of the 3 points listed at HL (in the fast range) filled in pc: its points by
 ; a pointer into a doubled list (the top first, clockwise), its second edge kept for the event
-fn_e3_lib_ftri:		; E3.cls 2978
-            call fn_e3_lib_vpoll		; E3.cls 2979
-            push iy		; E3.cls 2980
-            push ix		; E3.cls 2981
-            ld (fn_e3_lib_fl_ssp), sp		; E3.cls 2982
-            ld de, fn_e3_lib_ff_v		; E3.cls 2983
-            ld b, 3		; E3.cls 2984
-fn_e3_lib_tr_ld:		; E3.cls 2985
-            ld a, (hl)		; E3.cls 2986
-            inc hl		; E3.cls 2987
-            push hl		; E3.cls 2988
-            or #40		; E3.cls 2989
-            ld l, a		; E3.cls 2990
-            ld h, fn_e3_lib_vpage >> 8		; E3.cls 2991
-            ld a, (hl)		; E3.cls 2992
-            ld (de), a		; E3.cls 2993
-            inc de		; E3.cls 2994
-            ld a, l		; E3.cls 2995
-            xor #C0		; E3.cls 2996
-            ld l, a		; E3.cls 2997
-            ld a, (hl)		; E3.cls 2998
-            ld (de), a		; E3.cls 2999
-            inc de		; E3.cls 3000
-            pop hl		; E3.cls 3001
-            djnz fn_e3_lib_tr_ld		; E3.cls 3002
-            ld hl, fn_e3_lib_ff_v             ; doubled: v0, v1 again after v2 [3003]
-            ld bc, 4		; E3.cls 3004
-            ldir		; E3.cls 3005
-            ld hl, fn_e3_lib_ff_v             ; the top [3006]
-            ld a, (fn_e3_lib_ff_v + 1)		; E3.cls 3007
-            ld b, a		; E3.cls 3008
-            ld a, (fn_e3_lib_ff_v + 3)		; E3.cls 3009
-            cp b		; E3.cls 3010
-            jr nc, fn_e3_lib_tr_t1		; E3.cls 3011
-            ld b, a		; E3.cls 3012
-            ld hl, fn_e3_lib_ff_v + 2		; E3.cls 3013
-fn_e3_lib_tr_t1:		; E3.cls 3014
-            ld a, (fn_e3_lib_ff_v + 5)		; E3.cls 3015
-            cp b		; E3.cls 3016
-            jr nc, fn_e3_lib_tr_t2		; E3.cls 3017
-            ld hl, fn_e3_lib_ff_v + 4		; E3.cls 3018
-fn_e3_lib_tr_t2:		; E3.cls 3019
-            ld (fn_e3_lib_tr_a), hl           ; A (the top), B, C: tr_a, + 2, + 4 [3020]
-            inc l		; E3.cls 3021
+fn_e3_lib_ftri:		; E3.cls 2979
+            call fn_e3_lib_vpoll		; E3.cls 2980
+            push iy		; E3.cls 2981
+            push ix		; E3.cls 2982
+            ld (fn_e3_lib_fl_ssp), sp		; E3.cls 2983
+            ld de, fn_e3_lib_ff_v		; E3.cls 2984
+            ld b, 3		; E3.cls 2985
+fn_e3_lib_tr_ld:		; E3.cls 2986
+            ld a, (hl)		; E3.cls 2987
+            inc hl		; E3.cls 2988
+            push hl		; E3.cls 2989
+            or #40		; E3.cls 2990
+            ld l, a		; E3.cls 2991
+            ld h, fn_e3_lib_vpage >> 8		; E3.cls 2992
+            ld a, (hl)		; E3.cls 2993
+            ld (de), a		; E3.cls 2994
+            inc de		; E3.cls 2995
+            ld a, l		; E3.cls 2996
+            xor #C0		; E3.cls 2997
+            ld l, a		; E3.cls 2998
+            ld a, (hl)		; E3.cls 2999
+            ld (de), a		; E3.cls 3000
+            inc de		; E3.cls 3001
+            pop hl		; E3.cls 3002
+            djnz fn_e3_lib_tr_ld		; E3.cls 3003
+            ld hl, fn_e3_lib_ff_v             ; doubled: v0, v1 again after v2 [3004]
+            ld bc, 4		; E3.cls 3005
+            ldir		; E3.cls 3006
+            ld hl, fn_e3_lib_ff_v             ; the top [3007]
+            ld a, (fn_e3_lib_ff_v + 1)		; E3.cls 3008
+            ld b, a		; E3.cls 3009
+            ld a, (fn_e3_lib_ff_v + 3)		; E3.cls 3010
+            cp b		; E3.cls 3011
+            jr nc, fn_e3_lib_tr_t1		; E3.cls 3012
+            ld b, a		; E3.cls 3013
+            ld hl, fn_e3_lib_ff_v + 2		; E3.cls 3014
+fn_e3_lib_tr_t1:		; E3.cls 3015
+            ld a, (fn_e3_lib_ff_v + 5)		; E3.cls 3016
+            cp b		; E3.cls 3017
+            jr nc, fn_e3_lib_tr_t2		; E3.cls 3018
+            ld hl, fn_e3_lib_ff_v + 4		; E3.cls 3019
+fn_e3_lib_tr_t2:		; E3.cls 3020
+            ld (fn_e3_lib_tr_a), hl           ; A (the top), B, C: tr_a, + 2, + 4 [3021]
             inc l		; E3.cls 3022
-            ld (fn_e3_lib_tr_b), hl		; E3.cls 3023
-            inc l		; E3.cls 3024
+            inc l		; E3.cls 3023
+            ld (fn_e3_lib_tr_b), hl		; E3.cls 3024
             inc l		; E3.cls 3025
-            ld (fn_e3_lib_tr_c), hl		; E3.cls 3026
-            ld a, (fn_e3_lib_tr_a)		; E3.cls 3027
-            ld l, a		; E3.cls 3028
-            inc l		; E3.cls 3029
-            ld a, (hl)              ; ya [3030]
-            ld (fn_e3_lib_ff_y), a		; E3.cls 3031
-            ld e, a		; E3.cls 3032
-            ld hl, (fn_e3_lib_tr_b)		; E3.cls 3033
-            inc l		; E3.cls 3034
-            ld b, (hl)              ; yb [3035]
-            ld hl, (fn_e3_lib_tr_c)		; E3.cls 3036
-            inc l		; E3.cls 3037
-            ld c, (hl)              ; yc [3038]
-            ld a, b		; E3.cls 3039
-            cp c		; E3.cls 3040
-            jr nc, fn_e3_lib_tr_bt		; E3.cls 3041
-            ld a, c		; E3.cls 3042
-fn_e3_lib_tr_bt:		; E3.cls 3043
-            ld (fn_e3_lib_ff_ybot), a		; E3.cls 3044
-            cp e		; E3.cls 3045
-            jp z, fn_e3_lib_fl_exit           ; (flat) [3046]
-            xor a		; E3.cls 3047
-            ld (fn_e3_lib_tr_l2), a		; E3.cls 3048
-            ld (fn_e3_lib_tr_r2), a		; E3.cls 3049
-            ld hl, fn_e3_lib_tr_al            ; (the events: the second edges) [3050]
-            ld (fn_e3_lib_ff_cl + 1), hl		; E3.cls 3051
-            ld hl, fn_e3_lib_tr_ar		; E3.cls 3052
-            ld (fn_e3_lib_ff_cr + 1), hl		; E3.cls 3053
-            ld a, e		; E3.cls 3054
-            cp b		; E3.cls 3055
-            jr z, fn_e3_lib_tr_ftr		; E3.cls 3056
-            cp c		; E3.cls 3057
-            jr z, fn_e3_lib_tr_ftl		; E3.cls 3058
-            ld a, b                 ; left A to C, right A to B, then B to C (yb < yc) on the right or C [3059]
-            cp c                    ; to B (yc < yb) on the left [3060]
-            jr z, fn_e3_lib_tr_g		; E3.cls 3061
-            jr nc, fn_e3_lib_tr_gl		; E3.cls 3062
-            ld a, 1		; E3.cls 3063
-            ld (fn_e3_lib_tr_r2), a		; E3.cls 3064
-            jr fn_e3_lib_tr_g		; E3.cls 3065
-fn_e3_lib_tr_gl:		; E3.cls 3066
-            ld a, 1		; E3.cls 3067
-            ld (fn_e3_lib_tr_l2), a		; E3.cls 3068
-fn_e3_lib_tr_g:		; E3.cls 3069
-            ld hl, (fn_e3_lib_tr_a)		; E3.cls 3070
-            ld de, (fn_e3_lib_tr_c)		; E3.cls 3071
-            call fn_e3_lib_tr_left		; E3.cls 3072
-            ld hl, (fn_e3_lib_tr_a)		; E3.cls 3073
-            ld de, (fn_e3_lib_tr_b)		; E3.cls 3074
-            call fn_e3_lib_tr_right		; E3.cls 3075
-            jp fn_e3_lib_ff_run		; E3.cls 3076
-fn_e3_lib_tr_ftr:                             ; flat top, B at its right: left A to C, right B to C [3077]
-            ld hl, (fn_e3_lib_tr_a)		; E3.cls 3078
-            ld de, (fn_e3_lib_tr_c)		; E3.cls 3079
-            call fn_e3_lib_tr_left		; E3.cls 3080
-            ld hl, (fn_e3_lib_tr_b)		; E3.cls 3081
-            ld de, (fn_e3_lib_tr_c)		; E3.cls 3082
-            call fn_e3_lib_tr_right		; E3.cls 3083
-            jp fn_e3_lib_ff_run		; E3.cls 3084
-fn_e3_lib_tr_ftl:                             ; flat top, C at its left: left C to B, right A to B [3085]
-            ld hl, (fn_e3_lib_tr_c)		; E3.cls 3086
-            ld de, (fn_e3_lib_tr_b)		; E3.cls 3087
-            call fn_e3_lib_tr_left		; E3.cls 3088
-            ld hl, (fn_e3_lib_tr_a)		; E3.cls 3089
-            ld de, (fn_e3_lib_tr_b)		; E3.cls 3090
-            call fn_e3_lib_tr_right		; E3.cls 3091
-            jp fn_e3_lib_ff_run		; E3.cls 3092
-fn_e3_lib_tr_al:                              ; the left's event: C to B if kept, else to the bottom [3093]
-            ld a, (fn_e3_lib_tr_l2)		; E3.cls 3094
-            or a		; E3.cls 3095
-            jr z, fn_e3_lib_tr_none_l		; E3.cls 3096
-            xor a		; E3.cls 3097
-            ld (fn_e3_lib_tr_l2), a		; E3.cls 3098
-            ld hl, (fn_e3_lib_tr_c)		; E3.cls 3099
-            ld de, (fn_e3_lib_tr_b)		; E3.cls 3100
-fn_e3_lib_tr_left:		; E3.cls 3101
-            xor a		; E3.cls 3102
-            call fn_e3_lib_edge88		; E3.cls 3103
-            ld (fn_e3_lib_ff_yl), a		; E3.cls 3104
-            push hl		; E3.cls 3105
-            push bc		; E3.cls 3106
-            exx		; E3.cls 3107
-            pop de		; E3.cls 3108
-            pop hl		; E3.cls 3109
-            exx		; E3.cls 3110
-            ret		; E3.cls 3111
-fn_e3_lib_tr_none_l:		; E3.cls 3112
-            ld a, (fn_e3_lib_ff_ybot)		; E3.cls 3113
-            ld (fn_e3_lib_ff_yl), a		; E3.cls 3114
-            ret		; E3.cls 3115
-fn_e3_lib_tr_ar:                              ; the right's event: B to C if kept [3116]
-            ld a, (fn_e3_lib_tr_r2)		; E3.cls 3117
-            or a		; E3.cls 3118
-            jr z, fn_e3_lib_tr_none_r		; E3.cls 3119
-            xor a		; E3.cls 3120
-            ld (fn_e3_lib_tr_r2), a		; E3.cls 3121
-            ld hl, (fn_e3_lib_tr_b)		; E3.cls 3122
-            ld de, (fn_e3_lib_tr_c)		; E3.cls 3123
-fn_e3_lib_tr_right:		; E3.cls 3124
-            ld a, 1		; E3.cls 3125
-            call fn_e3_lib_edge88		; E3.cls 3126
-            ld (fn_e3_lib_ff_yr), a		; E3.cls 3127
-            push hl		; E3.cls 3128
-            pop ix		; E3.cls 3129
-            push bc		; E3.cls 3130
-            exx		; E3.cls 3131
-            pop bc		; E3.cls 3132
-            exx		; E3.cls 3133
-            ret		; E3.cls 3134
-fn_e3_lib_tr_none_r:		; E3.cls 3135
-            ld a, (fn_e3_lib_ff_ybot)		; E3.cls 3136
-            ld (fn_e3_lib_ff_yr), a		; E3.cls 3137
-            ret		; E3.cls 3138
-fn_e3_lib_tr_a:       dw 0		; E3.cls 3139
-fn_e3_lib_tr_b:       dw 0		; E3.cls 3140
-fn_e3_lib_tr_c:       dw 0		; E3.cls 3141
-fn_e3_lib_tr_l2:      db 0		; E3.cls 3142
-fn_e3_lib_tr_r2:      db 0		; E3.cls 3143
+            inc l		; E3.cls 3026
+            ld (fn_e3_lib_tr_c), hl		; E3.cls 3027
+            ld a, (fn_e3_lib_tr_a)		; E3.cls 3028
+            ld l, a		; E3.cls 3029
+            inc l		; E3.cls 3030
+            ld a, (hl)              ; ya [3031]
+            ld (fn_e3_lib_ff_y), a		; E3.cls 3032
+            ld e, a		; E3.cls 3033
+            ld hl, (fn_e3_lib_tr_b)		; E3.cls 3034
+            inc l		; E3.cls 3035
+            ld b, (hl)              ; yb [3036]
+            ld hl, (fn_e3_lib_tr_c)		; E3.cls 3037
+            inc l		; E3.cls 3038
+            ld c, (hl)              ; yc [3039]
+            ld a, b		; E3.cls 3040
+            cp c		; E3.cls 3041
+            jr nc, fn_e3_lib_tr_bt		; E3.cls 3042
+            ld a, c		; E3.cls 3043
+fn_e3_lib_tr_bt:		; E3.cls 3044
+            ld (fn_e3_lib_ff_ybot), a		; E3.cls 3045
+            cp e		; E3.cls 3046
+            jp z, fn_e3_lib_fl_exit           ; (flat) [3047]
+            xor a		; E3.cls 3048
+            ld (fn_e3_lib_tr_l2), a		; E3.cls 3049
+            ld (fn_e3_lib_tr_r2), a		; E3.cls 3050
+            ld hl, fn_e3_lib_tr_al            ; (the events: the second edges) [3051]
+            ld (fn_e3_lib_ff_cl + 1), hl		; E3.cls 3052
+            ld hl, fn_e3_lib_tr_ar		; E3.cls 3053
+            ld (fn_e3_lib_ff_cr + 1), hl		; E3.cls 3054
+            ld a, e		; E3.cls 3055
+            cp b		; E3.cls 3056
+            jr z, fn_e3_lib_tr_ftr		; E3.cls 3057
+            cp c		; E3.cls 3058
+            jr z, fn_e3_lib_tr_ftl		; E3.cls 3059
+            ld a, b                 ; left A to C, right A to B, then B to C (yb < yc) on the right or C [3060]
+            cp c                    ; to B (yc < yb) on the left [3061]
+            jr z, fn_e3_lib_tr_g		; E3.cls 3062
+            jr nc, fn_e3_lib_tr_gl		; E3.cls 3063
+            ld a, 1		; E3.cls 3064
+            ld (fn_e3_lib_tr_r2), a		; E3.cls 3065
+            jr fn_e3_lib_tr_g		; E3.cls 3066
+fn_e3_lib_tr_gl:		; E3.cls 3067
+            ld a, 1		; E3.cls 3068
+            ld (fn_e3_lib_tr_l2), a		; E3.cls 3069
+fn_e3_lib_tr_g:		; E3.cls 3070
+            ld hl, (fn_e3_lib_tr_a)		; E3.cls 3071
+            ld de, (fn_e3_lib_tr_c)		; E3.cls 3072
+            call fn_e3_lib_tr_left		; E3.cls 3073
+            ld hl, (fn_e3_lib_tr_a)		; E3.cls 3074
+            ld de, (fn_e3_lib_tr_b)		; E3.cls 3075
+            call fn_e3_lib_tr_right		; E3.cls 3076
+            jp fn_e3_lib_ff_run		; E3.cls 3077
+fn_e3_lib_tr_ftr:                             ; flat top, B at its right: left A to C, right B to C [3078]
+            ld hl, (fn_e3_lib_tr_a)		; E3.cls 3079
+            ld de, (fn_e3_lib_tr_c)		; E3.cls 3080
+            call fn_e3_lib_tr_left		; E3.cls 3081
+            ld hl, (fn_e3_lib_tr_b)		; E3.cls 3082
+            ld de, (fn_e3_lib_tr_c)		; E3.cls 3083
+            call fn_e3_lib_tr_right		; E3.cls 3084
+            jp fn_e3_lib_ff_run		; E3.cls 3085
+fn_e3_lib_tr_ftl:                             ; flat top, C at its left: left C to B, right A to B [3086]
+            ld hl, (fn_e3_lib_tr_c)		; E3.cls 3087
+            ld de, (fn_e3_lib_tr_b)		; E3.cls 3088
+            call fn_e3_lib_tr_left		; E3.cls 3089
+            ld hl, (fn_e3_lib_tr_a)		; E3.cls 3090
+            ld de, (fn_e3_lib_tr_b)		; E3.cls 3091
+            call fn_e3_lib_tr_right		; E3.cls 3092
+            jp fn_e3_lib_ff_run		; E3.cls 3093
+fn_e3_lib_tr_al:                              ; the left's event: C to B if kept, else to the bottom [3094]
+            ld a, (fn_e3_lib_tr_l2)		; E3.cls 3095
+            or a		; E3.cls 3096
+            jr z, fn_e3_lib_tr_none_l		; E3.cls 3097
+            xor a		; E3.cls 3098
+            ld (fn_e3_lib_tr_l2), a		; E3.cls 3099
+            ld hl, (fn_e3_lib_tr_c)		; E3.cls 3100
+            ld de, (fn_e3_lib_tr_b)		; E3.cls 3101
+fn_e3_lib_tr_left:		; E3.cls 3102
+            xor a		; E3.cls 3103
+            call fn_e3_lib_edge88		; E3.cls 3104
+            ld (fn_e3_lib_ff_yl), a		; E3.cls 3105
+            push hl		; E3.cls 3106
+            push bc		; E3.cls 3107
+            exx		; E3.cls 3108
+            pop de		; E3.cls 3109
+            pop hl		; E3.cls 3110
+            exx		; E3.cls 3111
+            ret		; E3.cls 3112
+fn_e3_lib_tr_none_l:		; E3.cls 3113
+            ld a, (fn_e3_lib_ff_ybot)		; E3.cls 3114
+            ld (fn_e3_lib_ff_yl), a		; E3.cls 3115
+            ret		; E3.cls 3116
+fn_e3_lib_tr_ar:                              ; the right's event: B to C if kept [3117]
+            ld a, (fn_e3_lib_tr_r2)		; E3.cls 3118
+            or a		; E3.cls 3119
+            jr z, fn_e3_lib_tr_none_r		; E3.cls 3120
+            xor a		; E3.cls 3121
+            ld (fn_e3_lib_tr_r2), a		; E3.cls 3122
+            ld hl, (fn_e3_lib_tr_b)		; E3.cls 3123
+            ld de, (fn_e3_lib_tr_c)		; E3.cls 3124
+fn_e3_lib_tr_right:		; E3.cls 3125
+            ld a, 1		; E3.cls 3126
+            call fn_e3_lib_edge88		; E3.cls 3127
+            ld (fn_e3_lib_ff_yr), a		; E3.cls 3128
+            push hl		; E3.cls 3129
+            pop ix		; E3.cls 3130
+            push bc		; E3.cls 3131
+            exx		; E3.cls 3132
+            pop bc		; E3.cls 3133
+            exx		; E3.cls 3134
+            ret		; E3.cls 3135
+fn_e3_lib_tr_none_r:		; E3.cls 3136
+            ld a, (fn_e3_lib_ff_ybot)		; E3.cls 3137
+            ld (fn_e3_lib_ff_yr), a		; E3.cls 3138
+            ret		; E3.cls 3139
+fn_e3_lib_tr_a:       dw 0		; E3.cls 3140
+fn_e3_lib_tr_b:       dw 0		; E3.cls 3141
+fn_e3_lib_tr_c:       dw 0		; E3.cls 3142
+fn_e3_lib_tr_l2:      db 0		; E3.cls 3143
+fn_e3_lib_tr_r2:      db 0		; E3.cls 3144
 ; ffi: the polygon of the points listed at HL (B of them, all in the fast range: their bytes in
 ; vpage) filled in pc
-fn_e3_lib_ffi:		; E3.cls 3146
-            ld a, b		; E3.cls 3147
-            cp 3		; E3.cls 3148
-            jp z, fn_e3_lib_ftri		; E3.cls 3149
-            push iy		; E3.cls 3150
-            push ix		; E3.cls 3151
-            ld (fn_e3_lib_fl_ssp), sp		; E3.cls 3152
-            ld a, b		; E3.cls 3153
-            ld (var_e3_pn), a		; E3.cls 3154
-            ld ix, fn_e3_lib_ff_v		; E3.cls 3155
-            ld c, 0		; E3.cls 3156
-            ld a, 255		; E3.cls 3157
-            ld (fn_e3_lib_ff_ytop), a		; E3.cls 3158
-            xor a		; E3.cls 3159
-            ld (fn_e3_lib_ff_ybot), a		; E3.cls 3160
-fn_e3_lib_fi_lp:		; E3.cls 3161
-            ld a, (hl)		; E3.cls 3162
-            inc hl		; E3.cls 3163
-            push hl		; E3.cls 3164
-            or #40		; E3.cls 3165
-            ld l, a		; E3.cls 3166
-            ld h, fn_e3_lib_vpage >> 8		; E3.cls 3167
-            ld a, (hl)		; E3.cls 3168
-            ld (ix + 0), a		; E3.cls 3169
-            ld a, l		; E3.cls 3170
-            xor #C0		; E3.cls 3171
-            ld l, a		; E3.cls 3172
-            ld a, (hl)		; E3.cls 3173
-            ld (ix + 1), a		; E3.cls 3174
-            ld hl, fn_e3_lib_ff_ytop		; E3.cls 3175
-            cp (hl)		; E3.cls 3176
-            jr nc, fn_e3_lib_fi_1		; E3.cls 3177
-            ld (hl), a		; E3.cls 3178
-            ld e, a		; E3.cls 3179
-            ld a, c		; E3.cls 3180
-            ld (fn_e3_lib_ff_top), a		; E3.cls 3181
-            ld a, e		; E3.cls 3182
-fn_e3_lib_fi_1:		; E3.cls 3183
-            ld hl, fn_e3_lib_ff_ybot		; E3.cls 3184
-            cp (hl)		; E3.cls 3185
-            jr c, fn_e3_lib_fi_2		; E3.cls 3186
-            ld (hl), a		; E3.cls 3187
-fn_e3_lib_fi_2:		; E3.cls 3188
-            pop hl		; E3.cls 3189
-            inc ix		; E3.cls 3190
+fn_e3_lib_ffi:		; E3.cls 3147
+            ld a, b		; E3.cls 3148
+            cp 3		; E3.cls 3149
+            jp z, fn_e3_lib_ftri		; E3.cls 3150
+            push iy		; E3.cls 3151
+            push ix		; E3.cls 3152
+            ld (fn_e3_lib_fl_ssp), sp		; E3.cls 3153
+            ld a, b		; E3.cls 3154
+            ld (var_e3_pn), a		; E3.cls 3155
+            ld ix, fn_e3_lib_ff_v		; E3.cls 3156
+            ld c, 0		; E3.cls 3157
+            ld a, 255		; E3.cls 3158
+            ld (fn_e3_lib_ff_ytop), a		; E3.cls 3159
+            xor a		; E3.cls 3160
+            ld (fn_e3_lib_ff_ybot), a		; E3.cls 3161
+fn_e3_lib_fi_lp:		; E3.cls 3162
+            ld a, (hl)		; E3.cls 3163
+            inc hl		; E3.cls 3164
+            push hl		; E3.cls 3165
+            or #40		; E3.cls 3166
+            ld l, a		; E3.cls 3167
+            ld h, fn_e3_lib_vpage >> 8		; E3.cls 3168
+            ld a, (hl)		; E3.cls 3169
+            ld (ix + 0), a		; E3.cls 3170
+            ld a, l		; E3.cls 3171
+            xor #C0		; E3.cls 3172
+            ld l, a		; E3.cls 3173
+            ld a, (hl)		; E3.cls 3174
+            ld (ix + 1), a		; E3.cls 3175
+            ld hl, fn_e3_lib_ff_ytop		; E3.cls 3176
+            cp (hl)		; E3.cls 3177
+            jr nc, fn_e3_lib_fi_1		; E3.cls 3178
+            ld (hl), a		; E3.cls 3179
+            ld e, a		; E3.cls 3180
+            ld a, c		; E3.cls 3181
+            ld (fn_e3_lib_ff_top), a		; E3.cls 3182
+            ld a, e		; E3.cls 3183
+fn_e3_lib_fi_1:		; E3.cls 3184
+            ld hl, fn_e3_lib_ff_ybot		; E3.cls 3185
+            cp (hl)		; E3.cls 3186
+            jr c, fn_e3_lib_fi_2		; E3.cls 3187
+            ld (hl), a		; E3.cls 3188
+fn_e3_lib_fi_2:		; E3.cls 3189
+            pop hl		; E3.cls 3190
             inc ix		; E3.cls 3191
-            inc c		; E3.cls 3192
-            djnz fn_e3_lib_fi_lp		; E3.cls 3193
-            jp fn_e3_lib_ff		; E3.cls 3194
-fn_e3_lib_ff_v:       equ fn_e3_lib_ffpage		; E3.cls 3195
-fn_e3_lib_ff_top:     db 0		; E3.cls 3196
-fn_e3_lib_ff_ytop:    db 0		; E3.cls 3197
-fn_e3_lib_ff_ybot:    db 0		; E3.cls 3198
-fn_e3_lib_ff_y:       db 0		; E3.cls 3199
-fn_e3_lib_ff_yl:      db 0		; E3.cls 3200
-fn_e3_lib_ff_yr:      db 0		; E3.cls 3201
-fn_e3_lib_ff_pl:      dw 0		; E3.cls 3202
-fn_e3_lib_ff_pr:      dw 0		; E3.cls 3203
-fn_e3_lib_ff_lend:    db 0		; E3.cls 3204
-fn_e3_lib_ff_rend:    db 0		; E3.cls 3205
-fn_e3_lib_ff_n:       db 0		; E3.cls 3206
-fn_e3_lib_ff_w:       db 0		; E3.cls 3207
-fn_e3_lib_ff_de:      dw 0		; E3.cls 3208
+            inc ix		; E3.cls 3192
+            inc c		; E3.cls 3193
+            djnz fn_e3_lib_fi_lp		; E3.cls 3194
+            jp fn_e3_lib_ff		; E3.cls 3195
+fn_e3_lib_ff_v:       equ fn_e3_lib_ffpage		; E3.cls 3196
+fn_e3_lib_ff_top:     db 0		; E3.cls 3197
+fn_e3_lib_ff_ytop:    db 0		; E3.cls 3198
+fn_e3_lib_ff_ybot:    db 0		; E3.cls 3199
+fn_e3_lib_ff_y:       db 0		; E3.cls 3200
+fn_e3_lib_ff_yl:      db 0		; E3.cls 3201
+fn_e3_lib_ff_yr:      db 0		; E3.cls 3202
+fn_e3_lib_ff_pl:      dw 0		; E3.cls 3203
+fn_e3_lib_ff_pr:      dw 0		; E3.cls 3204
+fn_e3_lib_ff_lend:    db 0		; E3.cls 3205
+fn_e3_lib_ff_rend:    db 0		; E3.cls 3206
+fn_e3_lib_ff_n:       db 0		; E3.cls 3207
+fn_e3_lib_ff_w:       db 0		; E3.cls 3208
+fn_e3_lib_ff_de:      dw 0		; E3.cls 3209
 ; fr_row: the fast way's rows (aligned: the pushes end on a 256 byte boundary, so where to jump in
 ; is the step count negated)
-            ALIGN 256		; E3.cls 3211
-fn_e3_lib_vpage:      ds 256                  ; per vertex i: +i its code, +64 + i its x, +128 + i its y (bytes, [3212]
+            ALIGN 256		; E3.cls 3212
+fn_e3_lib_vpage:      ds 256                  ; per vertex i: +i its code, +64 + i its x, +128 + i its y (bytes, [3213]
                                     ; in the fast range)
-fn_e3_lib_ffpage:     ds 256                  ; ff_v: the fast fill's points (x, y bytes; up to 128) [3214]
-fn_e3_lib_fr_row:		; E3.cls 3215
-            exx		; E3.cls 3216
-            ld a, h                 ; x0 [3217]
-            add hl, de		; E3.cls 3218
-            db #08                  ; ex af, af [3219]
-            ld a, ixh               ; x1 [3220]
-            add ix, bc		; E3.cls 3221
-            exx		; E3.cls 3222
-            ld b, a		; E3.cls 3223
-            db #08		; E3.cls 3224
-            ld c, a		; E3.cls 3225
-            ld a, iyh		; E3.cls 3226
-            ld h, a		; E3.cls 3227
-            inc iyh		; E3.cls 3228
-            ld a, b		; E3.cls 3229
-            cp c		; E3.cls 3230
-            jp c, fn_e3_lib_fr_cont           ; x1 < x0: none [3231]
-            bit 0, c                ; odd start: one byte (an odd pixel: D) [3232]
-            jr z, fn_e3_lib_fr_a		; E3.cls 3233
-            ld l, c		; E3.cls 3234
-            ld (hl), d		; E3.cls 3235
-            cp c		; E3.cls 3236
-            jp z, fn_e3_lib_fr_cont		; E3.cls 3237
-            inc c		; E3.cls 3238
-fn_e3_lib_fr_a:		; E3.cls 3239
-            bit 0, b                ; even end: one byte (E) [3240]
-            jr nz, fn_e3_lib_fr_b		; E3.cls 3241
-            ld l, b		; E3.cls 3242
-            ld (hl), e		; E3.cls 3243
-            ld a, b		; E3.cls 3244
-            cp c		; E3.cls 3245
-            jp z, fn_e3_lib_fr_cont		; E3.cls 3246
-            dec b		; E3.cls 3247
-fn_e3_lib_fr_b:		; E3.cls 3248
-            ld a, b                 ; pairs [3249]
-            sub c		; E3.cls 3250
-            add a, 1		; E3.cls 3251
-            rra		; E3.cls 3252
-            ld l, b		; E3.cls 3253
-            inc hl		; E3.cls 3254
-            db #F9                  ; ld sp, hl [3255]
-            neg		; E3.cls 3256
-            ld l, a		; E3.cls 3257
-            ld h, (fn_e3_lib_fr_pend >> 8) - 1		; E3.cls 3258
-            jp (hl)		; E3.cls 3259
+fn_e3_lib_ffpage:     ds 256                  ; ff_v: the fast fill's points (x, y bytes; up to 128) [3215]
+fn_e3_lib_fr_row:		; E3.cls 3216
+            exx		; E3.cls 3217
+            ld a, h                 ; x0 [3218]
+            add hl, de		; E3.cls 3219
+            db #08                  ; ex af, af [3220]
+            ld a, ixh               ; x1 [3221]
+            add ix, bc		; E3.cls 3222
+            exx		; E3.cls 3223
+            ld b, a		; E3.cls 3224
+            db #08		; E3.cls 3225
+            ld c, a		; E3.cls 3226
+            ld a, iyh		; E3.cls 3227
+            ld h, a		; E3.cls 3228
+            inc iyh		; E3.cls 3229
+            ld a, b		; E3.cls 3230
+            cp c		; E3.cls 3231
+            jp c, fn_e3_lib_fr_cont           ; x1 < x0: none [3232]
+            bit 0, c                ; odd start: one byte (an odd pixel: D) [3233]
+            jr z, fn_e3_lib_fr_a		; E3.cls 3234
+            ld l, c		; E3.cls 3235
+            ld (hl), d		; E3.cls 3236
+            cp c		; E3.cls 3237
+            jp z, fn_e3_lib_fr_cont		; E3.cls 3238
+            inc c		; E3.cls 3239
+fn_e3_lib_fr_a:		; E3.cls 3240
+            bit 0, b                ; even end: one byte (E) [3241]
+            jr nz, fn_e3_lib_fr_b		; E3.cls 3242
+            ld l, b		; E3.cls 3243
+            ld (hl), e		; E3.cls 3244
+            ld a, b		; E3.cls 3245
+            cp c		; E3.cls 3246
+            jp z, fn_e3_lib_fr_cont		; E3.cls 3247
+            dec b		; E3.cls 3248
+fn_e3_lib_fr_b:		; E3.cls 3249
+            ld a, b                 ; pairs [3250]
+            sub c		; E3.cls 3251
+            add a, 1		; E3.cls 3252
+            rra		; E3.cls 3253
+            ld l, b		; E3.cls 3254
+            inc hl		; E3.cls 3255
+            db #F9                  ; ld sp, hl [3256]
+            neg		; E3.cls 3257
+            ld l, a		; E3.cls 3258
+            ld h, (fn_e3_lib_fr_pend >> 8) - 1		; E3.cls 3259
+            jp (hl)		; E3.cls 3260
 ; (NEW) three small routines put in the gap before the pushes' 128 byte line-up (they were   ; <--- NEW
 ; elsewhere: the gap was empty, 66 bytes)                                                  ; <--- NEW
 ; trig: A = angle -> A = sin x 127 (signed), C = cos x 127
-fn_e3_lib_trig:		; E3.cls 3263
-            ld hl, fn_e3data_sines_sines_d		; E3.cls 3264
-            ld e, a		; E3.cls 3265
-            ld d, 0		; E3.cls 3266
-            add hl, de		; E3.cls 3267
-            ld b, (hl)              ; sin [3268]
-            add a, 64		; E3.cls 3269
-            ld e, a		; E3.cls 3270
-            ld hl, fn_e3data_sines_sines_d		; E3.cls 3271
-            add hl, de		; E3.cls 3272
-            ld c, (hl)              ; cos [3273]
-            ld a, b		; E3.cls 3274
-            ret		; E3.cls 3275
+fn_e3_lib_trig:		; E3.cls 3264
+            ld hl, fn_e3data_sines_sines_d		; E3.cls 3265
+            ld e, a		; E3.cls 3266
+            ld d, 0		; E3.cls 3267
+            add hl, de		; E3.cls 3268
+            ld b, (hl)              ; sin [3269]
+            add a, 64		; E3.cls 3270
+            ld e, a		; E3.cls 3271
+            ld hl, fn_e3data_sines_sines_d		; E3.cls 3272
+            add hl, de		; E3.cls 3273
+            ld c, (hl)              ; cos [3274]
+            ld a, b		; E3.cls 3275
+            ret		; E3.cls 3276
 ; mul8s: D x E (signed) -> DE
-fn_e3_lib_mul8s:		; E3.cls 3277
-            ld h, d		; E3.cls 3278
-            ld l, e		; E3.cls 3279
-            mul d, e		; E3.cls 3280
-            bit 7, h		; E3.cls 3281
-            jr z, fn_e3_lib_m8s_1		; E3.cls 3282
-            ld a, d		; E3.cls 3283
-            sub l		; E3.cls 3284
-            ld d, a		; E3.cls 3285
-fn_e3_lib_m8s_1:		; E3.cls 3286
-            bit 7, l		; E3.cls 3287
-            ret z		; E3.cls 3288
-            ld a, d		; E3.cls 3289
-            sub h		; E3.cls 3290
-            ld d, a		; E3.cls 3291
-            ret		; E3.cls 3292
+fn_e3_lib_mul8s:		; E3.cls 3278
+            ld h, d		; E3.cls 3279
+            ld l, e		; E3.cls 3280
+            mul d, e		; E3.cls 3281
+            bit 7, h		; E3.cls 3282
+            jr z, fn_e3_lib_m8s_1		; E3.cls 3283
+            ld a, d		; E3.cls 3284
+            sub l		; E3.cls 3285
+            ld d, a		; E3.cls 3286
+fn_e3_lib_m8s_1:		; E3.cls 3287
+            bit 7, l		; E3.cls 3288
+            ret z		; E3.cls 3289
+            ld a, d		; E3.cls 3290
+            sub h		; E3.cls 3291
+            ld d, a		; E3.cls 3292
+            ret		; E3.cls 3293
 ; div10: HL (unsigned) / 10 -> HL, A = the remainder
-fn_e3_lib_div10:		; E3.cls 3294
-            ld b, 16		; E3.cls 3295
-            xor a		; E3.cls 3296
-fn_e3_lib_d10_lp:		; E3.cls 3297
-            add hl, hl		; E3.cls 3298
-            rla		; E3.cls 3299
-            cp 10		; E3.cls 3300
-            jr c, fn_e3_lib_d10_n		; E3.cls 3301
-            sub 10		; E3.cls 3302
-            inc l		; E3.cls 3303
-fn_e3_lib_d10_n:		; E3.cls 3304
-            djnz fn_e3_lib_d10_lp		; E3.cls 3305
-            ret		; E3.cls 3306
-            ALIGN 128		; E3.cls 3307
-            REPT 128		; E3.cls 3308
-            push de		; E3.cls 3309
-            ENDR		; E3.cls 3310
-fn_e3_lib_fr_pend:		; E3.cls 3311
-fn_e3_lib_fr_cont:		; E3.cls 3312
-            ld a, d		; E3.cls 3313
-            ld d, e		; E3.cls 3314
-            ld e, a		; E3.cls 3315
-            dec iyl		; E3.cls 3316
-            jp nz, fn_e3_lib_fr_row		; E3.cls 3317
-            jp fn_e3_lib_ff_after		; E3.cls 3318
-fn_e3_lib_fl_ssp:     dw 0		; E3.cls 3319
+fn_e3_lib_div10:		; E3.cls 3295
+            ld b, 16		; E3.cls 3296
+            xor a		; E3.cls 3297
+fn_e3_lib_d10_lp:		; E3.cls 3298
+            add hl, hl		; E3.cls 3299
+            rla		; E3.cls 3300
+            cp 10		; E3.cls 3301
+            jr c, fn_e3_lib_d10_n		; E3.cls 3302
+            sub 10		; E3.cls 3303
+            inc l		; E3.cls 3304
+fn_e3_lib_d10_n:		; E3.cls 3305
+            djnz fn_e3_lib_d10_lp		; E3.cls 3306
+            ret		; E3.cls 3307
+            ALIGN 128		; E3.cls 3308
+            REPT 128		; E3.cls 3309
+            push de		; E3.cls 3310
+            ENDR		; E3.cls 3311
+fn_e3_lib_fr_pend:		; E3.cls 3312
+fn_e3_lib_fr_cont:		; E3.cls 3313
+            ld a, d		; E3.cls 3314
+            ld d, e		; E3.cls 3315
+            ld e, a		; E3.cls 3316
+            dec iyl		; E3.cls 3317
+            jp nz, fn_e3_lib_fr_row		; E3.cls 3318
+            jp fn_e3_lib_ff_after		; E3.cls 3319
+fn_e3_lib_fl_ssp:     dw 0		; E3.cls 3320
 ; clip2: the polygon pvx, pvy (pn points) cut to x 1..255, y 0..192 (Sutherland-Hodgman, one
 ; side at a time) -> ff_v (bytes), ff_top, ff_ytop, ff_ybot, pn (under 3: nothing left)
-fn_e3_lib_clip2:		; E3.cls 3322
-            ld a, (var_e3_pn)		; E3.cls 3323
-            ld (fn_e3_lib_c2_n), a		; E3.cls 3324
-            ld b, a		; E3.cls 3325
-            ld hl, arr_e3_pvx		; E3.cls 3326
-            ld de, arr_e3_pvy		; E3.cls 3327
-            ld ix, fn_e3_lib_c2_a		; E3.cls 3328
-fn_e3_lib_c2_cp:		; E3.cls 3329
-            ld a, (hl)		; E3.cls 3330
-            ld (ix + 0), a		; E3.cls 3331
-            inc hl		; E3.cls 3332
-            ld a, (hl)		; E3.cls 3333
-            ld (ix + 1), a		; E3.cls 3334
-            inc hl		; E3.cls 3335
-            ld a, (de)		; E3.cls 3336
-            ld (ix + 2), a		; E3.cls 3337
-            inc de		; E3.cls 3338
-            ld a, (de)		; E3.cls 3339
-            ld (ix + 3), a		; E3.cls 3340
-            inc de		; E3.cls 3341
-            inc ix		; E3.cls 3342
+fn_e3_lib_clip2:		; E3.cls 3323
+            ld a, (var_e3_pn)		; E3.cls 3324
+            ld (fn_e3_lib_c2_n), a		; E3.cls 3325
+            ld b, a		; E3.cls 3326
+            ld hl, arr_e3_pvx		; E3.cls 3327
+            ld de, arr_e3_pvy		; E3.cls 3328
+            ld ix, fn_e3_lib_c2_a		; E3.cls 3329
+fn_e3_lib_c2_cp:		; E3.cls 3330
+            ld a, (hl)		; E3.cls 3331
+            ld (ix + 0), a		; E3.cls 3332
+            inc hl		; E3.cls 3333
+            ld a, (hl)		; E3.cls 3334
+            ld (ix + 1), a		; E3.cls 3335
+            inc hl		; E3.cls 3336
+            ld a, (de)		; E3.cls 3337
+            ld (ix + 2), a		; E3.cls 3338
+            inc de		; E3.cls 3339
+            ld a, (de)		; E3.cls 3340
+            ld (ix + 3), a		; E3.cls 3341
+            inc de		; E3.cls 3342
             inc ix		; E3.cls 3343
             inc ix		; E3.cls 3344
             inc ix		; E3.cls 3345
-            djnz fn_e3_lib_c2_cp		; E3.cls 3346
-            ld hl, fn_e3_lib_c2_a		; E3.cls 3347
-            ld (fn_e3_lib_c2_src), hl		; E3.cls 3348
-            ld hl, fn_e3_lib_c2_b		; E3.cls 3349
-            ld (fn_e3_lib_c2_dst), hl		; E3.cls 3350
-            xor a		; E3.cls 3351
-            ld (fn_e3_lib_c2_bd), a		; E3.cls 3352
-fn_e3_lib_c2_pass:		; E3.cls 3353
-            ld a, (fn_e3_lib_c2_bd)           ; (only the sides crossed) [3354]
-            inc a		; E3.cls 3355
-            ld b, a		; E3.cls 3356
-            ld a, (fn_e3_lib_c2_mask)		; E3.cls 3357
-fn_e3_lib_c2_mb:		; E3.cls 3358
-            rrca		; E3.cls 3359
-            djnz fn_e3_lib_c2_mb		; E3.cls 3360
-            jr nc, fn_e3_lib_c2_skip		; E3.cls 3361
-            call fn_e3_lib_c2_one		; E3.cls 3362
-            ld a, (fn_e3_lib_c2_n)		; E3.cls 3363
-            cp 3		; E3.cls 3364
-            jr c, fn_e3_lib_c2_none		; E3.cls 3365
-            ld hl, (fn_e3_lib_c2_src)		; E3.cls 3366
-            ld de, (fn_e3_lib_c2_dst)		; E3.cls 3367
-            ld (fn_e3_lib_c2_src), de		; E3.cls 3368
-            ld (fn_e3_lib_c2_dst), hl		; E3.cls 3369
-fn_e3_lib_c2_skip:		; E3.cls 3370
-            ld a, (fn_e3_lib_c2_bd)		; E3.cls 3371
-            inc a		; E3.cls 3372
-            ld (fn_e3_lib_c2_bd), a		; E3.cls 3373
-            cp 4		; E3.cls 3374
-            jr c, fn_e3_lib_c2_pass		; E3.cls 3375
-            ld a, (fn_e3_lib_c2_n)            ; to bytes, the top and the bottom found [3376]
-            cp 100		; E3.cls 3377
-            jr nc, fn_e3_lib_c2_none		; E3.cls 3378
-            ld (var_e3_pn), a		; E3.cls 3379
-            ld b, a		; E3.cls 3380
-            ld ix, (fn_e3_lib_c2_src)		; E3.cls 3381
-            ld hl, fn_e3_lib_ff_v		; E3.cls 3382
-            ld c, 0		; E3.cls 3383
-            ld a, 255		; E3.cls 3384
-            ld (fn_e3_lib_ff_ytop), a		; E3.cls 3385
-            xor a		; E3.cls 3386
-            ld (fn_e3_lib_ff_ybot), a		; E3.cls 3387
-fn_e3_lib_c2_bt:		; E3.cls 3388
-            ld a, (ix + 0)		; E3.cls 3389
-            ld (hl), a		; E3.cls 3390
-            inc hl		; E3.cls 3391
-            ld a, (ix + 2)		; E3.cls 3392
-            ld (hl), a		; E3.cls 3393
-            inc hl		; E3.cls 3394
-            push hl		; E3.cls 3395
-            ld hl, fn_e3_lib_ff_ytop		; E3.cls 3396
-            cp (hl)		; E3.cls 3397
-            jr nc, fn_e3_lib_c2_b1		; E3.cls 3398
-            ld (hl), a		; E3.cls 3399
-            ld e, a		; E3.cls 3400
-            ld a, c		; E3.cls 3401
-            ld (fn_e3_lib_ff_top), a		; E3.cls 3402
-            ld a, e		; E3.cls 3403
-fn_e3_lib_c2_b1:		; E3.cls 3404
-            ld hl, fn_e3_lib_ff_ybot		; E3.cls 3405
-            cp (hl)		; E3.cls 3406
-            jr c, fn_e3_lib_c2_b2		; E3.cls 3407
-            ld (hl), a		; E3.cls 3408
-fn_e3_lib_c2_b2:		; E3.cls 3409
-            pop hl		; E3.cls 3410
-            ld de, 4		; E3.cls 3411
-            add ix, de		; E3.cls 3412
-            inc c		; E3.cls 3413
-            djnz fn_e3_lib_c2_bt		; E3.cls 3414
-            ret		; E3.cls 3415
-fn_e3_lib_c2_none:		; E3.cls 3416
-            xor a		; E3.cls 3417
-            ld (var_e3_pn), a		; E3.cls 3418
-            ret		; E3.cls 3419
+            inc ix		; E3.cls 3346
+            djnz fn_e3_lib_c2_cp		; E3.cls 3347
+            ld hl, fn_e3_lib_c2_a		; E3.cls 3348
+            ld (fn_e3_lib_c2_src), hl		; E3.cls 3349
+            ld hl, fn_e3_lib_c2_b		; E3.cls 3350
+            ld (fn_e3_lib_c2_dst), hl		; E3.cls 3351
+            xor a		; E3.cls 3352
+            ld (fn_e3_lib_c2_bd), a		; E3.cls 3353
+fn_e3_lib_c2_pass:		; E3.cls 3354
+            ld a, (fn_e3_lib_c2_bd)           ; (only the sides crossed) [3355]
+            inc a		; E3.cls 3356
+            ld b, a		; E3.cls 3357
+            ld a, (fn_e3_lib_c2_mask)		; E3.cls 3358
+fn_e3_lib_c2_mb:		; E3.cls 3359
+            rrca		; E3.cls 3360
+            djnz fn_e3_lib_c2_mb		; E3.cls 3361
+            jr nc, fn_e3_lib_c2_skip		; E3.cls 3362
+            call fn_e3_lib_c2_one		; E3.cls 3363
+            ld a, (fn_e3_lib_c2_n)		; E3.cls 3364
+            cp 3		; E3.cls 3365
+            jr c, fn_e3_lib_c2_none		; E3.cls 3366
+            ld hl, (fn_e3_lib_c2_src)		; E3.cls 3367
+            ld de, (fn_e3_lib_c2_dst)		; E3.cls 3368
+            ld (fn_e3_lib_c2_src), de		; E3.cls 3369
+            ld (fn_e3_lib_c2_dst), hl		; E3.cls 3370
+fn_e3_lib_c2_skip:		; E3.cls 3371
+            ld a, (fn_e3_lib_c2_bd)		; E3.cls 3372
+            inc a		; E3.cls 3373
+            ld (fn_e3_lib_c2_bd), a		; E3.cls 3374
+            cp 4		; E3.cls 3375
+            jr c, fn_e3_lib_c2_pass		; E3.cls 3376
+            ld a, (fn_e3_lib_c2_n)            ; to bytes, the top and the bottom found [3377]
+            cp 100		; E3.cls 3378
+            jr nc, fn_e3_lib_c2_none		; E3.cls 3379
+            ld (var_e3_pn), a		; E3.cls 3380
+            ld b, a		; E3.cls 3381
+            ld ix, (fn_e3_lib_c2_src)		; E3.cls 3382
+            ld hl, fn_e3_lib_ff_v		; E3.cls 3383
+            ld c, 0		; E3.cls 3384
+            ld a, 255		; E3.cls 3385
+            ld (fn_e3_lib_ff_ytop), a		; E3.cls 3386
+            xor a		; E3.cls 3387
+            ld (fn_e3_lib_ff_ybot), a		; E3.cls 3388
+fn_e3_lib_c2_bt:		; E3.cls 3389
+            ld a, (ix + 0)		; E3.cls 3390
+            ld (hl), a		; E3.cls 3391
+            inc hl		; E3.cls 3392
+            ld a, (ix + 2)		; E3.cls 3393
+            ld (hl), a		; E3.cls 3394
+            inc hl		; E3.cls 3395
+            push hl		; E3.cls 3396
+            ld hl, fn_e3_lib_ff_ytop		; E3.cls 3397
+            cp (hl)		; E3.cls 3398
+            jr nc, fn_e3_lib_c2_b1		; E3.cls 3399
+            ld (hl), a		; E3.cls 3400
+            ld e, a		; E3.cls 3401
+            ld a, c		; E3.cls 3402
+            ld (fn_e3_lib_ff_top), a		; E3.cls 3403
+            ld a, e		; E3.cls 3404
+fn_e3_lib_c2_b1:		; E3.cls 3405
+            ld hl, fn_e3_lib_ff_ybot		; E3.cls 3406
+            cp (hl)		; E3.cls 3407
+            jr c, fn_e3_lib_c2_b2		; E3.cls 3408
+            ld (hl), a		; E3.cls 3409
+fn_e3_lib_c2_b2:		; E3.cls 3410
+            pop hl		; E3.cls 3411
+            ld de, 4		; E3.cls 3412
+            add ix, de		; E3.cls 3413
+            inc c		; E3.cls 3414
+            djnz fn_e3_lib_c2_bt		; E3.cls 3415
+            ret		; E3.cls 3416
+fn_e3_lib_c2_none:		; E3.cls 3417
+            xor a		; E3.cls 3418
+            ld (var_e3_pn), a		; E3.cls 3419
+            ret		; E3.cls 3420
 ; c2_one: the list at c2_src (c2_n points) cut by side c2_bd into c2_dst
-fn_e3_lib_c2_one:		; E3.cls 3421
-            ld a, (fn_e3_lib_c2_n)		; E3.cls 3422
-            ld (fn_e3_lib_c2_k), a		; E3.cls 3423
-            xor a		; E3.cls 3424
-            ld (fn_e3_lib_c2_out), a		; E3.cls 3425
-            ld hl, (fn_e3_lib_c2_dst)		; E3.cls 3426
-            ld (fn_e3_lib_c2_d), hl		; E3.cls 3427
-            ld a, (fn_e3_lib_c2_n)            ; the previous: the last [3428]
-            dec a		; E3.cls 3429
-            add a, a		; E3.cls 3430
+fn_e3_lib_c2_one:		; E3.cls 3422
+            ld a, (fn_e3_lib_c2_n)		; E3.cls 3423
+            ld (fn_e3_lib_c2_k), a		; E3.cls 3424
+            xor a		; E3.cls 3425
+            ld (fn_e3_lib_c2_out), a		; E3.cls 3426
+            ld hl, (fn_e3_lib_c2_dst)		; E3.cls 3427
+            ld (fn_e3_lib_c2_d), hl		; E3.cls 3428
+            ld a, (fn_e3_lib_c2_n)            ; the previous: the last [3429]
+            dec a		; E3.cls 3430
             add a, a		; E3.cls 3431
-            ld e, a		; E3.cls 3432
-            ld d, 0		; E3.cls 3433
-            ld hl, (fn_e3_lib_c2_src)		; E3.cls 3434
-            add hl, de		; E3.cls 3435
-            ld (fn_e3_lib_c2_pp), hl		; E3.cls 3436
-            push hl		; E3.cls 3437
-            pop ix		; E3.cls 3438
-            call fn_e3_lib_c2_dist		; E3.cls 3439
-            ld (fn_e3_lib_c2_dp), hl		; E3.cls 3440
-            ld ix, (fn_e3_lib_c2_src)		; E3.cls 3441
-fn_e3_lib_c2_lp:		; E3.cls 3442
-            call fn_e3_lib_c2_dist		; E3.cls 3443
-            ld (fn_e3_lib_c2_dc), hl		; E3.cls 3444
-            ld a, (fn_e3_lib_c2_dp + 1)		; E3.cls 3445
-            bit 7, a		; E3.cls 3446
-            jr nz, fn_e3_lib_c2_pout		; E3.cls 3447
-            bit 7, h		; E3.cls 3448
-            jr nz, fn_e3_lib_c2_inout		; E3.cls 3449
-            call fn_e3_lib_c2_emit		; E3.cls 3450
-            jr fn_e3_lib_c2_nx		; E3.cls 3451
-fn_e3_lib_c2_inout:		; E3.cls 3452
-            call fn_e3_lib_c2_isect		; E3.cls 3453
-            jr fn_e3_lib_c2_nx		; E3.cls 3454
-fn_e3_lib_c2_pout:		; E3.cls 3455
-            bit 7, h		; E3.cls 3456
-            jr nz, fn_e3_lib_c2_nx		; E3.cls 3457
-            call fn_e3_lib_c2_isect		; E3.cls 3458
-            call fn_e3_lib_c2_emit		; E3.cls 3459
-fn_e3_lib_c2_nx:		; E3.cls 3460
-            ld (fn_e3_lib_c2_pp), ix		; E3.cls 3461
-            ld hl, (fn_e3_lib_c2_dc)		; E3.cls 3462
-            ld (fn_e3_lib_c2_dp), hl		; E3.cls 3463
-            ld de, 4		; E3.cls 3464
-            add ix, de		; E3.cls 3465
-            ld a, (fn_e3_lib_c2_k)		; E3.cls 3466
-            dec a		; E3.cls 3467
-            ld (fn_e3_lib_c2_k), a		; E3.cls 3468
-            jr nz, fn_e3_lib_c2_lp		; E3.cls 3469
-            ld a, (fn_e3_lib_c2_out)		; E3.cls 3470
-            ld (fn_e3_lib_c2_n), a		; E3.cls 3471
-            ret		; E3.cls 3472
-fn_e3_lib_c2_emit:		; E3.cls 3473
-            push ix		; E3.cls 3474
-            pop hl		; E3.cls 3475
-            ld de, (fn_e3_lib_c2_d)		; E3.cls 3476
-            ld bc, 4		; E3.cls 3477
-            ldir		; E3.cls 3478
-            ld (fn_e3_lib_c2_d), de		; E3.cls 3479
-            ld hl, fn_e3_lib_c2_out		; E3.cls 3480
-            inc (hl)		; E3.cls 3481
-            ret		; E3.cls 3482
+            add a, a		; E3.cls 3432
+            ld e, a		; E3.cls 3433
+            ld d, 0		; E3.cls 3434
+            ld hl, (fn_e3_lib_c2_src)		; E3.cls 3435
+            add hl, de		; E3.cls 3436
+            ld (fn_e3_lib_c2_pp), hl		; E3.cls 3437
+            push hl		; E3.cls 3438
+            pop ix		; E3.cls 3439
+            call fn_e3_lib_c2_dist		; E3.cls 3440
+            ld (fn_e3_lib_c2_dp), hl		; E3.cls 3441
+            ld ix, (fn_e3_lib_c2_src)		; E3.cls 3442
+fn_e3_lib_c2_lp:		; E3.cls 3443
+            call fn_e3_lib_c2_dist		; E3.cls 3444
+            ld (fn_e3_lib_c2_dc), hl		; E3.cls 3445
+            ld a, (fn_e3_lib_c2_dp + 1)		; E3.cls 3446
+            bit 7, a		; E3.cls 3447
+            jr nz, fn_e3_lib_c2_pout		; E3.cls 3448
+            bit 7, h		; E3.cls 3449
+            jr nz, fn_e3_lib_c2_inout		; E3.cls 3450
+            call fn_e3_lib_c2_emit		; E3.cls 3451
+            jr fn_e3_lib_c2_nx		; E3.cls 3452
+fn_e3_lib_c2_inout:		; E3.cls 3453
+            call fn_e3_lib_c2_isect		; E3.cls 3454
+            jr fn_e3_lib_c2_nx		; E3.cls 3455
+fn_e3_lib_c2_pout:		; E3.cls 3456
+            bit 7, h		; E3.cls 3457
+            jr nz, fn_e3_lib_c2_nx		; E3.cls 3458
+            call fn_e3_lib_c2_isect		; E3.cls 3459
+            call fn_e3_lib_c2_emit		; E3.cls 3460
+fn_e3_lib_c2_nx:		; E3.cls 3461
+            ld (fn_e3_lib_c2_pp), ix		; E3.cls 3462
+            ld hl, (fn_e3_lib_c2_dc)		; E3.cls 3463
+            ld (fn_e3_lib_c2_dp), hl		; E3.cls 3464
+            ld de, 4		; E3.cls 3465
+            add ix, de		; E3.cls 3466
+            ld a, (fn_e3_lib_c2_k)		; E3.cls 3467
+            dec a		; E3.cls 3468
+            ld (fn_e3_lib_c2_k), a		; E3.cls 3469
+            jr nz, fn_e3_lib_c2_lp		; E3.cls 3470
+            ld a, (fn_e3_lib_c2_out)		; E3.cls 3471
+            ld (fn_e3_lib_c2_n), a		; E3.cls 3472
+            ret		; E3.cls 3473
+fn_e3_lib_c2_emit:		; E3.cls 3474
+            push ix		; E3.cls 3475
+            pop hl		; E3.cls 3476
+            ld de, (fn_e3_lib_c2_d)		; E3.cls 3477
+            ld bc, 4		; E3.cls 3478
+            ldir		; E3.cls 3479
+            ld (fn_e3_lib_c2_d), de		; E3.cls 3480
+            ld hl, fn_e3_lib_c2_out		; E3.cls 3481
+            inc (hl)		; E3.cls 3482
+            ret		; E3.cls 3483
 ; c2_dist: (IX)'s distance inside side c2_bd: x - 1, 255 - x, y, 192 - y
-fn_e3_lib_c2_dist:		; E3.cls 3484
-            ld a, (fn_e3_lib_c2_bd)		; E3.cls 3485
-            or a		; E3.cls 3486
-            jr nz, fn_e3_lib_c2d_1		; E3.cls 3487
-            ld l, (ix + 0)		; E3.cls 3488
-            ld h, (ix + 1)		; E3.cls 3489
-            dec hl		; E3.cls 3490
-            ret		; E3.cls 3491
-fn_e3_lib_c2d_1:		; E3.cls 3492
-            dec a		; E3.cls 3493
-            jr nz, fn_e3_lib_c2d_2		; E3.cls 3494
-            ld e, (ix + 0)		; E3.cls 3495
-            ld d, (ix + 1)		; E3.cls 3496
-            ld hl, 255		; E3.cls 3497
-            or a		; E3.cls 3498
-            sbc hl, de		; E3.cls 3499
-            ret		; E3.cls 3500
-fn_e3_lib_c2d_2:		; E3.cls 3501
-            dec a		; E3.cls 3502
-            jr nz, fn_e3_lib_c2d_3		; E3.cls 3503
-            ld l, (ix + 2)		; E3.cls 3504
-            ld h, (ix + 3)		; E3.cls 3505
-            ret		; E3.cls 3506
-fn_e3_lib_c2d_3:		; E3.cls 3507
-            ld e, (ix + 2)		; E3.cls 3508
-            ld d, (ix + 3)		; E3.cls 3509
-            ld hl, 192		; E3.cls 3510
-            or a		; E3.cls 3511
-            sbc hl, de		; E3.cls 3512
-            ret		; E3.cls 3513
+fn_e3_lib_c2_dist:		; E3.cls 3485
+            ld a, (fn_e3_lib_c2_bd)		; E3.cls 3486
+            or a		; E3.cls 3487
+            jr nz, fn_e3_lib_c2d_1		; E3.cls 3488
+            ld l, (ix + 0)		; E3.cls 3489
+            ld h, (ix + 1)		; E3.cls 3490
+            dec hl		; E3.cls 3491
+            ret		; E3.cls 3492
+fn_e3_lib_c2d_1:		; E3.cls 3493
+            dec a		; E3.cls 3494
+            jr nz, fn_e3_lib_c2d_2		; E3.cls 3495
+            ld e, (ix + 0)		; E3.cls 3496
+            ld d, (ix + 1)		; E3.cls 3497
+            ld hl, 255		; E3.cls 3498
+            or a		; E3.cls 3499
+            sbc hl, de		; E3.cls 3500
+            ret		; E3.cls 3501
+fn_e3_lib_c2d_2:		; E3.cls 3502
+            dec a		; E3.cls 3503
+            jr nz, fn_e3_lib_c2d_3		; E3.cls 3504
+            ld l, (ix + 2)		; E3.cls 3505
+            ld h, (ix + 3)		; E3.cls 3506
+            ret		; E3.cls 3507
+fn_e3_lib_c2d_3:		; E3.cls 3508
+            ld e, (ix + 2)		; E3.cls 3509
+            ld d, (ix + 3)		; E3.cls 3510
+            ld hl, 192		; E3.cls 3511
+            or a		; E3.cls 3512
+            sbc hl, de		; E3.cls 3513
+            ret		; E3.cls 3514
 ; c2_isect: where the edge from the previous point to (IX) crosses the side: t = |dp| / (|dp| +
 ; |dc|) (65536 / that from REdge; under 256 - halved together till it is)   ; <--- CHANGED (was 1024)
-fn_e3_lib_c2_isect:		; E3.cls 3516
-            ld hl, (fn_e3_lib_c2_dp)		; E3.cls 3517
-            call fn_e3_lib_absh		; E3.cls 3518
-            ld (fn_e3_lib_c2_ap), hl		; E3.cls 3519
-            ld hl, (fn_e3_lib_c2_dc)		; E3.cls 3520
-            call fn_e3_lib_absh		; E3.cls 3521
-            ld de, (fn_e3_lib_c2_ap)		; E3.cls 3522
-            add hl, de              ; the sum [3523]
-fn_e3_lib_c2_sh:		; E3.cls 3524
-            ld a, h		; E3.cls 3525
-            or a                    ; <--- CHANGED (under 256: REdge is 256 long now) [3526]
-            jr z, fn_e3_lib_c2_r		; E3.cls 3527
-            srl h		; E3.cls 3528
-            rr l		; E3.cls 3529
-            srl d		; E3.cls 3530
-            rr e		; E3.cls 3531
-            jr fn_e3_lib_c2_sh		; E3.cls 3532
-fn_e3_lib_c2_r:		; E3.cls 3533
-            add hl, hl		; E3.cls 3534
-            push de		; E3.cls 3535
-            ld de, fn_e3data_redge_redge_d		; E3.cls 3536
-            add hl, de		; E3.cls 3537
-            ld e, (hl)		; E3.cls 3538
-            inc hl		; E3.cls 3539
-            ld d, (hl)		; E3.cls 3540
-            pop bc                  ; |dp| (halved as the sum) [3541]
-            call fn_e3_lib_umul               ; t = |dp| R (the low word) [3542]
-            ld (fn_e3_lib_c2_t), de		; E3.cls 3543
-            ld hl, (fn_e3_lib_c2_pp)		; E3.cls 3544
-            ld (fn_e3_lib_c2_pa), hl		; E3.cls 3545
-            ld a, (fn_e3_lib_c2_bd)		; E3.cls 3546
-            cp 2		; E3.cls 3547
-            jr nc, fn_e3_lib_c2_hz		; E3.cls 3548
+fn_e3_lib_c2_isect:		; E3.cls 3517
+            ld hl, (fn_e3_lib_c2_dp)		; E3.cls 3518
+            call fn_e3_lib_absh		; E3.cls 3519
+            ld (fn_e3_lib_c2_ap), hl		; E3.cls 3520
+            ld hl, (fn_e3_lib_c2_dc)		; E3.cls 3521
+            call fn_e3_lib_absh		; E3.cls 3522
+            ld de, (fn_e3_lib_c2_ap)		; E3.cls 3523
+            add hl, de              ; the sum [3524]
+fn_e3_lib_c2_sh:		; E3.cls 3525
+            ld a, h		; E3.cls 3526
+            or a                    ; <--- CHANGED (under 256: REdge is 256 long now) [3527]
+            jr z, fn_e3_lib_c2_r		; E3.cls 3528
+            srl h		; E3.cls 3529
+            rr l		; E3.cls 3530
+            srl d		; E3.cls 3531
+            rr e		; E3.cls 3532
+            jr fn_e3_lib_c2_sh		; E3.cls 3533
+fn_e3_lib_c2_r:		; E3.cls 3534
+            add hl, hl		; E3.cls 3535
+            push de		; E3.cls 3536
+            ld de, fn_e3data_redge_redge_d		; E3.cls 3537
+            add hl, de		; E3.cls 3538
+            ld e, (hl)		; E3.cls 3539
+            inc hl		; E3.cls 3540
+            ld d, (hl)		; E3.cls 3541
+            pop bc                  ; |dp| (halved as the sum) [3542]
+            call fn_e3_lib_umul               ; t = |dp| R (the low word) [3543]
+            ld (fn_e3_lib_c2_t), de		; E3.cls 3544
+            ld hl, (fn_e3_lib_c2_pp)		; E3.cls 3545
+            ld (fn_e3_lib_c2_pa), hl		; E3.cls 3546
+            ld a, (fn_e3_lib_c2_bd)		; E3.cls 3547
+            cp 2		; E3.cls 3548
+            jr nc, fn_e3_lib_c2_hz		; E3.cls 3549
             ; x = the side; y = yp + (yc - yp) t
-            ld hl, 1		; E3.cls 3550
-            or a		; E3.cls 3551
-            jr z, fn_e3_lib_c2_x1		; E3.cls 3552
-            ld hl, 255		; E3.cls 3553
-fn_e3_lib_c2_x1:		; E3.cls 3554
-            ld (fn_e3_lib_c2_nx_), hl		; E3.cls 3555
-            ld hl, (fn_e3_lib_c2_pa)		; E3.cls 3556
-            inc hl		; E3.cls 3557
+            ld hl, 1		; E3.cls 3551
+            or a		; E3.cls 3552
+            jr z, fn_e3_lib_c2_x1		; E3.cls 3553
+            ld hl, 255		; E3.cls 3554
+fn_e3_lib_c2_x1:		; E3.cls 3555
+            ld (fn_e3_lib_c2_nx_), hl		; E3.cls 3556
+            ld hl, (fn_e3_lib_c2_pa)		; E3.cls 3557
             inc hl		; E3.cls 3558
-            ld e, (hl)		; E3.cls 3559
-            inc hl		; E3.cls 3560
-            ld d, (hl)              ; yp [3561]
-            ld l, (ix + 2)		; E3.cls 3562
-            ld h, (ix + 3)		; E3.cls 3563
-            call fn_e3_lib_c2_lerp		; E3.cls 3564
-            ld (fn_e3_lib_c2_ny), hl		; E3.cls 3565
-            jr fn_e3_lib_c2_put		; E3.cls 3566
-fn_e3_lib_c2_hz:		; E3.cls 3567
-            ld hl, 0		; E3.cls 3568
-            jr z, fn_e3_lib_c2_y0		; E3.cls 3569
-            ld hl, 192		; E3.cls 3570
-fn_e3_lib_c2_y0:		; E3.cls 3571
-            ld (fn_e3_lib_c2_ny), hl		; E3.cls 3572
-            ld hl, (fn_e3_lib_c2_pa)		; E3.cls 3573
-            ld e, (hl)		; E3.cls 3574
-            inc hl		; E3.cls 3575
-            ld d, (hl)              ; xp [3576]
-            ld l, (ix + 0)		; E3.cls 3577
-            ld h, (ix + 1)		; E3.cls 3578
-            call fn_e3_lib_c2_lerp		; E3.cls 3579
-            ld (fn_e3_lib_c2_nx_), hl		; E3.cls 3580
-fn_e3_lib_c2_put:		; E3.cls 3581
-            ld hl, (fn_e3_lib_c2_d)		; E3.cls 3582
-            ld de, (fn_e3_lib_c2_nx_)		; E3.cls 3583
-            ld (hl), e		; E3.cls 3584
-            inc hl		; E3.cls 3585
-            ld (hl), d		; E3.cls 3586
-            inc hl		; E3.cls 3587
-            ld de, (fn_e3_lib_c2_ny)		; E3.cls 3588
-            ld (hl), e		; E3.cls 3589
-            inc hl		; E3.cls 3590
-            ld (hl), d		; E3.cls 3591
-            inc hl		; E3.cls 3592
-            ld (fn_e3_lib_c2_d), hl		; E3.cls 3593
-            ld hl, fn_e3_lib_c2_out		; E3.cls 3594
-            inc (hl)		; E3.cls 3595
-            ret		; E3.cls 3596
-fn_e3_lib_c2_lerp:                            ; DE + (HL - DE) t (rounded) -> HL [3597]
-            push de		; E3.cls 3598
-            or a		; E3.cls 3599
-            sbc hl, de		; E3.cls 3600
-            ld b, h		; E3.cls 3601
-            ld c, l		; E3.cls 3602
-            ld de, (fn_e3_lib_c2_t)		; E3.cls 3603
-            call fn_e3_lib_smul		; E3.cls 3604
-            ld bc, #8000		; E3.cls 3605
-            ex de, hl		; E3.cls 3606
-            add hl, bc		; E3.cls 3607
-            ex de, hl		; E3.cls 3608
-            ld bc, 0		; E3.cls 3609
-            adc hl, bc		; E3.cls 3610
-            pop de		; E3.cls 3611
-            add hl, de		; E3.cls 3612
-            ret		; E3.cls 3613
-fn_e3_lib_c2_n:       db 0		; E3.cls 3614
-fn_e3_lib_c2_and:     db 0		; E3.cls 3615
-fn_e3_lib_c2_mask:    db 0		; E3.cls 3616
-fn_e3_lib_c2_k:       db 0		; E3.cls 3617
-fn_e3_lib_c2_out:     db 0		; E3.cls 3618
-fn_e3_lib_c2_bd:      db 0		; E3.cls 3619
-fn_e3_lib_c2_src:     dw 0		; E3.cls 3620
-fn_e3_lib_c2_dst:     dw 0		; E3.cls 3621
-fn_e3_lib_c2_d:       dw 0		; E3.cls 3622
-fn_e3_lib_c2_pp:      dw 0		; E3.cls 3623
-fn_e3_lib_c2_pa:      dw 0		; E3.cls 3624
-fn_e3_lib_c2_dp:      dw 0		; E3.cls 3625
-fn_e3_lib_c2_dc:      dw 0		; E3.cls 3626
-fn_e3_lib_c2_ap:      dw 0		; E3.cls 3627
-fn_e3_lib_c2_t:       dw 0		; E3.cls 3628
-fn_e3_lib_c2_nx_:     dw 0		; E3.cls 3629
-fn_e3_lib_c2_ny:      dw 0		; E3.cls 3630
-fn_e3_lib_c2_a:       ds 4 * 60		; E3.cls 3631
-fn_e3_lib_c2_b:       ds 4 * 60		; E3.cls 3632
+            inc hl		; E3.cls 3559
+            ld e, (hl)		; E3.cls 3560
+            inc hl		; E3.cls 3561
+            ld d, (hl)              ; yp [3562]
+            ld l, (ix + 2)		; E3.cls 3563
+            ld h, (ix + 3)		; E3.cls 3564
+            call fn_e3_lib_c2_lerp		; E3.cls 3565
+            ld (fn_e3_lib_c2_ny), hl		; E3.cls 3566
+            jr fn_e3_lib_c2_put		; E3.cls 3567
+fn_e3_lib_c2_hz:		; E3.cls 3568
+            ld hl, 0		; E3.cls 3569
+            jr z, fn_e3_lib_c2_y0		; E3.cls 3570
+            ld hl, 192		; E3.cls 3571
+fn_e3_lib_c2_y0:		; E3.cls 3572
+            ld (fn_e3_lib_c2_ny), hl		; E3.cls 3573
+            ld hl, (fn_e3_lib_c2_pa)		; E3.cls 3574
+            ld e, (hl)		; E3.cls 3575
+            inc hl		; E3.cls 3576
+            ld d, (hl)              ; xp [3577]
+            ld l, (ix + 0)		; E3.cls 3578
+            ld h, (ix + 1)		; E3.cls 3579
+            call fn_e3_lib_c2_lerp		; E3.cls 3580
+            ld (fn_e3_lib_c2_nx_), hl		; E3.cls 3581
+fn_e3_lib_c2_put:		; E3.cls 3582
+            ld hl, (fn_e3_lib_c2_d)		; E3.cls 3583
+            ld de, (fn_e3_lib_c2_nx_)		; E3.cls 3584
+            ld (hl), e		; E3.cls 3585
+            inc hl		; E3.cls 3586
+            ld (hl), d		; E3.cls 3587
+            inc hl		; E3.cls 3588
+            ld de, (fn_e3_lib_c2_ny)		; E3.cls 3589
+            ld (hl), e		; E3.cls 3590
+            inc hl		; E3.cls 3591
+            ld (hl), d		; E3.cls 3592
+            inc hl		; E3.cls 3593
+            ld (fn_e3_lib_c2_d), hl		; E3.cls 3594
+            ld hl, fn_e3_lib_c2_out		; E3.cls 3595
+            inc (hl)		; E3.cls 3596
+            ret		; E3.cls 3597
+fn_e3_lib_c2_lerp:                            ; DE + (HL - DE) t (rounded) -> HL [3598]
+            push de		; E3.cls 3599
+            or a		; E3.cls 3600
+            sbc hl, de		; E3.cls 3601
+            ld b, h		; E3.cls 3602
+            ld c, l		; E3.cls 3603
+            ld de, (fn_e3_lib_c2_t)		; E3.cls 3604
+            call fn_e3_lib_smul		; E3.cls 3605
+            ld bc, #8000		; E3.cls 3606
+            ex de, hl		; E3.cls 3607
+            add hl, bc		; E3.cls 3608
+            ex de, hl		; E3.cls 3609
+            ld bc, 0		; E3.cls 3610
+            adc hl, bc		; E3.cls 3611
+            pop de		; E3.cls 3612
+            add hl, de		; E3.cls 3613
+            ret		; E3.cls 3614
+fn_e3_lib_c2_n:       db 0		; E3.cls 3615
+fn_e3_lib_c2_and:     db 0		; E3.cls 3616
+fn_e3_lib_c2_mask:    db 0		; E3.cls 3617
+fn_e3_lib_c2_k:       db 0		; E3.cls 3618
+fn_e3_lib_c2_out:     db 0		; E3.cls 3619
+fn_e3_lib_c2_bd:      db 0		; E3.cls 3620
+fn_e3_lib_c2_src:     dw 0		; E3.cls 3621
+fn_e3_lib_c2_dst:     dw 0		; E3.cls 3622
+fn_e3_lib_c2_d:       dw 0		; E3.cls 3623
+fn_e3_lib_c2_pp:      dw 0		; E3.cls 3624
+fn_e3_lib_c2_pa:      dw 0		; E3.cls 3625
+fn_e3_lib_c2_dp:      dw 0		; E3.cls 3626
+fn_e3_lib_c2_dc:      dw 0		; E3.cls 3627
+fn_e3_lib_c2_ap:      dw 0		; E3.cls 3628
+fn_e3_lib_c2_t:       dw 0		; E3.cls 3629
+fn_e3_lib_c2_nx_:     dw 0		; E3.cls 3630
+fn_e3_lib_c2_ny:      dw 0		; E3.cls 3631
+fn_e3_lib_c2_a:       ds 4 * 60		; E3.cls 3632
+fn_e3_lib_c2_b:       ds 4 * 60		; E3.cls 3633
 ; ============================================================================ the projection
 ; proj: HL = x, DE = y, BC = z (> 0) in the view, |x| and |y| at most 2z (about) -> HL = the screen
 ; x, DE = the screen y. z = n 2^k (n 256..4095; x, y shifted by k too), R = 2^24 / n; then
 ; x R / 2^17 by three multiplies (the low bytes' product left out: under half a pixel)
-fn_e3_lib_proj:		; E3.cls 3637
-            ld a, b		; E3.cls 3638
-            and #F0		; E3.cls 3639
-            jr z, fn_e3_lib_pj_lo		; E3.cls 3640
-fn_e3_lib_pj_rs:		; E3.cls 3641
-            srl b                   ; z over 4095: all >> 1 [3642]
-            rr c		; E3.cls 3643
-            sra h		; E3.cls 3644
-            rr l		; E3.cls 3645
-            sra d		; E3.cls 3646
-            rr e		; E3.cls 3647
-            ld a, b		; E3.cls 3648
-            and #F0		; E3.cls 3649
-            jr nz, fn_e3_lib_pj_rs		; E3.cls 3650
-            jr fn_e3_lib_pj_n		; E3.cls 3651
-fn_e3_lib_pj_lo:		; E3.cls 3652
-            ld a, b		; E3.cls 3653
-            or a		; E3.cls 3654
-            jr nz, fn_e3_lib_pj_n		; E3.cls 3655
-            or c                    ; (z 0: as 1, not forever) [3656]
-            jr nz, fn_e3_lib_pj_ls		; E3.cls 3657
-            inc c		; E3.cls 3658
-fn_e3_lib_pj_ls:		; E3.cls 3659
-            sla c                   ; z under 256: all << 1 [3660]
-            rl b		; E3.cls 3661
-            add hl, hl		; E3.cls 3662
-            sla e		; E3.cls 3663
-            rl d		; E3.cls 3664
-            ld a, b		; E3.cls 3665
-            or a		; E3.cls 3666
-            jr z, fn_e3_lib_pj_ls		; E3.cls 3667
-fn_e3_lib_pj_n:		; E3.cls 3668
-            ld (fn_e3_lib_pj_y), de		; E3.cls 3669
-            push hl		; E3.cls 3670
-            ld h, b		; E3.cls 3671
-            ld l, c		; E3.cls 3672
-            dec h		; E3.cls 3673
-            add hl, hl		; E3.cls 3674
-            ld de, d_rproj		; E3.cls 3675
-            add hl, de		; E3.cls 3676
-            ld a, (hl)		; E3.cls 3677
-            ld (fn_e3_lib_pj_rl), a		; E3.cls 3678
-            inc hl		; E3.cls 3679
-            ld a, (hl)		; E3.cls 3680
-            ld (fn_e3_lib_pj_rh), a		; E3.cls 3681
-            pop hl		; E3.cls 3682
-            call fn_e3_lib_pj_m		; E3.cls 3683
-            ld de, 128		; E3.cls 3684
-            add hl, de		; E3.cls 3685
-            push hl		; E3.cls 3686
-            ld hl, (fn_e3_lib_pj_y)		; E3.cls 3687
-            call fn_e3_lib_pj_m		; E3.cls 3688
-            ex de, hl		; E3.cls 3689
-            ld hl, 96		; E3.cls 3690
-            or a		; E3.cls 3691
-            sbc hl, de		; E3.cls 3692
-            ex de, hl		; E3.cls 3693
-            pop hl		; E3.cls 3694
-            ret		; E3.cls 3695
-fn_e3_lib_pj_m:                               ; HL (signed) x R >> 17 -> HL [3696]
-            ld a, h		; E3.cls 3697
-            ld (fn_e3_lib_pj_sg), a		; E3.cls 3698
-            bit 7, h		; E3.cls 3699
-            jr z, fn_e3_lib_pm_1		; E3.cls 3700
-            ex de, hl		; E3.cls 3701
-            ld hl, 0		; E3.cls 3702
-            or a		; E3.cls 3703
-            sbc hl, de		; E3.cls 3704
-fn_e3_lib_pm_1:		; E3.cls 3705
-            ld b, h                 ; xh [3706]
-            ld c, l                 ; xl [3707]
-            ld a, (fn_e3_lib_pj_rl)		; E3.cls 3708
-            ld e, a		; E3.cls 3709
-            ld d, b		; E3.cls 3710
-            mul d, e                ; xh rl [3711]
-            push de		; E3.cls 3712
-            ld a, (fn_e3_lib_pj_rh)		; E3.cls 3713
-            ld e, a		; E3.cls 3714
-            ld d, c		; E3.cls 3715
-            mul d, e                ; xl rh [3716]
-            pop hl		; E3.cls 3717
-            add hl, de              ; m (carry: its bit 16) [3718]
-            ld l, h		; E3.cls 3719
-            ld h, 0		; E3.cls 3720
-            rl h                    ; m >> 8 [3721]
-            ld a, (fn_e3_lib_pj_rh)		; E3.cls 3722
-            ld e, a		; E3.cls 3723
-            ld d, b		; E3.cls 3724
-            mul d, e                ; xh rh [3725]
-            add hl, de		; E3.cls 3726
-            srl h                   ; >> 1 [3727]
-            rr l		; E3.cls 3728
-            ld a, (fn_e3_lib_pj_sg)		; E3.cls 3729
-            or a		; E3.cls 3730
-            ret p		; E3.cls 3731
-            ex de, hl		; E3.cls 3732
-            ld hl, 0		; E3.cls 3733
-            or a		; E3.cls 3734
-            sbc hl, de		; E3.cls 3735
-            ret		; E3.cls 3736
-fn_e3_lib_pj_y:       dw 0		; E3.cls 3737
-fn_e3_lib_pj_rl:      db 0		; E3.cls 3738
-fn_e3_lib_pj_rh:      db 0		; E3.cls 3739
-fn_e3_lib_pj_sg:      db 0		; E3.cls 3740
+fn_e3_lib_proj:		; E3.cls 3638
+            ld a, b		; E3.cls 3639
+            and #F0		; E3.cls 3640
+            jr z, fn_e3_lib_pj_lo		; E3.cls 3641
+fn_e3_lib_pj_rs:		; E3.cls 3642
+            srl b                   ; z over 4095: all >> 1 [3643]
+            rr c		; E3.cls 3644
+            sra h		; E3.cls 3645
+            rr l		; E3.cls 3646
+            sra d		; E3.cls 3647
+            rr e		; E3.cls 3648
+            ld a, b		; E3.cls 3649
+            and #F0		; E3.cls 3650
+            jr nz, fn_e3_lib_pj_rs		; E3.cls 3651
+            jr fn_e3_lib_pj_n		; E3.cls 3652
+fn_e3_lib_pj_lo:		; E3.cls 3653
+            ld a, b		; E3.cls 3654
+            or a		; E3.cls 3655
+            jr nz, fn_e3_lib_pj_n		; E3.cls 3656
+            or c                    ; (z 0: as 1, not forever) [3657]
+            jr nz, fn_e3_lib_pj_ls		; E3.cls 3658
+            inc c		; E3.cls 3659
+fn_e3_lib_pj_ls:		; E3.cls 3660
+            sla c                   ; z under 256: all << 1 [3661]
+            rl b		; E3.cls 3662
+            add hl, hl		; E3.cls 3663
+            sla e		; E3.cls 3664
+            rl d		; E3.cls 3665
+            ld a, b		; E3.cls 3666
+            or a		; E3.cls 3667
+            jr z, fn_e3_lib_pj_ls		; E3.cls 3668
+fn_e3_lib_pj_n:		; E3.cls 3669
+            ld (fn_e3_lib_pj_y), de		; E3.cls 3670
+            push hl		; E3.cls 3671
+            ld h, b		; E3.cls 3672
+            ld l, c		; E3.cls 3673
+            dec h		; E3.cls 3674
+            add hl, hl		; E3.cls 3675
+            ld de, d_rproj		; E3.cls 3676
+            add hl, de		; E3.cls 3677
+            ld a, (hl)		; E3.cls 3678
+            ld (fn_e3_lib_pj_rl), a		; E3.cls 3679
+            inc hl		; E3.cls 3680
+            ld a, (hl)		; E3.cls 3681
+            ld (fn_e3_lib_pj_rh), a		; E3.cls 3682
+            pop hl		; E3.cls 3683
+            call fn_e3_lib_pj_m		; E3.cls 3684
+            ld de, 128		; E3.cls 3685
+            add hl, de		; E3.cls 3686
+            push hl		; E3.cls 3687
+            ld hl, (fn_e3_lib_pj_y)		; E3.cls 3688
+            call fn_e3_lib_pj_m		; E3.cls 3689
+            ex de, hl		; E3.cls 3690
+            ld hl, 96		; E3.cls 3691
+            or a		; E3.cls 3692
+            sbc hl, de		; E3.cls 3693
+            ex de, hl		; E3.cls 3694
+            pop hl		; E3.cls 3695
+            ret		; E3.cls 3696
+fn_e3_lib_pj_m:                               ; HL (signed) x R >> 17 -> HL [3697]
+            ld a, h		; E3.cls 3698
+            ld (fn_e3_lib_pj_sg), a		; E3.cls 3699
+            bit 7, h		; E3.cls 3700
+            jr z, fn_e3_lib_pm_1		; E3.cls 3701
+            ex de, hl		; E3.cls 3702
+            ld hl, 0		; E3.cls 3703
+            or a		; E3.cls 3704
+            sbc hl, de		; E3.cls 3705
+fn_e3_lib_pm_1:		; E3.cls 3706
+            ld b, h                 ; xh [3707]
+            ld c, l                 ; xl [3708]
+            ld a, (fn_e3_lib_pj_rl)		; E3.cls 3709
+            ld e, a		; E3.cls 3710
+            ld d, b		; E3.cls 3711
+            mul d, e                ; xh rl [3712]
+            push de		; E3.cls 3713
+            ld a, (fn_e3_lib_pj_rh)		; E3.cls 3714
+            ld e, a		; E3.cls 3715
+            ld d, c		; E3.cls 3716
+            mul d, e                ; xl rh [3717]
+            pop hl		; E3.cls 3718
+            add hl, de              ; m (carry: its bit 16) [3719]
+            ld l, h		; E3.cls 3720
+            ld h, 0		; E3.cls 3721
+            rl h                    ; m >> 8 [3722]
+            ld a, (fn_e3_lib_pj_rh)		; E3.cls 3723
+            ld e, a		; E3.cls 3724
+            ld d, b		; E3.cls 3725
+            mul d, e                ; xh rh [3726]
+            add hl, de		; E3.cls 3727
+            srl h                   ; >> 1 [3728]
+            rr l		; E3.cls 3729
+            ld a, (fn_e3_lib_pj_sg)		; E3.cls 3730
+            or a		; E3.cls 3731
+            ret p		; E3.cls 3732
+            ex de, hl		; E3.cls 3733
+            ld hl, 0		; E3.cls 3734
+            or a		; E3.cls 3735
+            sbc hl, de		; E3.cls 3736
+            ret		; E3.cls 3737
+fn_e3_lib_pj_y:       dw 0		; E3.cls 3738
+fn_e3_lib_pj_rl:      db 0		; E3.cls 3739
+fn_e3_lib_pj_rh:      db 0		; E3.cls 3740
+fn_e3_lib_pj_sg:      db 0		; E3.cls 3741
 ; vcode: HL = x, DE = y, BC = z in the view (under 16384 each way) -> A: bit 0 z < 16 (the near
 ; plane), bit 1 x > 4z, bit 2 -x > 4z, bit 3 y > 4z, bit 4 -y > 4z (a wide guard band: the 2D
 ; clipper cuts the rest)
-fn_e3_lib_vcode:		; E3.cls 3744
-            ld (fn_e3_lib_vc_x), hl		; E3.cls 3745
-            ld (fn_e3_lib_vc_y), de		; E3.cls 3746
-            ld h, b		; E3.cls 3747
-            ld l, c		; E3.cls 3748
-            ld de, -16		; E3.cls 3749
-            add hl, de		; E3.cls 3750
-            ld a, h		; E3.cls 3751
-            rlca		; E3.cls 3752
-            and 1		; E3.cls 3753
-            ld (fn_e3_lib_vc_c), a		; E3.cls 3754
-            ld hl, (fn_e3_lib_vc_x)		; E3.cls 3755
-            sra h		; E3.cls 3756
-            rr l		; E3.cls 3757
-            sra h		; E3.cls 3758
-            rr l		; E3.cls 3759
-            ex de, hl		; E3.cls 3760
-            ld h, b		; E3.cls 3761
-            ld l, c		; E3.cls 3762
-            or a		; E3.cls 3763
-            sbc hl, de		; E3.cls 3764
-            jp p, fn_e3_lib_vc_1		; E3.cls 3765
-            ld a, (fn_e3_lib_vc_c)		; E3.cls 3766
-            or 2		; E3.cls 3767
-            ld (fn_e3_lib_vc_c), a		; E3.cls 3768
-fn_e3_lib_vc_1:		; E3.cls 3769
-            ld h, b		; E3.cls 3770
-            ld l, c		; E3.cls 3771
-            or a		; E3.cls 3772
-            adc hl, de		; E3.cls 3773
-            jp p, fn_e3_lib_vc_2		; E3.cls 3774
-            ld a, (fn_e3_lib_vc_c)		; E3.cls 3775
-            or 4		; E3.cls 3776
-            ld (fn_e3_lib_vc_c), a		; E3.cls 3777
-fn_e3_lib_vc_2:		; E3.cls 3778
-            ld hl, (fn_e3_lib_vc_y)		; E3.cls 3779
-            sra h		; E3.cls 3780
-            rr l		; E3.cls 3781
-            sra h		; E3.cls 3782
-            rr l		; E3.cls 3783
-            ex de, hl		; E3.cls 3784
-            ld h, b		; E3.cls 3785
-            ld l, c		; E3.cls 3786
-            or a		; E3.cls 3787
-            sbc hl, de		; E3.cls 3788
-            jp p, fn_e3_lib_vc_3		; E3.cls 3789
-            ld a, (fn_e3_lib_vc_c)		; E3.cls 3790
-            or 8		; E3.cls 3791
-            ld (fn_e3_lib_vc_c), a		; E3.cls 3792
-fn_e3_lib_vc_3:		; E3.cls 3793
-            ld h, b		; E3.cls 3794
-            ld l, c		; E3.cls 3795
-            or a		; E3.cls 3796
-            adc hl, de		; E3.cls 3797
-            jp p, fn_e3_lib_vc_4		; E3.cls 3798
-            ld a, (fn_e3_lib_vc_c)		; E3.cls 3799
-            or 16		; E3.cls 3800
-            ld (fn_e3_lib_vc_c), a		; E3.cls 3801
-fn_e3_lib_vc_4:		; E3.cls 3802
-            ld a, (fn_e3_lib_vc_c)		; E3.cls 3803
-            ret		; E3.cls 3804
-fn_e3_lib_vc_x:       dw 0		; E3.cls 3805
-fn_e3_lib_vc_y:       dw 0		; E3.cls 3806
-fn_e3_lib_vc_c:       db 0		; E3.cls 3807
+fn_e3_lib_vcode:		; E3.cls 3745
+            ld (fn_e3_lib_vc_x), hl		; E3.cls 3746
+            ld (fn_e3_lib_vc_y), de		; E3.cls 3747
+            ld h, b		; E3.cls 3748
+            ld l, c		; E3.cls 3749
+            ld de, -16		; E3.cls 3750
+            add hl, de		; E3.cls 3751
+            ld a, h		; E3.cls 3752
+            rlca		; E3.cls 3753
+            and 1		; E3.cls 3754
+            ld (fn_e3_lib_vc_c), a		; E3.cls 3755
+            ld hl, (fn_e3_lib_vc_x)		; E3.cls 3756
+            sra h		; E3.cls 3757
+            rr l		; E3.cls 3758
+            sra h		; E3.cls 3759
+            rr l		; E3.cls 3760
+            ex de, hl		; E3.cls 3761
+            ld h, b		; E3.cls 3762
+            ld l, c		; E3.cls 3763
+            or a		; E3.cls 3764
+            sbc hl, de		; E3.cls 3765
+            jp p, fn_e3_lib_vc_1		; E3.cls 3766
+            ld a, (fn_e3_lib_vc_c)		; E3.cls 3767
+            or 2		; E3.cls 3768
+            ld (fn_e3_lib_vc_c), a		; E3.cls 3769
+fn_e3_lib_vc_1:		; E3.cls 3770
+            ld h, b		; E3.cls 3771
+            ld l, c		; E3.cls 3772
+            or a		; E3.cls 3773
+            adc hl, de		; E3.cls 3774
+            jp p, fn_e3_lib_vc_2		; E3.cls 3775
+            ld a, (fn_e3_lib_vc_c)		; E3.cls 3776
+            or 4		; E3.cls 3777
+            ld (fn_e3_lib_vc_c), a		; E3.cls 3778
+fn_e3_lib_vc_2:		; E3.cls 3779
+            ld hl, (fn_e3_lib_vc_y)		; E3.cls 3780
+            sra h		; E3.cls 3781
+            rr l		; E3.cls 3782
+            sra h		; E3.cls 3783
+            rr l		; E3.cls 3784
+            ex de, hl		; E3.cls 3785
+            ld h, b		; E3.cls 3786
+            ld l, c		; E3.cls 3787
+            or a		; E3.cls 3788
+            sbc hl, de		; E3.cls 3789
+            jp p, fn_e3_lib_vc_3		; E3.cls 3790
+            ld a, (fn_e3_lib_vc_c)		; E3.cls 3791
+            or 8		; E3.cls 3792
+            ld (fn_e3_lib_vc_c), a		; E3.cls 3793
+fn_e3_lib_vc_3:		; E3.cls 3794
+            ld h, b		; E3.cls 3795
+            ld l, c		; E3.cls 3796
+            or a		; E3.cls 3797
+            adc hl, de		; E3.cls 3798
+            jp p, fn_e3_lib_vc_4		; E3.cls 3799
+            ld a, (fn_e3_lib_vc_c)		; E3.cls 3800
+            or 16		; E3.cls 3801
+            ld (fn_e3_lib_vc_c), a		; E3.cls 3802
+fn_e3_lib_vc_4:		; E3.cls 3803
+            ld a, (fn_e3_lib_vc_c)		; E3.cls 3804
+            ret		; E3.cls 3805
+fn_e3_lib_vc_x:       dw 0		; E3.cls 3806
+fn_e3_lib_vc_y:       dw 0		; E3.cls 3807
+fn_e3_lib_vc_c:       db 0		; E3.cls 3808
 ; ============================================================================ the 3D clipper
 ; poly3: the polygon in cla (cn records of x, y, z in the view) cut by the planes in cmask (the
 ; vcode bits), projected and filled in pc
-fn_e3_lib_poly3:		; E3.cls 3811
-            ld a, (var_e3_cmask)		; E3.cls 3812
-            ld (fn_e3_lib_p3_m), a		; E3.cls 3813
-            ld hl, arr_e3_cla		; E3.cls 3814
-            ld (fn_e3_lib_p3_src), hl		; E3.cls 3815
-            ld hl, arr_e3_clb		; E3.cls 3816
-            ld (fn_e3_lib_p3_dst), hl		; E3.cls 3817
-            xor a		; E3.cls 3818
-            ld (fn_e3_lib_p3_p), a		; E3.cls 3819
-fn_e3_lib_p3_pl:		; E3.cls 3820
-            ld a, (fn_e3_lib_p3_m)		; E3.cls 3821
-            srl a		; E3.cls 3822
-            ld (fn_e3_lib_p3_m), a		; E3.cls 3823
-            jr nc, fn_e3_lib_p3_nx		; E3.cls 3824
-            call fn_e3_lib_clip1		; E3.cls 3825
-            ld a, (var_e3_cn)		; E3.cls 3826
-            cp 3		; E3.cls 3827
-            ret c		; E3.cls 3828
-            ld hl, (fn_e3_lib_p3_src)		; E3.cls 3829
-            ld de, (fn_e3_lib_p3_dst)		; E3.cls 3830
-            ld (fn_e3_lib_p3_src), de		; E3.cls 3831
-            ld (fn_e3_lib_p3_dst), hl		; E3.cls 3832
-fn_e3_lib_p3_nx:		; E3.cls 3833
-            ld a, (fn_e3_lib_p3_p)		; E3.cls 3834
-            inc a		; E3.cls 3835
-            ld (fn_e3_lib_p3_p), a		; E3.cls 3836
-            cp 5		; E3.cls 3837
-            jr c, fn_e3_lib_p3_pl		; E3.cls 3838
-            ld a, (var_e3_cn)            ; projected into pvx, pvy [3839]
-            ld (var_e3_pn), a		; E3.cls 3840
-            ld b, a		; E3.cls 3841
-            ld ix, (fn_e3_lib_p3_src)		; E3.cls 3842
-            ld hl, arr_e3_pvx		; E3.cls 3843
-            ld (fn_e3_lib_p3_px), hl		; E3.cls 3844
-            ld hl, arr_e3_pvy		; E3.cls 3845
-            ld (fn_e3_lib_p3_py), hl		; E3.cls 3846
-fn_e3_lib_p3_pj:		; E3.cls 3847
-            push bc		; E3.cls 3848
-            ld l, (ix + 0)		; E3.cls 3849
-            ld h, (ix + 1)		; E3.cls 3850
-            ld e, (ix + 2)		; E3.cls 3851
-            ld d, (ix + 3)		; E3.cls 3852
-            ld c, (ix + 4)		; E3.cls 3853
-            ld b, (ix + 5)		; E3.cls 3854
-            call fn_e3_lib_proj		; E3.cls 3855
-            push de		; E3.cls 3856
-            ex de, hl		; E3.cls 3857
-            ld hl, (fn_e3_lib_p3_px)		; E3.cls 3858
-            ld (hl), e		; E3.cls 3859
-            inc hl		; E3.cls 3860
-            ld (hl), d		; E3.cls 3861
-            inc hl		; E3.cls 3862
-            ld (fn_e3_lib_p3_px), hl		; E3.cls 3863
-            pop de		; E3.cls 3864
-            ld hl, (fn_e3_lib_p3_py)		; E3.cls 3865
-            ld (hl), e		; E3.cls 3866
-            inc hl		; E3.cls 3867
-            ld (hl), d		; E3.cls 3868
-            inc hl		; E3.cls 3869
-            ld (fn_e3_lib_p3_py), hl		; E3.cls 3870
-            ld de, 6		; E3.cls 3871
-            add ix, de		; E3.cls 3872
-            pop bc		; E3.cls 3873
-            djnz fn_e3_lib_p3_pj		; E3.cls 3874
-            jp fn_e3_lib_fill		; E3.cls 3875
-fn_e3_lib_p3_m:       db 0		; E3.cls 3876
-fn_e3_lib_p3_p:       db 0		; E3.cls 3877
-fn_e3_lib_p3_src:     dw 0		; E3.cls 3878
-fn_e3_lib_p3_dst:     dw 0		; E3.cls 3879
-fn_e3_lib_p3_px:      dw 0		; E3.cls 3880
-fn_e3_lib_p3_py:      dw 0		; E3.cls 3881
+fn_e3_lib_poly3:		; E3.cls 3812
+            ld a, (var_e3_cmask)		; E3.cls 3813
+            ld (fn_e3_lib_p3_m), a		; E3.cls 3814
+            ld hl, arr_e3_cla		; E3.cls 3815
+            ld (fn_e3_lib_p3_src), hl		; E3.cls 3816
+            ld hl, arr_e3_clb		; E3.cls 3817
+            ld (fn_e3_lib_p3_dst), hl		; E3.cls 3818
+            xor a		; E3.cls 3819
+            ld (fn_e3_lib_p3_p), a		; E3.cls 3820
+fn_e3_lib_p3_pl:		; E3.cls 3821
+            ld a, (fn_e3_lib_p3_m)		; E3.cls 3822
+            srl a		; E3.cls 3823
+            ld (fn_e3_lib_p3_m), a		; E3.cls 3824
+            jr nc, fn_e3_lib_p3_nx		; E3.cls 3825
+            call fn_e3_lib_clip1		; E3.cls 3826
+            ld a, (var_e3_cn)		; E3.cls 3827
+            cp 3		; E3.cls 3828
+            ret c		; E3.cls 3829
+            ld hl, (fn_e3_lib_p3_src)		; E3.cls 3830
+            ld de, (fn_e3_lib_p3_dst)		; E3.cls 3831
+            ld (fn_e3_lib_p3_src), de		; E3.cls 3832
+            ld (fn_e3_lib_p3_dst), hl		; E3.cls 3833
+fn_e3_lib_p3_nx:		; E3.cls 3834
+            ld a, (fn_e3_lib_p3_p)		; E3.cls 3835
+            inc a		; E3.cls 3836
+            ld (fn_e3_lib_p3_p), a		; E3.cls 3837
+            cp 5		; E3.cls 3838
+            jr c, fn_e3_lib_p3_pl		; E3.cls 3839
+            ld a, (var_e3_cn)            ; projected into pvx, pvy [3840]
+            ld (var_e3_pn), a		; E3.cls 3841
+            ld b, a		; E3.cls 3842
+            ld ix, (fn_e3_lib_p3_src)		; E3.cls 3843
+            ld hl, arr_e3_pvx		; E3.cls 3844
+            ld (fn_e3_lib_p3_px), hl		; E3.cls 3845
+            ld hl, arr_e3_pvy		; E3.cls 3846
+            ld (fn_e3_lib_p3_py), hl		; E3.cls 3847
+fn_e3_lib_p3_pj:		; E3.cls 3848
+            push bc		; E3.cls 3849
+            ld l, (ix + 0)		; E3.cls 3850
+            ld h, (ix + 1)		; E3.cls 3851
+            ld e, (ix + 2)		; E3.cls 3852
+            ld d, (ix + 3)		; E3.cls 3853
+            ld c, (ix + 4)		; E3.cls 3854
+            ld b, (ix + 5)		; E3.cls 3855
+            call fn_e3_lib_proj		; E3.cls 3856
+            push de		; E3.cls 3857
+            ex de, hl		; E3.cls 3858
+            ld hl, (fn_e3_lib_p3_px)		; E3.cls 3859
+            ld (hl), e		; E3.cls 3860
+            inc hl		; E3.cls 3861
+            ld (hl), d		; E3.cls 3862
+            inc hl		; E3.cls 3863
+            ld (fn_e3_lib_p3_px), hl		; E3.cls 3864
+            pop de		; E3.cls 3865
+            ld hl, (fn_e3_lib_p3_py)		; E3.cls 3866
+            ld (hl), e		; E3.cls 3867
+            inc hl		; E3.cls 3868
+            ld (hl), d		; E3.cls 3869
+            inc hl		; E3.cls 3870
+            ld (fn_e3_lib_p3_py), hl		; E3.cls 3871
+            ld de, 6		; E3.cls 3872
+            add ix, de		; E3.cls 3873
+            pop bc		; E3.cls 3874
+            djnz fn_e3_lib_p3_pj		; E3.cls 3875
+            jp fn_e3_lib_fill		; E3.cls 3876
+fn_e3_lib_p3_m:       db 0		; E3.cls 3877
+fn_e3_lib_p3_p:       db 0		; E3.cls 3878
+fn_e3_lib_p3_src:     dw 0		; E3.cls 3879
+fn_e3_lib_p3_dst:     dw 0		; E3.cls 3880
+fn_e3_lib_p3_px:      dw 0		; E3.cls 3881
+fn_e3_lib_p3_py:      dw 0		; E3.cls 3882
 ; clip1: the list at p3_src (cn records) cut by plane p3_p into p3_dst (cn: how many now)
-fn_e3_lib_clip1:		; E3.cls 3883
-            ld a, (var_e3_cn)		; E3.cls 3884
-            ld (fn_e3_lib_c1_k), a		; E3.cls 3885
-            xor a		; E3.cls 3886
-            ld (fn_e3_lib_c1_out), a		; E3.cls 3887
-            ld hl, (fn_e3_lib_p3_dst)		; E3.cls 3888
-            ld (fn_e3_lib_c1_d), hl		; E3.cls 3889
-            ld a, (var_e3_cn)            ; the previous: the last [3890]
-            dec a		; E3.cls 3891
-            ld l, a		; E3.cls 3892
-            ld h, 0		; E3.cls 3893
-            add hl, hl		; E3.cls 3894
-            ld d, h		; E3.cls 3895
-            ld e, l		; E3.cls 3896
-            add hl, hl		; E3.cls 3897
-            add hl, de		; E3.cls 3898
-            ld de, (fn_e3_lib_p3_src)		; E3.cls 3899
-            add hl, de		; E3.cls 3900
-            ld (fn_e3_lib_c1_pp), hl		; E3.cls 3901
-            push hl		; E3.cls 3902
-            pop ix		; E3.cls 3903
-            call fn_e3_lib_cdist		; E3.cls 3904
-            ld (fn_e3_lib_c1_dp), hl		; E3.cls 3905
-            ld ix, (fn_e3_lib_p3_src)		; E3.cls 3906
-fn_e3_lib_c1_lp:		; E3.cls 3907
-            call fn_e3_lib_cdist		; E3.cls 3908
-            ld (fn_e3_lib_c1_dc), hl		; E3.cls 3909
-            ld a, (fn_e3_lib_c1_dp + 1)		; E3.cls 3910
-            bit 7, a		; E3.cls 3911
-            jr nz, fn_e3_lib_c1_pout		; E3.cls 3912
-            bit 7, h		; E3.cls 3913
-            jr nz, fn_e3_lib_c1_inout		; E3.cls 3914
-            call fn_e3_lib_c1_emit            ; in, in: the current [3915]
-            jr fn_e3_lib_c1_nx		; E3.cls 3916
-fn_e3_lib_c1_inout:		; E3.cls 3917
-            call fn_e3_lib_c1_isect           ; in, out: where it leaves [3918]
-            jr fn_e3_lib_c1_nx		; E3.cls 3919
-fn_e3_lib_c1_pout:		; E3.cls 3920
-            bit 7, h		; E3.cls 3921
-            jr nz, fn_e3_lib_c1_nx            ; out, out: nothing [3922]
-            call fn_e3_lib_c1_isect           ; out, in: where it comes in, the current [3923]
-            call fn_e3_lib_c1_emit		; E3.cls 3924
-fn_e3_lib_c1_nx:		; E3.cls 3925
-            ld (fn_e3_lib_c1_pp), ix		; E3.cls 3926
-            ld hl, (fn_e3_lib_c1_dc)		; E3.cls 3927
-            ld (fn_e3_lib_c1_dp), hl		; E3.cls 3928
-            ld de, 6		; E3.cls 3929
-            add ix, de		; E3.cls 3930
-            ld a, (fn_e3_lib_c1_k)		; E3.cls 3931
-            dec a		; E3.cls 3932
-            ld (fn_e3_lib_c1_k), a		; E3.cls 3933
-            jr nz, fn_e3_lib_c1_lp		; E3.cls 3934
-            ld a, (fn_e3_lib_c1_out)		; E3.cls 3935
-            ld (var_e3_cn), a		; E3.cls 3936
-            ret		; E3.cls 3937
-fn_e3_lib_c1_emit:		; E3.cls 3938
-            push ix		; E3.cls 3939
-            pop hl		; E3.cls 3940
-            ld de, (fn_e3_lib_c1_d)		; E3.cls 3941
-            ld bc, 6		; E3.cls 3942
-            ldir		; E3.cls 3943
-            ld (fn_e3_lib_c1_d), de		; E3.cls 3944
-            ld hl, fn_e3_lib_c1_out		; E3.cls 3945
-            inc (hl)		; E3.cls 3946
-            ret		; E3.cls 3947
-fn_e3_lib_c1_isect:                           ; t = |dp| / (|dp| + |dc|): p + (c - p) t [3948]
-            ld hl, (fn_e3_lib_c1_dp)		; E3.cls 3949
-            call fn_e3_lib_absh		; E3.cls 3950
-            push hl		; E3.cls 3951
-            ld hl, (fn_e3_lib_c1_dc)		; E3.cls 3952
-            call fn_e3_lib_absh		; E3.cls 3953
-            pop de		; E3.cls 3954
-            add hl, de		; E3.cls 3955
-            ex de, hl		; E3.cls 3956
-            call fn_e3_lib_udivf		; E3.cls 3957
-            ld (fn_e3_lib_c1_t), hl		; E3.cls 3958
-            ld hl, (fn_e3_lib_c1_pp)		; E3.cls 3959
-            ld (fn_e3_lib_c1_a), hl		; E3.cls 3960
-            push ix		; E3.cls 3961
-            pop hl		; E3.cls 3962
-            ld (fn_e3_lib_c1_b), hl		; E3.cls 3963
-            ld b, 3		; E3.cls 3964
-fn_e3_lib_c1_ic:		; E3.cls 3965
-            push bc		; E3.cls 3966
-            ld hl, (fn_e3_lib_c1_a)		; E3.cls 3967
-            ld e, (hl)		; E3.cls 3968
-            inc hl		; E3.cls 3969
-            ld d, (hl)		; E3.cls 3970
-            inc hl		; E3.cls 3971
-            ld (fn_e3_lib_c1_a), hl		; E3.cls 3972
-            push de		; E3.cls 3973
-            ld hl, (fn_e3_lib_c1_b)		; E3.cls 3974
-            ld a, (hl)		; E3.cls 3975
-            inc hl		; E3.cls 3976
-            ld b, (hl)		; E3.cls 3977
-            inc hl		; E3.cls 3978
-            ld (fn_e3_lib_c1_b), hl		; E3.cls 3979
-            ld h, b		; E3.cls 3980
-            ld l, a		; E3.cls 3981
-            or a		; E3.cls 3982
-            sbc hl, de		; E3.cls 3983
-            ld b, h		; E3.cls 3984
-            ld c, l		; E3.cls 3985
-            ld de, (fn_e3_lib_c1_t)		; E3.cls 3986
-            call fn_e3_lib_smul		; E3.cls 3987
-            pop de		; E3.cls 3988
-            add hl, de		; E3.cls 3989
-            ex de, hl		; E3.cls 3990
-            ld hl, (fn_e3_lib_c1_d)		; E3.cls 3991
-            ld (hl), e		; E3.cls 3992
-            inc hl		; E3.cls 3993
-            ld (hl), d		; E3.cls 3994
-            inc hl		; E3.cls 3995
-            ld (fn_e3_lib_c1_d), hl		; E3.cls 3996
-            pop bc		; E3.cls 3997
-            djnz fn_e3_lib_c1_ic		; E3.cls 3998
-            ld hl, fn_e3_lib_c1_out		; E3.cls 3999
-            inc (hl)		; E3.cls 4000
-            ret		; E3.cls 4001
-fn_e3_lib_c1_k:       db 0		; E3.cls 4002
-fn_e3_lib_c1_out:     db 0		; E3.cls 4003
-fn_e3_lib_c1_d:       dw 0		; E3.cls 4004
-fn_e3_lib_c1_pp:      dw 0		; E3.cls 4005
-fn_e3_lib_c1_dp:      dw 0		; E3.cls 4006
-fn_e3_lib_c1_dc:      dw 0		; E3.cls 4007
-fn_e3_lib_c1_t:       dw 0		; E3.cls 4008
-fn_e3_lib_c1_a:       dw 0		; E3.cls 4009
-fn_e3_lib_c1_b:       dw 0		; E3.cls 4010
+fn_e3_lib_clip1:		; E3.cls 3884
+            ld a, (var_e3_cn)		; E3.cls 3885
+            ld (fn_e3_lib_c1_k), a		; E3.cls 3886
+            xor a		; E3.cls 3887
+            ld (fn_e3_lib_c1_out), a		; E3.cls 3888
+            ld hl, (fn_e3_lib_p3_dst)		; E3.cls 3889
+            ld (fn_e3_lib_c1_d), hl		; E3.cls 3890
+            ld a, (var_e3_cn)            ; the previous: the last [3891]
+            dec a		; E3.cls 3892
+            ld l, a		; E3.cls 3893
+            ld h, 0		; E3.cls 3894
+            add hl, hl		; E3.cls 3895
+            ld d, h		; E3.cls 3896
+            ld e, l		; E3.cls 3897
+            add hl, hl		; E3.cls 3898
+            add hl, de		; E3.cls 3899
+            ld de, (fn_e3_lib_p3_src)		; E3.cls 3900
+            add hl, de		; E3.cls 3901
+            ld (fn_e3_lib_c1_pp), hl		; E3.cls 3902
+            push hl		; E3.cls 3903
+            pop ix		; E3.cls 3904
+            call fn_e3_lib_cdist		; E3.cls 3905
+            ld (fn_e3_lib_c1_dp), hl		; E3.cls 3906
+            ld ix, (fn_e3_lib_p3_src)		; E3.cls 3907
+fn_e3_lib_c1_lp:		; E3.cls 3908
+            call fn_e3_lib_cdist		; E3.cls 3909
+            ld (fn_e3_lib_c1_dc), hl		; E3.cls 3910
+            ld a, (fn_e3_lib_c1_dp + 1)		; E3.cls 3911
+            bit 7, a		; E3.cls 3912
+            jr nz, fn_e3_lib_c1_pout		; E3.cls 3913
+            bit 7, h		; E3.cls 3914
+            jr nz, fn_e3_lib_c1_inout		; E3.cls 3915
+            call fn_e3_lib_c1_emit            ; in, in: the current [3916]
+            jr fn_e3_lib_c1_nx		; E3.cls 3917
+fn_e3_lib_c1_inout:		; E3.cls 3918
+            call fn_e3_lib_c1_isect           ; in, out: where it leaves [3919]
+            jr fn_e3_lib_c1_nx		; E3.cls 3920
+fn_e3_lib_c1_pout:		; E3.cls 3921
+            bit 7, h		; E3.cls 3922
+            jr nz, fn_e3_lib_c1_nx            ; out, out: nothing [3923]
+            call fn_e3_lib_c1_isect           ; out, in: where it comes in, the current [3924]
+            call fn_e3_lib_c1_emit		; E3.cls 3925
+fn_e3_lib_c1_nx:		; E3.cls 3926
+            ld (fn_e3_lib_c1_pp), ix		; E3.cls 3927
+            ld hl, (fn_e3_lib_c1_dc)		; E3.cls 3928
+            ld (fn_e3_lib_c1_dp), hl		; E3.cls 3929
+            ld de, 6		; E3.cls 3930
+            add ix, de		; E3.cls 3931
+            ld a, (fn_e3_lib_c1_k)		; E3.cls 3932
+            dec a		; E3.cls 3933
+            ld (fn_e3_lib_c1_k), a		; E3.cls 3934
+            jr nz, fn_e3_lib_c1_lp		; E3.cls 3935
+            ld a, (fn_e3_lib_c1_out)		; E3.cls 3936
+            ld (var_e3_cn), a		; E3.cls 3937
+            ret		; E3.cls 3938
+fn_e3_lib_c1_emit:		; E3.cls 3939
+            push ix		; E3.cls 3940
+            pop hl		; E3.cls 3941
+            ld de, (fn_e3_lib_c1_d)		; E3.cls 3942
+            ld bc, 6		; E3.cls 3943
+            ldir		; E3.cls 3944
+            ld (fn_e3_lib_c1_d), de		; E3.cls 3945
+            ld hl, fn_e3_lib_c1_out		; E3.cls 3946
+            inc (hl)		; E3.cls 3947
+            ret		; E3.cls 3948
+fn_e3_lib_c1_isect:                           ; t = |dp| / (|dp| + |dc|): p + (c - p) t [3949]
+            ld hl, (fn_e3_lib_c1_dp)		; E3.cls 3950
+            call fn_e3_lib_absh		; E3.cls 3951
+            push hl		; E3.cls 3952
+            ld hl, (fn_e3_lib_c1_dc)		; E3.cls 3953
+            call fn_e3_lib_absh		; E3.cls 3954
+            pop de		; E3.cls 3955
+            add hl, de		; E3.cls 3956
+            ex de, hl		; E3.cls 3957
+            call fn_e3_lib_udivf		; E3.cls 3958
+            ld (fn_e3_lib_c1_t), hl		; E3.cls 3959
+            ld hl, (fn_e3_lib_c1_pp)		; E3.cls 3960
+            ld (fn_e3_lib_c1_a), hl		; E3.cls 3961
+            push ix		; E3.cls 3962
+            pop hl		; E3.cls 3963
+            ld (fn_e3_lib_c1_b), hl		; E3.cls 3964
+            ld b, 3		; E3.cls 3965
+fn_e3_lib_c1_ic:		; E3.cls 3966
+            push bc		; E3.cls 3967
+            ld hl, (fn_e3_lib_c1_a)		; E3.cls 3968
+            ld e, (hl)		; E3.cls 3969
+            inc hl		; E3.cls 3970
+            ld d, (hl)		; E3.cls 3971
+            inc hl		; E3.cls 3972
+            ld (fn_e3_lib_c1_a), hl		; E3.cls 3973
+            push de		; E3.cls 3974
+            ld hl, (fn_e3_lib_c1_b)		; E3.cls 3975
+            ld a, (hl)		; E3.cls 3976
+            inc hl		; E3.cls 3977
+            ld b, (hl)		; E3.cls 3978
+            inc hl		; E3.cls 3979
+            ld (fn_e3_lib_c1_b), hl		; E3.cls 3980
+            ld h, b		; E3.cls 3981
+            ld l, a		; E3.cls 3982
+            or a		; E3.cls 3983
+            sbc hl, de		; E3.cls 3984
+            ld b, h		; E3.cls 3985
+            ld c, l		; E3.cls 3986
+            ld de, (fn_e3_lib_c1_t)		; E3.cls 3987
+            call fn_e3_lib_smul		; E3.cls 3988
+            pop de		; E3.cls 3989
+            add hl, de		; E3.cls 3990
+            ex de, hl		; E3.cls 3991
+            ld hl, (fn_e3_lib_c1_d)		; E3.cls 3992
+            ld (hl), e		; E3.cls 3993
+            inc hl		; E3.cls 3994
+            ld (hl), d		; E3.cls 3995
+            inc hl		; E3.cls 3996
+            ld (fn_e3_lib_c1_d), hl		; E3.cls 3997
+            pop bc		; E3.cls 3998
+            djnz fn_e3_lib_c1_ic		; E3.cls 3999
+            ld hl, fn_e3_lib_c1_out		; E3.cls 4000
+            inc (hl)		; E3.cls 4001
+            ret		; E3.cls 4002
+fn_e3_lib_c1_k:       db 0		; E3.cls 4003
+fn_e3_lib_c1_out:     db 0		; E3.cls 4004
+fn_e3_lib_c1_d:       dw 0		; E3.cls 4005
+fn_e3_lib_c1_pp:      dw 0		; E3.cls 4006
+fn_e3_lib_c1_dp:      dw 0		; E3.cls 4007
+fn_e3_lib_c1_dc:      dw 0		; E3.cls 4008
+fn_e3_lib_c1_t:       dw 0		; E3.cls 4009
+fn_e3_lib_c1_a:       dw 0		; E3.cls 4010
+fn_e3_lib_c1_b:       dw 0		; E3.cls 4011
 ; cdist: the record at IX's distance inside plane p3_p (< 0: outside) -> HL
-fn_e3_lib_cdist:		; E3.cls 4012
-            ld a, (fn_e3_lib_p3_p)		; E3.cls 4013
-            or a		; E3.cls 4014
-            jr nz, fn_e3_lib_cd_1		; E3.cls 4015
-            ld l, (ix + 4)		; E3.cls 4016
-            ld h, (ix + 5)		; E3.cls 4017
-            ld de, -16		; E3.cls 4018
-            add hl, de		; E3.cls 4019
-            ret		; E3.cls 4020
-fn_e3_lib_cd_1:		; E3.cls 4021
-            ld e, (ix + 0)		; E3.cls 4022
-            ld d, (ix + 1)		; E3.cls 4023
-            cp 3		; E3.cls 4024
-            jr c, fn_e3_lib_cd_x		; E3.cls 4025
-            ld e, (ix + 2)		; E3.cls 4026
-            ld d, (ix + 3)		; E3.cls 4027
-fn_e3_lib_cd_x:		; E3.cls 4028
-            sra d		; E3.cls 4029
-            rr e		; E3.cls 4030
-            sra d		; E3.cls 4031
-            rr e		; E3.cls 4032
-            ld l, (ix + 4)		; E3.cls 4033
-            ld h, (ix + 5)		; E3.cls 4034
-            bit 0, a		; E3.cls 4035
-            jr z, fn_e3_lib_cd_add		; E3.cls 4036
-            or a		; E3.cls 4037
-            sbc hl, de		; E3.cls 4038
-            ret		; E3.cls 4039
-fn_e3_lib_cd_add:		; E3.cls 4040
-            add hl, de		; E3.cls 4041
-            ret		; E3.cls 4042
+fn_e3_lib_cdist:		; E3.cls 4013
+            ld a, (fn_e3_lib_p3_p)		; E3.cls 4014
+            or a		; E3.cls 4015
+            jr nz, fn_e3_lib_cd_1		; E3.cls 4016
+            ld l, (ix + 4)		; E3.cls 4017
+            ld h, (ix + 5)		; E3.cls 4018
+            ld de, -16		; E3.cls 4019
+            add hl, de		; E3.cls 4020
+            ret		; E3.cls 4021
+fn_e3_lib_cd_1:		; E3.cls 4022
+            ld e, (ix + 0)		; E3.cls 4023
+            ld d, (ix + 1)		; E3.cls 4024
+            cp 3		; E3.cls 4025
+            jr c, fn_e3_lib_cd_x		; E3.cls 4026
+            ld e, (ix + 2)		; E3.cls 4027
+            ld d, (ix + 3)		; E3.cls 4028
+fn_e3_lib_cd_x:		; E3.cls 4029
+            sra d		; E3.cls 4030
+            rr e		; E3.cls 4031
+            sra d		; E3.cls 4032
+            rr e		; E3.cls 4033
+            ld l, (ix + 4)		; E3.cls 4034
+            ld h, (ix + 5)		; E3.cls 4035
+            bit 0, a		; E3.cls 4036
+            jr z, fn_e3_lib_cd_add		; E3.cls 4037
+            or a		; E3.cls 4038
+            sbc hl, de		; E3.cls 4039
+            ret		; E3.cls 4040
+fn_e3_lib_cd_add:		; E3.cls 4041
+            add hl, de		; E3.cls 4042
+            ret		; E3.cls 4043
 ; (the planet's routine, planet, taken out: Moon, a flat disc, does its job for this game - it
 ; cost a third of a frame and 3K of room)
 ; pl_fit: the vector pl_d (3 x 24 bits) shifted right till each fits 15 bits (pl_k: how far) ->
 ; pl_w (words)
-fn_e3_lib_pl_fit:		; E3.cls 4047
-            ld hl, fn_e3_lib_pl_d		; E3.cls 4048
-            ld b, 3		; E3.cls 4049
-fn_e3_lib_pl_fc:		; E3.cls 4050
-            inc hl		; E3.cls 4051
-            ld a, (hl)              ; middle byte [4052]
-            inc hl		; E3.cls 4053
-            ld c, (hl)              ; top [4054]
-            inc hl		; E3.cls 4055
-            ld e, a		; E3.cls 4056
-            and #C0		; E3.cls 4057
-            jr z, fn_e3_lib_pl_fp		; E3.cls 4058
-            cp #C0		; E3.cls 4059
-            jr nz, fn_e3_lib_pl_fsh		; E3.cls 4060
-            ld a, c                 ; negative: top FF [4061]
-            inc a		; E3.cls 4062
-            jr nz, fn_e3_lib_pl_fsh		; E3.cls 4063
-            jr fn_e3_lib_pl_fn		; E3.cls 4064
-fn_e3_lib_pl_fp:		; E3.cls 4065
-            ld a, c		; E3.cls 4066
-            or a		; E3.cls 4067
-            jr nz, fn_e3_lib_pl_fsh		; E3.cls 4068
-fn_e3_lib_pl_fn:		; E3.cls 4069
-            djnz fn_e3_lib_pl_fc		; E3.cls 4070
-            jr fn_e3_lib_pl_fok		; E3.cls 4071
-fn_e3_lib_pl_fsh:		; E3.cls 4072
-            ld hl, fn_e3_lib_pl_d + 8		; E3.cls 4073
-            ld b, 3		; E3.cls 4074
-fn_e3_lib_pl_sh:		; E3.cls 4075
-            sra (hl)		; E3.cls 4076
-            dec hl		; E3.cls 4077
-            rr (hl)		; E3.cls 4078
-            dec hl		; E3.cls 4079
-            rr (hl)		; E3.cls 4080
-            dec hl		; E3.cls 4081
-            djnz fn_e3_lib_pl_sh		; E3.cls 4082
-            ld hl, fn_e3_lib_pl_k		; E3.cls 4083
-            inc (hl)		; E3.cls 4084
-            jr fn_e3_lib_pl_fit		; E3.cls 4085
-fn_e3_lib_pl_fok:		; E3.cls 4086
-            ld hl, (fn_e3_lib_pl_d)           ; d as words [4087]
-            ld (fn_e3_lib_pl_w), hl		; E3.cls 4088
-            ld hl, (fn_e3_lib_pl_d + 3)		; E3.cls 4089
-            ld (fn_e3_lib_pl_w + 2), hl		; E3.cls 4090
-            ld hl, (fn_e3_lib_pl_d + 6)		; E3.cls 4091
-            ld (fn_e3_lib_pl_w + 4), hl		; E3.cls 4092
-            ret		; E3.cls 4093
+fn_e3_lib_pl_fit:		; E3.cls 4048
+            ld hl, fn_e3_lib_pl_d		; E3.cls 4049
+            ld b, 3		; E3.cls 4050
+fn_e3_lib_pl_fc:		; E3.cls 4051
+            inc hl		; E3.cls 4052
+            ld a, (hl)              ; middle byte [4053]
+            inc hl		; E3.cls 4054
+            ld c, (hl)              ; top [4055]
+            inc hl		; E3.cls 4056
+            ld e, a		; E3.cls 4057
+            and #C0		; E3.cls 4058
+            jr z, fn_e3_lib_pl_fp		; E3.cls 4059
+            cp #C0		; E3.cls 4060
+            jr nz, fn_e3_lib_pl_fsh		; E3.cls 4061
+            ld a, c                 ; negative: top FF [4062]
+            inc a		; E3.cls 4063
+            jr nz, fn_e3_lib_pl_fsh		; E3.cls 4064
+            jr fn_e3_lib_pl_fn		; E3.cls 4065
+fn_e3_lib_pl_fp:		; E3.cls 4066
+            ld a, c		; E3.cls 4067
+            or a		; E3.cls 4068
+            jr nz, fn_e3_lib_pl_fsh		; E3.cls 4069
+fn_e3_lib_pl_fn:		; E3.cls 4070
+            djnz fn_e3_lib_pl_fc		; E3.cls 4071
+            jr fn_e3_lib_pl_fok		; E3.cls 4072
+fn_e3_lib_pl_fsh:		; E3.cls 4073
+            ld hl, fn_e3_lib_pl_d + 8		; E3.cls 4074
+            ld b, 3		; E3.cls 4075
+fn_e3_lib_pl_sh:		; E3.cls 4076
+            sra (hl)		; E3.cls 4077
+            dec hl		; E3.cls 4078
+            rr (hl)		; E3.cls 4079
+            dec hl		; E3.cls 4080
+            rr (hl)		; E3.cls 4081
+            dec hl		; E3.cls 4082
+            djnz fn_e3_lib_pl_sh		; E3.cls 4083
+            ld hl, fn_e3_lib_pl_k		; E3.cls 4084
+            inc (hl)		; E3.cls 4085
+            jr fn_e3_lib_pl_fit		; E3.cls 4086
+fn_e3_lib_pl_fok:		; E3.cls 4087
+            ld hl, (fn_e3_lib_pl_d)           ; d as words [4088]
+            ld (fn_e3_lib_pl_w), hl		; E3.cls 4089
+            ld hl, (fn_e3_lib_pl_d + 3)		; E3.cls 4090
+            ld (fn_e3_lib_pl_w + 2), hl		; E3.cls 4091
+            ld hl, (fn_e3_lib_pl_d + 6)		; E3.cls 4092
+            ld (fn_e3_lib_pl_w + 4), hl		; E3.cls 4093
+            ret		; E3.cls 4094
 ; len3: the length of the vector at HL (3 words) -> HL
-fn_e3_lib_len3:		; E3.cls 4095
-            ld (fn_e3_lib_l3_p), hl		; E3.cls 4096
-            ld e, (hl)		; E3.cls 4097
-            inc hl		; E3.cls 4098
-            ld d, (hl)		; E3.cls 4099
-            ld b, d		; E3.cls 4100
-            ld c, e		; E3.cls 4101
-            call fn_e3_lib_ssmul		; E3.cls 4102
-            ld (fn_e3_lib_l3_s), de		; E3.cls 4103
-            ld (fn_e3_lib_l3_s + 2), hl		; E3.cls 4104
-            ld hl, (fn_e3_lib_l3_p)		; E3.cls 4105
-            inc hl		; E3.cls 4106
+fn_e3_lib_len3:		; E3.cls 4096
+            ld (fn_e3_lib_l3_p), hl		; E3.cls 4097
+            ld e, (hl)		; E3.cls 4098
+            inc hl		; E3.cls 4099
+            ld d, (hl)		; E3.cls 4100
+            ld b, d		; E3.cls 4101
+            ld c, e		; E3.cls 4102
+            call fn_e3_lib_ssmul		; E3.cls 4103
+            ld (fn_e3_lib_l3_s), de		; E3.cls 4104
+            ld (fn_e3_lib_l3_s + 2), hl		; E3.cls 4105
+            ld hl, (fn_e3_lib_l3_p)		; E3.cls 4106
             inc hl		; E3.cls 4107
-            call fn_e3_lib_l3_add		; E3.cls 4108
-            ld hl, (fn_e3_lib_l3_p)		; E3.cls 4109
-            ld de, 4		; E3.cls 4110
-            add hl, de		; E3.cls 4111
-            call fn_e3_lib_l3_add		; E3.cls 4112
-            ld hl, (fn_e3_lib_l3_s + 2)		; E3.cls 4113
-            ld de, (fn_e3_lib_l3_s)		; E3.cls 4114
-            jp fn_e3_lib_isqrt		; E3.cls 4115
-fn_e3_lib_l3_add:		; E3.cls 4116
-            ld e, (hl)		; E3.cls 4117
-            inc hl		; E3.cls 4118
-            ld d, (hl)		; E3.cls 4119
-            ld b, d		; E3.cls 4120
-            ld c, e		; E3.cls 4121
-            call fn_e3_lib_ssmul		; E3.cls 4122
-            push hl		; E3.cls 4123
-            ld hl, (fn_e3_lib_l3_s)		; E3.cls 4124
-            add hl, de		; E3.cls 4125
-            ld (fn_e3_lib_l3_s), hl		; E3.cls 4126
-            pop de		; E3.cls 4127
-            ld hl, (fn_e3_lib_l3_s + 2)		; E3.cls 4128
-            adc hl, de		; E3.cls 4129
-            ld (fn_e3_lib_l3_s + 2), hl		; E3.cls 4130
-            ret		; E3.cls 4131
-fn_e3_lib_l3_p:       dw 0		; E3.cls 4132
-fn_e3_lib_l3_s:       ds 4		; E3.cls 4133
+            inc hl		; E3.cls 4108
+            call fn_e3_lib_l3_add		; E3.cls 4109
+            ld hl, (fn_e3_lib_l3_p)		; E3.cls 4110
+            ld de, 4		; E3.cls 4111
+            add hl, de		; E3.cls 4112
+            call fn_e3_lib_l3_add		; E3.cls 4113
+            ld hl, (fn_e3_lib_l3_s + 2)		; E3.cls 4114
+            ld de, (fn_e3_lib_l3_s)		; E3.cls 4115
+            jp fn_e3_lib_isqrt		; E3.cls 4116
+fn_e3_lib_l3_add:		; E3.cls 4117
+            ld e, (hl)		; E3.cls 4118
+            inc hl		; E3.cls 4119
+            ld d, (hl)		; E3.cls 4120
+            ld b, d		; E3.cls 4121
+            ld c, e		; E3.cls 4122
+            call fn_e3_lib_ssmul		; E3.cls 4123
+            push hl		; E3.cls 4124
+            ld hl, (fn_e3_lib_l3_s)		; E3.cls 4125
+            add hl, de		; E3.cls 4126
+            ld (fn_e3_lib_l3_s), hl		; E3.cls 4127
+            pop de		; E3.cls 4128
+            ld hl, (fn_e3_lib_l3_s + 2)		; E3.cls 4129
+            adc hl, de		; E3.cls 4130
+            ld (fn_e3_lib_l3_s + 2), hl		; E3.cls 4131
+            ret		; E3.cls 4132
+fn_e3_lib_l3_p:       dw 0		; E3.cls 4133
+fn_e3_lib_l3_s:       ds 4		; E3.cls 4134
 ; isqrt: the square root of HL:DE (32 bits) -> HL
-fn_e3_lib_isqrt:		; E3.cls 4135
-            ld (fn_e3_lib_sq_n), de		; E3.cls 4136
-            ld (fn_e3_lib_sq_n + 2), hl		; E3.cls 4137
-            ld hl, 0		; E3.cls 4138
-            ld (fn_e3_lib_sq_r), hl           ; the root [4139]
-            ld (fn_e3_lib_sq_m), hl           ; the remainder (24 bits) [4140]
-            xor a		; E3.cls 4141
-            ld (fn_e3_lib_sq_m + 2), a		; E3.cls 4142
-            ld b, 16		; E3.cls 4143
-fn_e3_lib_sq_lp:		; E3.cls 4144
-            push bc		; E3.cls 4145
-            ld b, 2                 ; the remainder << 2, the number's top 2 bits into it [4146]
-fn_e3_lib_sq_sh:		; E3.cls 4147
-            ld hl, fn_e3_lib_sq_n		; E3.cls 4148
-            sla (hl)		; E3.cls 4149
-            inc hl		; E3.cls 4150
-            rl (hl)		; E3.cls 4151
-            inc hl		; E3.cls 4152
-            rl (hl)		; E3.cls 4153
-            inc hl		; E3.cls 4154
-            rl (hl)		; E3.cls 4155
-            ld hl, fn_e3_lib_sq_m		; E3.cls 4156
-            rl (hl)		; E3.cls 4157
-            inc hl		; E3.cls 4158
-            rl (hl)		; E3.cls 4159
-            inc hl		; E3.cls 4160
-            rl (hl)		; E3.cls 4161
-            djnz fn_e3_lib_sq_sh		; E3.cls 4162
-            ld hl, (fn_e3_lib_sq_r)           ; the root << 1; test = root << 1 | 1 (17 bits) [4163]
-            add hl, hl		; E3.cls 4164
-            ld (fn_e3_lib_sq_r), hl		; E3.cls 4165
-            ld d, h		; E3.cls 4166
-            ld e, l		; E3.cls 4167
-            sla e		; E3.cls 4168
-            rl d		; E3.cls 4169
-            ld a, 0		; E3.cls 4170
-            rla                     ; (A: test's bit 16) [4171]
-            set 0, e		; E3.cls 4172
-            ld hl, (fn_e3_lib_sq_m)           ; remainder - test [4173]
-            or a		; E3.cls 4174
-            sbc hl, de		; E3.cls 4175
-            ld c, a		; E3.cls 4176
-            ld a, (fn_e3_lib_sq_m + 2)		; E3.cls 4177
-            sbc a, c		; E3.cls 4178
-            jr c, fn_e3_lib_sq_no		; E3.cls 4179
-            ld (fn_e3_lib_sq_m), hl		; E3.cls 4180
-            ld (fn_e3_lib_sq_m + 2), a		; E3.cls 4181
-            ld hl, fn_e3_lib_sq_r		; E3.cls 4182
-            set 0, (hl)		; E3.cls 4183
-fn_e3_lib_sq_no:		; E3.cls 4184
-            pop bc		; E3.cls 4185
-            djnz fn_e3_lib_sq_lp		; E3.cls 4186
-            ld hl, (fn_e3_lib_sq_r)		; E3.cls 4187
-            ret		; E3.cls 4188
-fn_e3_lib_sq_n:       ds 4		; E3.cls 4189
-fn_e3_lib_sq_r:       dw 0		; E3.cls 4190
-fn_e3_lib_sq_m:       ds 3		; E3.cls 4191
-fn_e3_lib_pl_d:       ds 9		; E3.cls 4192
-fn_e3_lib_pl_k:       db 0		; E3.cls 4193
-fn_e3_lib_pl_w:       ds 6		; E3.cls 4194
-fn_e3_lib_pl_a:       ds 6		; E3.cls 4195
-fn_e3_lib_pl_dd:      dw 0		; E3.cls 4196
-fn_e3_lib_pl_r:       ds 3		; E3.cls 4197
-fn_e3_lib_pl_sn:      dw 0		; E3.cls 4198
-fn_e3_lib_pl_cs:      dw 0		; E3.cls 4199
-fn_e3_lib_pl_u:       ds 6                    ; u, then v, then w: (the cone's axis and its square ones) [4200]
-fn_e3_lib_pl_v:       ds 6		; E3.cls 4201
-fn_e3_lib_pl_wv:      ds 6		; E3.cls 4202
-fn_e3_lib_pl_ca:      ds 6                    ; A (words), V8, W8 (bytes) [4203]
-fn_e3_lib_pl_v8:      ds 3		; E3.cls 4204
-fn_e3_lib_pl_w8:      ds 3		; E3.cls 4205
-fn_e3_lib_pl_gp:      dw 0		; E3.cls 4206
-fn_e3_lib_pl_f:       db 0		; E3.cls 4207
-fn_e3_lib_pl_cf:      db 0		; E3.cls 4208
-fn_e3_lib_pl_sf:      db 0		; E3.cls 4209
-fn_e3_lib_pl_and:     db 0		; E3.cls 4210
-fn_e3_lib_pl_or:      db 0		; E3.cls 4211
-fn_e3_lib_pl_mx:      dw 0		; E3.cls 4212
-fn_e3_lib_pl_my:      dw 0		; E3.cls 4213
-fn_e3_lib_pl_hx:      dw 0		; E3.cls 4214
-fn_e3_lib_pl_hy:      dw 0		; E3.cls 4215
-fn_e3_lib_pl_hf:      db 0		; E3.cls 4216
-fn_e3_lib_pl_hc:      db 0		; E3.cls 4217
-fn_e3_lib_pl_bt:      db 0		; E3.cls 4218
-fn_e3_lib_pl_bd:      dw 0		; E3.cls 4219
-fn_e3_lib_pl_bi:      db 0		; E3.cls 4220
-fn_e3_lib_pl_x0:      dw 0		; E3.cls 4221
-fn_e3_lib_pl_x1:      dw 0		; E3.cls 4222
-fn_e3_lib_pl_wid:     dw 0		; E3.cls 4223
-fn_e3_lib_pl_s:       ds 6		; E3.cls 4224
-fn_e3_lib_pl_sx:      ds 64		; E3.cls 4225
-fn_e3_lib_pl_sy:      ds 64		; E3.cls 4226
+fn_e3_lib_isqrt:		; E3.cls 4136
+            ld (fn_e3_lib_sq_n), de		; E3.cls 4137
+            ld (fn_e3_lib_sq_n + 2), hl		; E3.cls 4138
+            ld hl, 0		; E3.cls 4139
+            ld (fn_e3_lib_sq_r), hl           ; the root [4140]
+            ld (fn_e3_lib_sq_m), hl           ; the remainder (24 bits) [4141]
+            xor a		; E3.cls 4142
+            ld (fn_e3_lib_sq_m + 2), a		; E3.cls 4143
+            ld b, 16		; E3.cls 4144
+fn_e3_lib_sq_lp:		; E3.cls 4145
+            push bc		; E3.cls 4146
+            ld b, 2                 ; the remainder << 2, the number's top 2 bits into it [4147]
+fn_e3_lib_sq_sh:		; E3.cls 4148
+            ld hl, fn_e3_lib_sq_n		; E3.cls 4149
+            sla (hl)		; E3.cls 4150
+            inc hl		; E3.cls 4151
+            rl (hl)		; E3.cls 4152
+            inc hl		; E3.cls 4153
+            rl (hl)		; E3.cls 4154
+            inc hl		; E3.cls 4155
+            rl (hl)		; E3.cls 4156
+            ld hl, fn_e3_lib_sq_m		; E3.cls 4157
+            rl (hl)		; E3.cls 4158
+            inc hl		; E3.cls 4159
+            rl (hl)		; E3.cls 4160
+            inc hl		; E3.cls 4161
+            rl (hl)		; E3.cls 4162
+            djnz fn_e3_lib_sq_sh		; E3.cls 4163
+            ld hl, (fn_e3_lib_sq_r)           ; the root << 1; test = root << 1 | 1 (17 bits) [4164]
+            add hl, hl		; E3.cls 4165
+            ld (fn_e3_lib_sq_r), hl		; E3.cls 4166
+            ld d, h		; E3.cls 4167
+            ld e, l		; E3.cls 4168
+            sla e		; E3.cls 4169
+            rl d		; E3.cls 4170
+            ld a, 0		; E3.cls 4171
+            rla                     ; (A: test's bit 16) [4172]
+            set 0, e		; E3.cls 4173
+            ld hl, (fn_e3_lib_sq_m)           ; remainder - test [4174]
+            or a		; E3.cls 4175
+            sbc hl, de		; E3.cls 4176
+            ld c, a		; E3.cls 4177
+            ld a, (fn_e3_lib_sq_m + 2)		; E3.cls 4178
+            sbc a, c		; E3.cls 4179
+            jr c, fn_e3_lib_sq_no		; E3.cls 4180
+            ld (fn_e3_lib_sq_m), hl		; E3.cls 4181
+            ld (fn_e3_lib_sq_m + 2), a		; E3.cls 4182
+            ld hl, fn_e3_lib_sq_r		; E3.cls 4183
+            set 0, (hl)		; E3.cls 4184
+fn_e3_lib_sq_no:		; E3.cls 4185
+            pop bc		; E3.cls 4186
+            djnz fn_e3_lib_sq_lp		; E3.cls 4187
+            ld hl, (fn_e3_lib_sq_r)		; E3.cls 4188
+            ret		; E3.cls 4189
+fn_e3_lib_sq_n:       ds 4		; E3.cls 4190
+fn_e3_lib_sq_r:       dw 0		; E3.cls 4191
+fn_e3_lib_sq_m:       ds 3		; E3.cls 4192
+fn_e3_lib_pl_d:       ds 9		; E3.cls 4193
+fn_e3_lib_pl_k:       db 0		; E3.cls 4194
+fn_e3_lib_pl_w:       ds 6		; E3.cls 4195
+fn_e3_lib_pl_a:       ds 6		; E3.cls 4196
+fn_e3_lib_pl_dd:      dw 0		; E3.cls 4197
+fn_e3_lib_pl_r:       ds 3		; E3.cls 4198
+fn_e3_lib_pl_sn:      dw 0		; E3.cls 4199
+fn_e3_lib_pl_cs:      dw 0		; E3.cls 4200
+fn_e3_lib_pl_u:       ds 6                    ; u, then v, then w: (the cone's axis and its square ones) [4201]
+fn_e3_lib_pl_v:       ds 6		; E3.cls 4202
+fn_e3_lib_pl_wv:      ds 6		; E3.cls 4203
+fn_e3_lib_pl_ca:      ds 6                    ; A (words), V8, W8 (bytes) [4204]
+fn_e3_lib_pl_v8:      ds 3		; E3.cls 4205
+fn_e3_lib_pl_w8:      ds 3		; E3.cls 4206
+fn_e3_lib_pl_gp:      dw 0		; E3.cls 4207
+fn_e3_lib_pl_f:       db 0		; E3.cls 4208
+fn_e3_lib_pl_cf:      db 0		; E3.cls 4209
+fn_e3_lib_pl_sf:      db 0		; E3.cls 4210
+fn_e3_lib_pl_and:     db 0		; E3.cls 4211
+fn_e3_lib_pl_or:      db 0		; E3.cls 4212
+fn_e3_lib_pl_mx:      dw 0		; E3.cls 4213
+fn_e3_lib_pl_my:      dw 0		; E3.cls 4214
+fn_e3_lib_pl_hx:      dw 0		; E3.cls 4215
+fn_e3_lib_pl_hy:      dw 0		; E3.cls 4216
+fn_e3_lib_pl_hf:      db 0		; E3.cls 4217
+fn_e3_lib_pl_hc:      db 0		; E3.cls 4218
+fn_e3_lib_pl_bt:      db 0		; E3.cls 4219
+fn_e3_lib_pl_bd:      dw 0		; E3.cls 4220
+fn_e3_lib_pl_bi:      db 0		; E3.cls 4221
+fn_e3_lib_pl_x0:      dw 0		; E3.cls 4222
+fn_e3_lib_pl_x1:      dw 0		; E3.cls 4223
+fn_e3_lib_pl_wid:     dw 0		; E3.cls 4224
+fn_e3_lib_pl_s:       ds 6		; E3.cls 4225
+fn_e3_lib_pl_sx:      ds 64		; E3.cls 4226
+fn_e3_lib_pl_sy:      ds 64		; E3.cls 4227
 ; ============================================================================ every object in the view
 ; vall: each object's place in the view (oprep8) into vwx, vwy, vwz (too far: z 32767; kind 255:
 ; z -32768)
-fn_e3_lib_vall:		; E3.cls 4230
-            ld a, (var_e3_scene0)        ; objects scene0 .. nobj - 1 [4231]
-            ld b, a		; E3.cls 4232
-            ld a, (var_e3_nobj)		; E3.cls 4233
-            sub b		; E3.cls 4234
-            ret z		; E3.cls 4235
-            ret c		; E3.cls 4236
-            ld (fn_e3_lib_va_k), a		; E3.cls 4237
-            ld l, b		; E3.cls 4238
-            ld h, 0		; E3.cls 4239
-            add hl, hl		; E3.cls 4240
-            ld (fn_e3_lib_va_o), hl		; E3.cls 4241
-            add hl, hl		; E3.cls 4242
+fn_e3_lib_vall:		; E3.cls 4231
+            ld a, (var_e3_scene0)        ; objects scene0 .. nobj - 1 [4232]
+            ld b, a		; E3.cls 4233
+            ld a, (var_e3_nobj)		; E3.cls 4234
+            sub b		; E3.cls 4235
+            ret z		; E3.cls 4236
+            ret c		; E3.cls 4237
+            ld (fn_e3_lib_va_k), a		; E3.cls 4238
+            ld l, b		; E3.cls 4239
+            ld h, 0		; E3.cls 4240
+            add hl, hl		; E3.cls 4241
+            ld (fn_e3_lib_va_o), hl		; E3.cls 4242
             add hl, hl		; E3.cls 4243
             add hl, hl		; E3.cls 4244
-            ld de, arr_e3_obj		; E3.cls 4245
-            add hl, de		; E3.cls 4246
-            ld (fn_e3_lib_va_p), hl		; E3.cls 4247
-fn_e3_lib_va_lp:		; E3.cls 4248
-            ld a, (fn_e3_lib_va_k)            ; <--- NEW (the frame count kept: see vpoll - every 8th object) [4249]
-            and 7                   ; <--- NEW [4250]
-            call z, fn_e3_lib_vpoll           ; <--- NEW [4251]
-            ld hl, (fn_e3_lib_va_p)		; E3.cls 4252
-            ld de, 10		; E3.cls 4253
-            add hl, de		; E3.cls 4254
-            ld a, (hl)		; E3.cls 4255
-            inc a		; E3.cls 4256
-            ld hl, #8000		; E3.cls 4257
-            jr z, fn_e3_lib_va_put		; E3.cls 4258
-            ld hl, (fn_e3_lib_va_p)		; E3.cls 4259
-            ld de, arr_e3_op		; E3.cls 4260
-            ld bc, 6		; E3.cls 4261
-            ldir		; E3.cls 4262
-            call fn_e3_lib_orel		; E3.cls 4263
-            ld hl, 32767		; E3.cls 4264
-            jr c, fn_e3_lib_va_put		; E3.cls 4265
-            call fn_e3_lib_oprep8		; E3.cls 4266
-            ld hl, (fn_e3_lib_va_o)		; E3.cls 4267
-            ld de, arr_e3_vwx		; E3.cls 4268
-            add hl, de		; E3.cls 4269
-            ld de, (arr_e3_oc)		; E3.cls 4270
-            ld (hl), e		; E3.cls 4271
-            inc hl		; E3.cls 4272
-            ld (hl), d		; E3.cls 4273
-            ld hl, (fn_e3_lib_va_o)		; E3.cls 4274
-            ld de, arr_e3_vwy		; E3.cls 4275
-            add hl, de		; E3.cls 4276
-            ld de, (arr_e3_oc + 2)		; E3.cls 4277
-            ld (hl), e		; E3.cls 4278
-            inc hl		; E3.cls 4279
-            ld (hl), d		; E3.cls 4280
-            ld hl, (arr_e3_oc + 4)		; E3.cls 4281
-fn_e3_lib_va_put:		; E3.cls 4282
-            ex de, hl		; E3.cls 4283
-            ld hl, (fn_e3_lib_va_o)		; E3.cls 4284
-            ld bc, arr_e3_vwz		; E3.cls 4285
-            add hl, bc		; E3.cls 4286
-            ld (hl), e		; E3.cls 4287
-            inc hl		; E3.cls 4288
-            ld (hl), d		; E3.cls 4289
-            ld hl, (fn_e3_lib_va_o)		; E3.cls 4290
-            inc hl		; E3.cls 4291
+            add hl, hl		; E3.cls 4245
+            ld de, arr_e3_obj		; E3.cls 4246
+            add hl, de		; E3.cls 4247
+            ld (fn_e3_lib_va_p), hl		; E3.cls 4248
+fn_e3_lib_va_lp:		; E3.cls 4249
+            ld a, (fn_e3_lib_va_k)            ; <--- NEW (the frame count kept: see vpoll - every 8th object) [4250]
+            and 7                   ; <--- NEW [4251]
+            call z, fn_e3_lib_vpoll           ; <--- NEW [4252]
+            ld hl, (fn_e3_lib_va_p)		; E3.cls 4253
+            ld de, 10		; E3.cls 4254
+            add hl, de		; E3.cls 4255
+            ld a, (hl)		; E3.cls 4256
+            inc a		; E3.cls 4257
+            ld hl, #8000		; E3.cls 4258
+            jr z, fn_e3_lib_va_put		; E3.cls 4259
+            ld hl, (fn_e3_lib_va_p)		; E3.cls 4260
+            ld de, arr_e3_op		; E3.cls 4261
+            ld bc, 6		; E3.cls 4262
+            ldir		; E3.cls 4263
+            call fn_e3_lib_orel		; E3.cls 4264
+            ld hl, 32767		; E3.cls 4265
+            jr c, fn_e3_lib_va_put		; E3.cls 4266
+            call fn_e3_lib_oprep8		; E3.cls 4267
+            ld hl, (fn_e3_lib_va_o)		; E3.cls 4268
+            ld de, arr_e3_vwx		; E3.cls 4269
+            add hl, de		; E3.cls 4270
+            ld de, (arr_e3_oc)		; E3.cls 4271
+            ld (hl), e		; E3.cls 4272
+            inc hl		; E3.cls 4273
+            ld (hl), d		; E3.cls 4274
+            ld hl, (fn_e3_lib_va_o)		; E3.cls 4275
+            ld de, arr_e3_vwy		; E3.cls 4276
+            add hl, de		; E3.cls 4277
+            ld de, (arr_e3_oc + 2)		; E3.cls 4278
+            ld (hl), e		; E3.cls 4279
+            inc hl		; E3.cls 4280
+            ld (hl), d		; E3.cls 4281
+            ld hl, (arr_e3_oc + 4)		; E3.cls 4282
+fn_e3_lib_va_put:		; E3.cls 4283
+            ex de, hl		; E3.cls 4284
+            ld hl, (fn_e3_lib_va_o)		; E3.cls 4285
+            ld bc, arr_e3_vwz		; E3.cls 4286
+            add hl, bc		; E3.cls 4287
+            ld (hl), e		; E3.cls 4288
+            inc hl		; E3.cls 4289
+            ld (hl), d		; E3.cls 4290
+            ld hl, (fn_e3_lib_va_o)		; E3.cls 4291
             inc hl		; E3.cls 4292
-            ld (fn_e3_lib_va_o), hl		; E3.cls 4293
-            ld hl, (fn_e3_lib_va_p)		; E3.cls 4294
-            ld de, 16		; E3.cls 4295
-            add hl, de		; E3.cls 4296
-            ld (fn_e3_lib_va_p), hl		; E3.cls 4297
-            ld hl, fn_e3_lib_va_k		; E3.cls 4298
-            dec (hl)		; E3.cls 4299
-            jr nz, fn_e3_lib_va_lp		; E3.cls 4300
-            ret		; E3.cls 4301
-fn_e3_lib_va_k:       db 0		; E3.cls 4302
-fn_e3_lib_va_p:       dw 0		; E3.cls 4303
-fn_e3_lib_va_o:       dw 0		; E3.cls 4304
+            inc hl		; E3.cls 4293
+            ld (fn_e3_lib_va_o), hl		; E3.cls 4294
+            ld hl, (fn_e3_lib_va_p)		; E3.cls 4295
+            ld de, 16		; E3.cls 4296
+            add hl, de		; E3.cls 4297
+            ld (fn_e3_lib_va_p), hl		; E3.cls 4298
+            ld hl, fn_e3_lib_va_k		; E3.cls 4299
+            dec (hl)		; E3.cls 4300
+            jr nz, fn_e3_lib_va_lp		; E3.cls 4301
+            ret		; E3.cls 4302
+fn_e3_lib_va_k:       db 0		; E3.cls 4303
+fn_e3_lib_va_p:       dw 0		; E3.cls 4304
+fn_e3_lib_va_o:       dw 0		; E3.cls 4305
 ; ============================================================================ a face in the world
 ; (NEW: a game that never calls Quad3, HQuad or VQuad can leave this out: game.json "features":   ; <--- NEW
 ; ["noquad3"])                                                                                    ; <--- NEW
 ; quad3: the 4 corners at wq (world, 16 bit) into the view (cla), their codes; all outside one
 ; plane: nothing; else poly3 (cut, projected, filled in pc)
-fn_e3_lib_quad3:		; E3.cls 4310
-            ld hl, arr_e3_wq		; E3.cls 4311
-            ld (fn_e3_lib_q3_p), hl		; E3.cls 4312
-            ld hl, arr_e3_cla		; E3.cls 4313
-            ld (fn_e3_lib_q3_d), hl		; E3.cls 4314
-            xor a		; E3.cls 4315
-            ld (fn_e3_lib_q3_or), a		; E3.cls 4316
-            ld hl, fn_e3_lib_q3_cache		; E3.cls 4317
-            ld b, 6		; E3.cls 4318
-fn_e3_lib_q3_ce:		; E3.cls 4319
-            ld (hl), a		; E3.cls 4320
-            ld de, 9		; E3.cls 4321
-            add hl, de		; E3.cls 4322
-            djnz fn_e3_lib_q3_ce		; E3.cls 4323
-            dec a		; E3.cls 4324
-            ld (fn_e3_lib_q3_and), a		; E3.cls 4325
-            ld b, 4		; E3.cls 4326
-fn_e3_lib_q3_lp:		; E3.cls 4327
-            push bc		; E3.cls 4328
-            ld ix, arr_e3_cp		; E3.cls 4329
-            ld hl, 0		; E3.cls 4330
-            ld (fn_e3_lib_q3_v), hl           ; (its - the camera's) x the camera's column for it (cached: the [4331]
-            ld (fn_e3_lib_q3_v + 2), hl       ; corners share their values, so 15 products a face, not 36) [4332]
-            ld (fn_e3_lib_q3_v + 4), hl		; E3.cls 4333
-            xor a		; E3.cls 4334
-            ld (fn_e3_lib_q3_ax), a		; E3.cls 4335
-fn_e3_lib_q3_rl:		; E3.cls 4336
-            ld hl, (fn_e3_lib_q3_p)		; E3.cls 4337
-            ld e, (hl)		; E3.cls 4338
-            inc hl		; E3.cls 4339
-            ld d, (hl)		; E3.cls 4340
-            inc hl		; E3.cls 4341
-            ld (fn_e3_lib_q3_p), hl		; E3.cls 4342
-            ex de, hl		; E3.cls 4343
-            call fn_e3_lib_reld		; E3.cls 4344
-            jp c, fn_e3_lib_q3_far		; E3.cls 4345
-            ld (fn_e3_lib_q3_dv), hl		; E3.cls 4346
-            ld a, (fn_e3_lib_q3_ax)           ; this axis's two cache slots (18 bytes) [4347]
-            ld l, a		; E3.cls 4348
-            add a, a		; E3.cls 4349
+fn_e3_lib_quad3:		; E3.cls 4311
+            ld hl, arr_e3_wq		; E3.cls 4312
+            ld (fn_e3_lib_q3_p), hl		; E3.cls 4313
+            ld hl, arr_e3_cla		; E3.cls 4314
+            ld (fn_e3_lib_q3_d), hl		; E3.cls 4315
+            xor a		; E3.cls 4316
+            ld (fn_e3_lib_q3_or), a		; E3.cls 4317
+            ld hl, fn_e3_lib_q3_cache		; E3.cls 4318
+            ld b, 6		; E3.cls 4319
+fn_e3_lib_q3_ce:		; E3.cls 4320
+            ld (hl), a		; E3.cls 4321
+            ld de, 9		; E3.cls 4322
+            add hl, de		; E3.cls 4323
+            djnz fn_e3_lib_q3_ce		; E3.cls 4324
+            dec a		; E3.cls 4325
+            ld (fn_e3_lib_q3_and), a		; E3.cls 4326
+            ld b, 4		; E3.cls 4327
+fn_e3_lib_q3_lp:		; E3.cls 4328
+            push bc		; E3.cls 4329
+            ld ix, arr_e3_cp		; E3.cls 4330
+            ld hl, 0		; E3.cls 4331
+            ld (fn_e3_lib_q3_v), hl           ; (its - the camera's) x the camera's column for it (cached: the [4332]
+            ld (fn_e3_lib_q3_v + 2), hl       ; corners share their values, so 15 products a face, not 36) [4333]
+            ld (fn_e3_lib_q3_v + 4), hl		; E3.cls 4334
+            xor a		; E3.cls 4335
+            ld (fn_e3_lib_q3_ax), a		; E3.cls 4336
+fn_e3_lib_q3_rl:		; E3.cls 4337
+            ld hl, (fn_e3_lib_q3_p)		; E3.cls 4338
+            ld e, (hl)		; E3.cls 4339
+            inc hl		; E3.cls 4340
+            ld d, (hl)		; E3.cls 4341
+            inc hl		; E3.cls 4342
+            ld (fn_e3_lib_q3_p), hl		; E3.cls 4343
+            ex de, hl		; E3.cls 4344
+            call fn_e3_lib_reld		; E3.cls 4345
+            jp c, fn_e3_lib_q3_far		; E3.cls 4346
+            ld (fn_e3_lib_q3_dv), hl		; E3.cls 4347
+            ld a, (fn_e3_lib_q3_ax)           ; this axis's two cache slots (18 bytes) [4348]
+            ld l, a		; E3.cls 4349
             add a, a		; E3.cls 4350
             add a, a		; E3.cls 4351
-            add a, l		; E3.cls 4352
-            add a, a		; E3.cls 4353
-            ld e, a		; E3.cls 4354
-            ld d, 0		; E3.cls 4355
-            ld iy, fn_e3_lib_q3_cache		; E3.cls 4356
-            add iy, de		; E3.cls 4357
-            call fn_e3_lib_q3_try		; E3.cls 4358
-            jr z, fn_e3_lib_q3_hit		; E3.cls 4359
-            ld de, 9		; E3.cls 4360
-            add iy, de		; E3.cls 4361
-            call fn_e3_lib_q3_try		; E3.cls 4362
-            jr z, fn_e3_lib_q3_hit		; E3.cls 4363
-            ld a, (fn_e3_lib_q3_ax)           ; a miss: into the slot not used last [4364]
-            ld e, a		; E3.cls 4365
-            ld d, 0		; E3.cls 4366
-            ld hl, fn_e3_lib_q3_rr		; E3.cls 4367
-            add hl, de		; E3.cls 4368
-            ld a, (hl)		; E3.cls 4369
-            xor 1		; E3.cls 4370
-            ld (hl), a		; E3.cls 4371
-            jr nz, fn_e3_lib_q3_s1		; E3.cls 4372
-            ld de, -9		; E3.cls 4373
-            add iy, de		; E3.cls 4374
-fn_e3_lib_q3_s1:		; E3.cls 4375
-            ld (iy + 0), 1		; E3.cls 4376
-            ld hl, (fn_e3_lib_q3_dv)		; E3.cls 4377
-            ld (iy + 1), l		; E3.cls 4378
-            ld (iy + 2), h		; E3.cls 4379
-            ld a, (fn_e3_lib_q3_ax)		; E3.cls 4380
-            add a, a		; E3.cls 4381
-            ld e, a		; E3.cls 4382
-            ld d, 0		; E3.cls 4383
-            ld hl, arr_e3_cm		; E3.cls 4384
-            add hl, de		; E3.cls 4385
-            ld b, 3		; E3.cls 4386
-fn_e3_lib_q3_cm:		; E3.cls 4387
-            push bc		; E3.cls 4388
-            push hl		; E3.cls 4389
-            ld c, (hl)		; E3.cls 4390
-            inc hl		; E3.cls 4391
-            ld b, (hl)		; E3.cls 4392
-            ld de, (fn_e3_lib_q3_dv)		; E3.cls 4393
-            call fn_e3_lib_m14		; E3.cls 4394
-            ld (iy + 3), l		; E3.cls 4395
-            ld (iy + 4), h		; E3.cls 4396
-            inc iy		; E3.cls 4397
+            add a, a		; E3.cls 4352
+            add a, l		; E3.cls 4353
+            add a, a		; E3.cls 4354
+            ld e, a		; E3.cls 4355
+            ld d, 0		; E3.cls 4356
+            ld iy, fn_e3_lib_q3_cache		; E3.cls 4357
+            add iy, de		; E3.cls 4358
+            call fn_e3_lib_q3_try		; E3.cls 4359
+            jr z, fn_e3_lib_q3_hit		; E3.cls 4360
+            ld de, 9		; E3.cls 4361
+            add iy, de		; E3.cls 4362
+            call fn_e3_lib_q3_try		; E3.cls 4363
+            jr z, fn_e3_lib_q3_hit		; E3.cls 4364
+            ld a, (fn_e3_lib_q3_ax)           ; a miss: into the slot not used last [4365]
+            ld e, a		; E3.cls 4366
+            ld d, 0		; E3.cls 4367
+            ld hl, fn_e3_lib_q3_rr		; E3.cls 4368
+            add hl, de		; E3.cls 4369
+            ld a, (hl)		; E3.cls 4370
+            xor 1		; E3.cls 4371
+            ld (hl), a		; E3.cls 4372
+            jr nz, fn_e3_lib_q3_s1		; E3.cls 4373
+            ld de, -9		; E3.cls 4374
+            add iy, de		; E3.cls 4375
+fn_e3_lib_q3_s1:		; E3.cls 4376
+            ld (iy + 0), 1		; E3.cls 4377
+            ld hl, (fn_e3_lib_q3_dv)		; E3.cls 4378
+            ld (iy + 1), l		; E3.cls 4379
+            ld (iy + 2), h		; E3.cls 4380
+            ld a, (fn_e3_lib_q3_ax)		; E3.cls 4381
+            add a, a		; E3.cls 4382
+            ld e, a		; E3.cls 4383
+            ld d, 0		; E3.cls 4384
+            ld hl, arr_e3_cm		; E3.cls 4385
+            add hl, de		; E3.cls 4386
+            ld b, 3		; E3.cls 4387
+fn_e3_lib_q3_cm:		; E3.cls 4388
+            push bc		; E3.cls 4389
+            push hl		; E3.cls 4390
+            ld c, (hl)		; E3.cls 4391
+            inc hl		; E3.cls 4392
+            ld b, (hl)		; E3.cls 4393
+            ld de, (fn_e3_lib_q3_dv)		; E3.cls 4394
+            call fn_e3_lib_m14		; E3.cls 4395
+            ld (iy + 3), l		; E3.cls 4396
+            ld (iy + 4), h		; E3.cls 4397
             inc iy		; E3.cls 4398
-            pop hl		; E3.cls 4399
-            ld de, 6		; E3.cls 4400
-            add hl, de		; E3.cls 4401
-            pop bc		; E3.cls 4402
-            djnz fn_e3_lib_q3_cm		; E3.cls 4403
-            ld de, -6		; E3.cls 4404
-            add iy, de		; E3.cls 4405
-fn_e3_lib_q3_hit:		; E3.cls 4406
-            ld hl, fn_e3_lib_q3_v             ; add the slot's products [4407]
-            ld b, 3		; E3.cls 4408
-fn_e3_lib_q3_ad:		; E3.cls 4409
-            ld e, (hl)		; E3.cls 4410
-            inc hl		; E3.cls 4411
-            ld d, (hl)		; E3.cls 4412
-            push hl		; E3.cls 4413
-            ld l, (iy + 3)		; E3.cls 4414
-            ld h, (iy + 4)		; E3.cls 4415
-            add hl, de		; E3.cls 4416
-            ex de, hl		; E3.cls 4417
-            pop hl		; E3.cls 4418
-            ld (hl), d		; E3.cls 4419
-            dec hl		; E3.cls 4420
-            ld (hl), e		; E3.cls 4421
-            inc hl		; E3.cls 4422
+            inc iy		; E3.cls 4399
+            pop hl		; E3.cls 4400
+            ld de, 6		; E3.cls 4401
+            add hl, de		; E3.cls 4402
+            pop bc		; E3.cls 4403
+            djnz fn_e3_lib_q3_cm		; E3.cls 4404
+            ld de, -6		; E3.cls 4405
+            add iy, de		; E3.cls 4406
+fn_e3_lib_q3_hit:		; E3.cls 4407
+            ld hl, fn_e3_lib_q3_v             ; add the slot's products [4408]
+            ld b, 3		; E3.cls 4409
+fn_e3_lib_q3_ad:		; E3.cls 4410
+            ld e, (hl)		; E3.cls 4411
+            inc hl		; E3.cls 4412
+            ld d, (hl)		; E3.cls 4413
+            push hl		; E3.cls 4414
+            ld l, (iy + 3)		; E3.cls 4415
+            ld h, (iy + 4)		; E3.cls 4416
+            add hl, de		; E3.cls 4417
+            ex de, hl		; E3.cls 4418
+            pop hl		; E3.cls 4419
+            ld (hl), d		; E3.cls 4420
+            dec hl		; E3.cls 4421
+            ld (hl), e		; E3.cls 4422
             inc hl		; E3.cls 4423
-            inc iy		; E3.cls 4424
+            inc hl		; E3.cls 4424
             inc iy		; E3.cls 4425
-            djnz fn_e3_lib_q3_ad		; E3.cls 4426
-            ld de, 4		; E3.cls 4427
-            add ix, de		; E3.cls 4428
-            ld a, (fn_e3_lib_q3_ax)		; E3.cls 4429
-            inc a		; E3.cls 4430
-            ld (fn_e3_lib_q3_ax), a		; E3.cls 4431
-            cp 3		; E3.cls 4432
-            jp c, fn_e3_lib_q3_rl		; E3.cls 4433
-            ld hl, fn_e3_lib_q3_v		; E3.cls 4434
-            ld de, (fn_e3_lib_q3_d)		; E3.cls 4435
-            ld bc, 6		; E3.cls 4436
-            ldir		; E3.cls 4437
-            ld (fn_e3_lib_q3_d), de		; E3.cls 4438
-            ld hl, (fn_e3_lib_q3_v)		; E3.cls 4439
-            ld de, (fn_e3_lib_q3_v + 2)		; E3.cls 4440
-            ld bc, (fn_e3_lib_q3_v + 4)		; E3.cls 4441
-            call fn_e3_lib_vcode		; E3.cls 4442
-            ld b, a		; E3.cls 4443
-            ld hl, fn_e3_lib_q3_or		; E3.cls 4444
-            or (hl)		; E3.cls 4445
-            ld (hl), a		; E3.cls 4446
-            ld a, (fn_e3_lib_q3_and)		; E3.cls 4447
-            and b		; E3.cls 4448
-            ld (fn_e3_lib_q3_and), a		; E3.cls 4449
-            pop bc		; E3.cls 4450
-            dec b		; E3.cls 4451
-            jp nz, fn_e3_lib_q3_lp		; E3.cls 4452
-            ld a, (fn_e3_lib_q3_and)		; E3.cls 4453
-            or a		; E3.cls 4454
-            ret nz		; E3.cls 4455
-            ld a, (fn_e3_lib_q3_or)		; E3.cls 4456
-            ld (var_e3_cmask), a		; E3.cls 4457
-            ld a, 4		; E3.cls 4458
-            ld (var_e3_cn), a		; E3.cls 4459
-            jp fn_e3_lib_poly3		; E3.cls 4460
-fn_e3_lib_q3_far:		; E3.cls 4461
-            pop bc		; E3.cls 4462
-            ret		; E3.cls 4463
-fn_e3_lib_q3_try:     ; Z: slot IY holds this value (q3_dv) [4464]
-            ld a, (iy + 0)		; E3.cls 4465
-            or a		; E3.cls 4466
-            jr z, fn_e3_lib_q3_t0		; E3.cls 4467
-            ld hl, (fn_e3_lib_q3_dv)		; E3.cls 4468
-            ld e, (iy + 1)		; E3.cls 4469
-            ld d, (iy + 2)		; E3.cls 4470
-            or a		; E3.cls 4471
-            sbc hl, de		; E3.cls 4472
-            ret		; E3.cls 4473
-fn_e3_lib_q3_t0:		; E3.cls 4474
-            or 1		; E3.cls 4475
-            ret		; E3.cls 4476
-fn_e3_lib_q3_ax:      db 0		; E3.cls 4477
-fn_e3_lib_q3_dv:      dw 0		; E3.cls 4478
-fn_e3_lib_q3_rr:      ds 3		; E3.cls 4479
-fn_e3_lib_q3_cache:   ds 54		; E3.cls 4480
-fn_e3_lib_q3_p:       dw 0		; E3.cls 4481
-fn_e3_lib_q3_d:       dw 0		; E3.cls 4482
-fn_e3_lib_q3_or:      db 0		; E3.cls 4483
-fn_e3_lib_q3_and:     db 0		; E3.cls 4484
-fn_e3_lib_q3_r:       ds 6		; E3.cls 4485
-fn_e3_lib_q3_v:       ds 6		; E3.cls 4486
+            inc iy		; E3.cls 4426
+            djnz fn_e3_lib_q3_ad		; E3.cls 4427
+            ld de, 4		; E3.cls 4428
+            add ix, de		; E3.cls 4429
+            ld a, (fn_e3_lib_q3_ax)		; E3.cls 4430
+            inc a		; E3.cls 4431
+            ld (fn_e3_lib_q3_ax), a		; E3.cls 4432
+            cp 3		; E3.cls 4433
+            jp c, fn_e3_lib_q3_rl		; E3.cls 4434
+            ld hl, fn_e3_lib_q3_v		; E3.cls 4435
+            ld de, (fn_e3_lib_q3_d)		; E3.cls 4436
+            ld bc, 6		; E3.cls 4437
+            ldir		; E3.cls 4438
+            ld (fn_e3_lib_q3_d), de		; E3.cls 4439
+            ld hl, (fn_e3_lib_q3_v)		; E3.cls 4440
+            ld de, (fn_e3_lib_q3_v + 2)		; E3.cls 4441
+            ld bc, (fn_e3_lib_q3_v + 4)		; E3.cls 4442
+            call fn_e3_lib_vcode		; E3.cls 4443
+            ld b, a		; E3.cls 4444
+            ld hl, fn_e3_lib_q3_or		; E3.cls 4445
+            or (hl)		; E3.cls 4446
+            ld (hl), a		; E3.cls 4447
+            ld a, (fn_e3_lib_q3_and)		; E3.cls 4448
+            and b		; E3.cls 4449
+            ld (fn_e3_lib_q3_and), a		; E3.cls 4450
+            pop bc		; E3.cls 4451
+            dec b		; E3.cls 4452
+            jp nz, fn_e3_lib_q3_lp		; E3.cls 4453
+            ld a, (fn_e3_lib_q3_and)		; E3.cls 4454
+            or a		; E3.cls 4455
+            ret nz		; E3.cls 4456
+            ld a, (fn_e3_lib_q3_or)		; E3.cls 4457
+            ld (var_e3_cmask), a		; E3.cls 4458
+            ld a, 4		; E3.cls 4459
+            ld (var_e3_cn), a		; E3.cls 4460
+            jp fn_e3_lib_poly3		; E3.cls 4461
+fn_e3_lib_q3_far:		; E3.cls 4462
+            pop bc		; E3.cls 4463
+            ret		; E3.cls 4464
+fn_e3_lib_q3_try:     ; Z: slot IY holds this value (q3_dv) [4465]
+            ld a, (iy + 0)		; E3.cls 4466
+            or a		; E3.cls 4467
+            jr z, fn_e3_lib_q3_t0		; E3.cls 4468
+            ld hl, (fn_e3_lib_q3_dv)		; E3.cls 4469
+            ld e, (iy + 1)		; E3.cls 4470
+            ld d, (iy + 2)		; E3.cls 4471
+            or a		; E3.cls 4472
+            sbc hl, de		; E3.cls 4473
+            ret		; E3.cls 4474
+fn_e3_lib_q3_t0:		; E3.cls 4475
+            or 1		; E3.cls 4476
+            ret		; E3.cls 4477
+fn_e3_lib_q3_ax:      db 0		; E3.cls 4478
+fn_e3_lib_q3_dv:      dw 0		; E3.cls 4479
+fn_e3_lib_q3_rr:      ds 3		; E3.cls 4480
+fn_e3_lib_q3_cache:   ds 54		; E3.cls 4481
+fn_e3_lib_q3_p:       dw 0		; E3.cls 4482
+fn_e3_lib_q3_d:       dw 0		; E3.cls 4483
+fn_e3_lib_q3_or:      db 0		; E3.cls 4484
+fn_e3_lib_q3_and:     db 0		; E3.cls 4485
+fn_e3_lib_q3_r:       ds 6		; E3.cls 4486
+fn_e3_lib_q3_v:       ds 6		; E3.cls 4487
 ; ============================================================================ the frame count
 ; vpoll: the raster line now; under the last one looked at: a frame has gone (vbl + 1). Keeps
 ; every register
-fn_e3_lib_vpoll:		; E3.cls 4490
-            push af		; E3.cls 4491
-            push bc		; E3.cls 4492
-            push hl		; E3.cls 4493
-            ld bc, #243B		; E3.cls 4494
-fn_e3_lib_vp_again:		; E3.cls 4495
-            ld a, #1E		; E3.cls 4496
-            out (c), a		; E3.cls 4497
-            inc b		; E3.cls 4498
-            in h, (c)		; E3.cls 4499
-            dec b		; E3.cls 4500
-            ld a, #1F		; E3.cls 4501
-            out (c), a		; E3.cls 4502
-            inc b		; E3.cls 4503
-            in l, (c)		; E3.cls 4504
-            dec b		; E3.cls 4505
-            ld a, #1E		; E3.cls 4506
-            out (c), a		; E3.cls 4507
-            inc b		; E3.cls 4508
-            in a, (c)		; E3.cls 4509
-            dec b		; E3.cls 4510
-            cp h		; E3.cls 4511
-            jr nz, fn_e3_lib_vp_again		; E3.cls 4512
-            ld a, h		; E3.cls 4513
-            and 1		; E3.cls 4514
-            ld h, a		; E3.cls 4515
-            ld (fn_e3_lib_vp_now), hl		; E3.cls 4516
-            ld bc, (fn_e3_lib_vp_last)		; E3.cls 4517
-            ld (fn_e3_lib_vp_last), hl		; E3.cls 4518
-            or a		; E3.cls 4519
-            sbc hl, bc		; E3.cls 4520
-            jr nc, fn_e3_lib_vp_end		; E3.cls 4521
-            ld hl, (var_e3_vbl)		; E3.cls 4522
-            inc hl		; E3.cls 4523
-            ld (var_e3_vbl), hl		; E3.cls 4524
-            ld hl, (var_e3_vhook)		; E3.cls 4525
-            ld a, h		; E3.cls 4526
-            or l		; E3.cls 4527
-            call nz, fn_e3_lib_vp_jp		; E3.cls 4528
-fn_e3_lib_vp_end:		; E3.cls 4529
-            pop hl		; E3.cls 4530
-            pop bc		; E3.cls 4531
-            pop af		; E3.cls 4532
-            ret		; E3.cls 4533
-fn_e3_lib_vp_jp:      jp (hl)		; E3.cls 4534
-fn_e3_lib_vp_now:     dw 0		; E3.cls 4535
-fn_e3_lib_vp_last:    dw 0		; E3.cls 4536
+fn_e3_lib_vpoll:		; E3.cls 4491
+            push af		; E3.cls 4492
+            push bc		; E3.cls 4493
+            push hl		; E3.cls 4494
+            ld bc, #243B		; E3.cls 4495
+fn_e3_lib_vp_again:		; E3.cls 4496
+            ld a, #1E		; E3.cls 4497
+            out (c), a		; E3.cls 4498
+            inc b		; E3.cls 4499
+            in h, (c)		; E3.cls 4500
+            dec b		; E3.cls 4501
+            ld a, #1F		; E3.cls 4502
+            out (c), a		; E3.cls 4503
+            inc b		; E3.cls 4504
+            in l, (c)		; E3.cls 4505
+            dec b		; E3.cls 4506
+            ld a, #1E		; E3.cls 4507
+            out (c), a		; E3.cls 4508
+            inc b		; E3.cls 4509
+            in a, (c)		; E3.cls 4510
+            dec b		; E3.cls 4511
+            cp h		; E3.cls 4512
+            jr nz, fn_e3_lib_vp_again		; E3.cls 4513
+            ld a, h		; E3.cls 4514
+            and 1		; E3.cls 4515
+            ld h, a		; E3.cls 4516
+            ld (fn_e3_lib_vp_now), hl		; E3.cls 4517
+            ld bc, (fn_e3_lib_vp_last)		; E3.cls 4518
+            ld (fn_e3_lib_vp_last), hl		; E3.cls 4519
+            or a		; E3.cls 4520
+            sbc hl, bc		; E3.cls 4521
+            jr nc, fn_e3_lib_vp_end		; E3.cls 4522
+            ld hl, (var_e3_vbl)		; E3.cls 4523
+            inc hl		; E3.cls 4524
+            ld (var_e3_vbl), hl		; E3.cls 4525
+            ld hl, (var_e3_vhook)		; E3.cls 4526
+            ld a, h		; E3.cls 4527
+            or l		; E3.cls 4528
+            call nz, fn_e3_lib_vp_jp		; E3.cls 4529
+fn_e3_lib_vp_end:		; E3.cls 4530
+            pop hl		; E3.cls 4531
+            pop bc		; E3.cls 4532
+            pop af		; E3.cls 4533
+            ret		; E3.cls 4534
+fn_e3_lib_vp_jp:      jp (hl)		; E3.cls 4535
+fn_e3_lib_vp_now:     dw 0		; E3.cls 4536
+fn_e3_lib_vp_last:    dw 0		; E3.cls 4537
 ; ============================================================================ text, aim
 ; chr: character A (ASCII 32..95) at pixel (tx_x, tx_y) in colour tx_c (E3Data's 5 x 7 font; its set
 ; pixels only)
-fn_e3_lib_chr:		; E3.cls 4540
-            call fn_e3_lib_vpoll		; E3.cls 4541
-            sub 32		; E3.cls 4542
-            cp 64		; E3.cls 4543
-            ret nc		; E3.cls 4544
-            ld e, a		; E3.cls 4545
-            ld d, 0		; E3.cls 4546
-            ld hl, fn_e3data_fontix_fontix_d		; E3.cls 4547
-            add hl, de		; E3.cls 4548
-            ld a, (hl)              ; 7 bytes each [4549]
-            ld l, a		; E3.cls 4550
-            ld h, 0		; E3.cls 4551
-            ld d, h		; E3.cls 4552
-            ld e, l		; E3.cls 4553
-            add hl, hl		; E3.cls 4554
+fn_e3_lib_chr:		; E3.cls 4541
+            call fn_e3_lib_vpoll		; E3.cls 4542
+            sub 32		; E3.cls 4543
+            cp 64		; E3.cls 4544
+            ret nc		; E3.cls 4545
+            ld e, a		; E3.cls 4546
+            ld d, 0		; E3.cls 4547
+            ld hl, fn_e3data_fontix_fontix_d		; E3.cls 4548
+            add hl, de		; E3.cls 4549
+            ld a, (hl)              ; 7 bytes each [4550]
+            ld l, a		; E3.cls 4551
+            ld h, 0		; E3.cls 4552
+            ld d, h		; E3.cls 4553
+            ld e, l		; E3.cls 4554
             add hl, hl		; E3.cls 4555
             add hl, hl		; E3.cls 4556
-            or a		; E3.cls 4557
-            sbc hl, de		; E3.cls 4558
-            ld de, fn_e3data_font_font_d		; E3.cls 4559
-            add hl, de		; E3.cls 4560
-            ld (fn_e3_lib_tx_g), hl		; E3.cls 4561
-            ld a, (var_e3_uto)		; E3.cls 4562
-            or a		; E3.cls 4563
-            jp nz, fn_e3_lib_chr_u		; E3.cls 4564
-            ld a, (fn_e3_lib_tx_y)		; E3.cls 4565
-            ld (fn_e3_lib_tx_r), a		; E3.cls 4566
-            ld a, 1                 ; (no window mapped yet) [4567]
-            ld (fn_e3_lib_tx_w), a		; E3.cls 4568
-            ld b, 7		; E3.cls 4569
-fn_e3_lib_tx_row:		; E3.cls 4570
-            push bc		; E3.cls 4571
-            ld a, (var_e3_txs)           ; (each row txs times, each pixel txs wide: big text) [4572]
-            ld (fn_e3_lib_tx_sy), a		; E3.cls 4573
-fn_e3_lib_tx_rep:		; E3.cls 4574
-            ld a, (fn_e3_lib_tx_r)            ; the row's window (mapped again only when it changes) [4575]
-            cp 192		; E3.cls 4576
-            jr nc, fn_e3_lib_tx_nx		; E3.cls 4577
-            ld e, a		; E3.cls 4578
-            and #C0		; E3.cls 4579
-            ld b, a		; E3.cls 4580
-            ld a, (fn_e3_lib_tx_w)		; E3.cls 4581
-            cp b		; E3.cls 4582
-            jr z, fn_e3_lib_tx_wok		; E3.cls 4583
-            ld a, b		; E3.cls 4584
-            ld (fn_e3_lib_tx_w), a		; E3.cls 4585
-            rlca		; E3.cls 4586
+            add hl, hl		; E3.cls 4557
+            or a		; E3.cls 4558
+            sbc hl, de		; E3.cls 4559
+            ld de, fn_e3data_font_font_d		; E3.cls 4560
+            add hl, de		; E3.cls 4561
+            ld (fn_e3_lib_tx_g), hl		; E3.cls 4562
+            ld a, (var_e3_uto)		; E3.cls 4563
+            or a		; E3.cls 4564
+            jp nz, fn_e3_lib_chr_u		; E3.cls 4565
+            ld a, (fn_e3_lib_tx_y)		; E3.cls 4566
+            ld (fn_e3_lib_tx_r), a		; E3.cls 4567
+            ld a, 1                 ; (no window mapped yet) [4568]
+            ld (fn_e3_lib_tx_w), a		; E3.cls 4569
+            ld b, 7		; E3.cls 4570
+fn_e3_lib_tx_row:		; E3.cls 4571
+            push bc		; E3.cls 4572
+            ld a, (var_e3_txs)           ; (each row txs times, each pixel txs wide: big text) [4573]
+            ld (fn_e3_lib_tx_sy), a		; E3.cls 4574
+fn_e3_lib_tx_rep:		; E3.cls 4575
+            ld a, (fn_e3_lib_tx_r)            ; the row's window (mapped again only when it changes) [4576]
+            cp 192		; E3.cls 4577
+            jr nc, fn_e3_lib_tx_nx		; E3.cls 4578
+            ld e, a		; E3.cls 4579
+            and #C0		; E3.cls 4580
+            ld b, a		; E3.cls 4581
+            ld a, (fn_e3_lib_tx_w)		; E3.cls 4582
+            cp b		; E3.cls 4583
+            jr z, fn_e3_lib_tx_wok		; E3.cls 4584
+            ld a, b		; E3.cls 4585
+            ld (fn_e3_lib_tx_w), a		; E3.cls 4586
             rlca		; E3.cls 4587
-            and 3		; E3.cls 4588
-            add a, a		; E3.cls 4589
-            ld c, a		; E3.cls 4590
-            ld a, (var_e3_back)		; E3.cls 4591
-            add a, a		; E3.cls 4592
-            add a, c		; E3.cls 4593
-            db #ED, #92, #56		; E3.cls 4594
-            inc a		; E3.cls 4595
-            db #ED, #92, #57		; E3.cls 4596
-fn_e3_lib_tx_wok:		; E3.cls 4597
-            ld a, e		; E3.cls 4598
-            and 63		; E3.cls 4599
-            or #C0		; E3.cls 4600
-            ld h, a		; E3.cls 4601
-            ld a, (fn_e3_lib_tx_x)		; E3.cls 4602
-            ld l, a		; E3.cls 4603
-            ld de, (fn_e3_lib_tx_g)		; E3.cls 4604
-            ld a, (de)		; E3.cls 4605
-            ld c, a		; E3.cls 4606
-            ld a, (var_e3_txs)		; E3.cls 4607
-            dec a		; E3.cls 4608
-            jr nz, fn_e3_lib_tx_big		; E3.cls 4609
-            ld a, (fn_e3_lib_tx_c)            ; (plain size: the five pixels straight) [4610]
-            sla c		; E3.cls 4611
-            jr nc, $ + 3		; E3.cls 4612
-            ld (hl), a		; E3.cls 4613
-            inc l		; E3.cls 4614
-            sla c		; E3.cls 4615
-            jr nc, $ + 3		; E3.cls 4616
-            ld (hl), a		; E3.cls 4617
-            inc l		; E3.cls 4618
-            sla c		; E3.cls 4619
-            jr nc, $ + 3		; E3.cls 4620
-            ld (hl), a		; E3.cls 4621
-            inc l		; E3.cls 4622
-            sla c		; E3.cls 4623
-            jr nc, $ + 3		; E3.cls 4624
-            ld (hl), a		; E3.cls 4625
-            inc l		; E3.cls 4626
-            sla c		; E3.cls 4627
-            jr nc, fn_e3_lib_tx_nx		; E3.cls 4628
-            ld (hl), a		; E3.cls 4629
-            jr fn_e3_lib_tx_nx		; E3.cls 4630
-fn_e3_lib_tx_big:		; E3.cls 4631
-            inc a		; E3.cls 4632
-            ld d, a		; E3.cls 4633
-            ld a, (fn_e3_lib_tx_c)		; E3.cls 4634
-            ld b, 5		; E3.cls 4635
-fn_e3_lib_tx_px:		; E3.cls 4636
-            ld e, d		; E3.cls 4637
-            sla c		; E3.cls 4638
-            jr nc, fn_e3_lib_tx_p0		; E3.cls 4639
-fn_e3_lib_tx_on:		; E3.cls 4640
-            ld (hl), a		; E3.cls 4641
-            inc l		; E3.cls 4642
-            dec e		; E3.cls 4643
-            jr nz, fn_e3_lib_tx_on		; E3.cls 4644
-            djnz fn_e3_lib_tx_px		; E3.cls 4645
-            jr fn_e3_lib_tx_nx		; E3.cls 4646
-fn_e3_lib_tx_p0:		; E3.cls 4647
-            inc l		; E3.cls 4648
-            dec e		; E3.cls 4649
-            jr nz, fn_e3_lib_tx_p0		; E3.cls 4650
-            djnz fn_e3_lib_tx_px		; E3.cls 4651
-fn_e3_lib_tx_nx:		; E3.cls 4652
-            ld hl, fn_e3_lib_tx_r		; E3.cls 4653
-            inc (hl)		; E3.cls 4654
-            ld hl, fn_e3_lib_tx_sy		; E3.cls 4655
-            dec (hl)		; E3.cls 4656
-            jp nz, fn_e3_lib_tx_rep		; E3.cls 4657
-            ld hl, (fn_e3_lib_tx_g)		; E3.cls 4658
-            inc hl		; E3.cls 4659
-            ld (fn_e3_lib_tx_g), hl		; E3.cls 4660
-            pop bc		; E3.cls 4661
-            dec b		; E3.cls 4662
-            jp nz, fn_e3_lib_tx_row		; E3.cls 4663
-            ld a, (fn_e3_lib_dpage)		; E3.cls 4664
-            db #ED, #92, #56		; E3.cls 4665
-            inc a		; E3.cls 4666
-            db #ED, #92, #57		; E3.cls 4667
-            ret		; E3.cls 4668
+            rlca		; E3.cls 4588
+            and 3		; E3.cls 4589
+            add a, a		; E3.cls 4590
+            ld c, a		; E3.cls 4591
+            ld a, (var_e3_back)		; E3.cls 4592
+            add a, a		; E3.cls 4593
+            add a, c		; E3.cls 4594
+            db #ED, #92, #56		; E3.cls 4595
+            inc a		; E3.cls 4596
+            db #ED, #92, #57		; E3.cls 4597
+fn_e3_lib_tx_wok:		; E3.cls 4598
+            ld a, e		; E3.cls 4599
+            and 63		; E3.cls 4600
+            or #C0		; E3.cls 4601
+            ld h, a		; E3.cls 4602
+            ld a, (fn_e3_lib_tx_x)		; E3.cls 4603
+            ld l, a		; E3.cls 4604
+            ld de, (fn_e3_lib_tx_g)		; E3.cls 4605
+            ld a, (de)		; E3.cls 4606
+            ld c, a		; E3.cls 4607
+            ld a, (var_e3_txs)		; E3.cls 4608
+            dec a		; E3.cls 4609
+            jr nz, fn_e3_lib_tx_big		; E3.cls 4610
+            ld a, (fn_e3_lib_tx_c)            ; (plain size: the five pixels straight) [4611]
+            sla c		; E3.cls 4612
+            jr nc, $ + 3		; E3.cls 4613
+            ld (hl), a		; E3.cls 4614
+            inc l		; E3.cls 4615
+            sla c		; E3.cls 4616
+            jr nc, $ + 3		; E3.cls 4617
+            ld (hl), a		; E3.cls 4618
+            inc l		; E3.cls 4619
+            sla c		; E3.cls 4620
+            jr nc, $ + 3		; E3.cls 4621
+            ld (hl), a		; E3.cls 4622
+            inc l		; E3.cls 4623
+            sla c		; E3.cls 4624
+            jr nc, $ + 3		; E3.cls 4625
+            ld (hl), a		; E3.cls 4626
+            inc l		; E3.cls 4627
+            sla c		; E3.cls 4628
+            jr nc, fn_e3_lib_tx_nx		; E3.cls 4629
+            ld (hl), a		; E3.cls 4630
+            jr fn_e3_lib_tx_nx		; E3.cls 4631
+fn_e3_lib_tx_big:		; E3.cls 4632
+            inc a		; E3.cls 4633
+            ld d, a		; E3.cls 4634
+            ld a, (fn_e3_lib_tx_c)		; E3.cls 4635
+            ld b, 5		; E3.cls 4636
+fn_e3_lib_tx_px:		; E3.cls 4637
+            ld e, d		; E3.cls 4638
+            sla c		; E3.cls 4639
+            jr nc, fn_e3_lib_tx_p0		; E3.cls 4640
+fn_e3_lib_tx_on:		; E3.cls 4641
+            ld (hl), a		; E3.cls 4642
+            inc l		; E3.cls 4643
+            dec e		; E3.cls 4644
+            jr nz, fn_e3_lib_tx_on		; E3.cls 4645
+            djnz fn_e3_lib_tx_px		; E3.cls 4646
+            jr fn_e3_lib_tx_nx		; E3.cls 4647
+fn_e3_lib_tx_p0:		; E3.cls 4648
+            inc l		; E3.cls 4649
+            dec e		; E3.cls 4650
+            jr nz, fn_e3_lib_tx_p0		; E3.cls 4651
+            djnz fn_e3_lib_tx_px		; E3.cls 4652
+fn_e3_lib_tx_nx:		; E3.cls 4653
+            ld hl, fn_e3_lib_tx_r		; E3.cls 4654
+            inc (hl)		; E3.cls 4655
+            ld hl, fn_e3_lib_tx_sy		; E3.cls 4656
+            dec (hl)		; E3.cls 4657
+            jp nz, fn_e3_lib_tx_rep		; E3.cls 4658
+            ld hl, (fn_e3_lib_tx_g)		; E3.cls 4659
+            inc hl		; E3.cls 4660
+            ld (fn_e3_lib_tx_g), hl		; E3.cls 4661
+            pop bc		; E3.cls 4662
+            dec b		; E3.cls 4663
+            jp nz, fn_e3_lib_tx_row		; E3.cls 4664
+            ld a, (fn_e3_lib_dpage)		; E3.cls 4665
+            db #ED, #92, #56		; E3.cls 4666
+            inc a		; E3.cls 4667
+            db #ED, #92, #57		; E3.cls 4668
+            ret		; E3.cls 4669
 ; chr_u: (NEW) the character on the ULA's screen (bank 5, page 10 put in slot 6 for it): its
 ; pixels or'd in, the cells it's in given tx_c as their attribute (ink; paper 0: see-through)
-fn_e3_lib_chr_u:		; E3.cls 4671
-            ld a, 10		; E3.cls 4672
-            db #ED, #92, #56		; E3.cls 4673
-            ld a, (fn_e3_lib_tx_y)		; E3.cls 4674
-            ld (fn_e3_lib_tx_r), a		; E3.cls 4675
-            ld b, 7		; E3.cls 4676
-fn_e3_lib_cu_row:		; E3.cls 4677
-            push bc		; E3.cls 4678
-            ld a, (fn_e3_lib_tx_r)		; E3.cls 4679
-            cp 192		; E3.cls 4680
-            jr nc, fn_e3_lib_cu_nx		; E3.cls 4681
-            call fn_e3_lib_cu_addr		; E3.cls 4682
-            ld de, (fn_e3_lib_tx_g)           ; the row's 5 pixels (bits 7-3) moved to x's place in the byte [4683]
-            ld a, (de)		; E3.cls 4684
-            ld d, a		; E3.cls 4685
-            ld e, 0		; E3.cls 4686
-            ld a, (fn_e3_lib_tx_x)		; E3.cls 4687
-            and 7		; E3.cls 4688
-            jr z, fn_e3_lib_cu_s0		; E3.cls 4689
-fn_e3_lib_cu_sh:		; E3.cls 4690
-            srl d		; E3.cls 4691
-            rr e		; E3.cls 4692
-            dec a		; E3.cls 4693
-            jr nz, fn_e3_lib_cu_sh		; E3.cls 4694
-fn_e3_lib_cu_s0:		; E3.cls 4695
-            ld a, (hl)		; E3.cls 4696
-            or d		; E3.cls 4697
-            ld (hl), a		; E3.cls 4698
-            inc l		; E3.cls 4699
-            ld a, (hl)		; E3.cls 4700
-            or e		; E3.cls 4701
-            ld (hl), a		; E3.cls 4702
-fn_e3_lib_cu_nx:		; E3.cls 4703
-            ld hl, fn_e3_lib_tx_r		; E3.cls 4704
-            inc (hl)		; E3.cls 4705
-            ld hl, (fn_e3_lib_tx_g)		; E3.cls 4706
-            inc hl		; E3.cls 4707
-            ld (fn_e3_lib_tx_g), hl		; E3.cls 4708
-            pop bc		; E3.cls 4709
-            djnz fn_e3_lib_cu_row		; E3.cls 4710
-            ld a, (fn_e3_lib_tx_y)            ; the attributes: the top row's cells and the bottom's [4711]
-            call fn_e3_lib_cu_at		; E3.cls 4712
-            ld a, (fn_e3_lib_tx_y)		; E3.cls 4713
-            add a, 6		; E3.cls 4714
-            call fn_e3_lib_cu_at		; E3.cls 4715
-            ld a, (fn_e3_lib_dpage)		; E3.cls 4716
-            db #ED, #92, #56		; E3.cls 4717
-            ret		; E3.cls 4718
-fn_e3_lib_cu_at:                              ; A: a pixel row - its cells at tx_x and tx_x + 5 [4719]
-            cp 192		; E3.cls 4720
-            ret nc		; E3.cls 4721
-            and #F8		; E3.cls 4722
-            ld l, a		; E3.cls 4723
-            ld h, 0		; E3.cls 4724
-            add hl, hl		; E3.cls 4725
+fn_e3_lib_chr_u:		; E3.cls 4672
+            ld a, 10		; E3.cls 4673
+            db #ED, #92, #56		; E3.cls 4674
+            ld a, (fn_e3_lib_tx_y)		; E3.cls 4675
+            ld (fn_e3_lib_tx_r), a		; E3.cls 4676
+            ld b, 7		; E3.cls 4677
+fn_e3_lib_cu_row:		; E3.cls 4678
+            push bc		; E3.cls 4679
+            ld a, (fn_e3_lib_tx_r)		; E3.cls 4680
+            cp 192		; E3.cls 4681
+            jr nc, fn_e3_lib_cu_nx		; E3.cls 4682
+            call fn_e3_lib_cu_addr		; E3.cls 4683
+            ld de, (fn_e3_lib_tx_g)           ; the row's 5 pixels (bits 7-3) moved to x's place in the byte [4684]
+            ld a, (de)		; E3.cls 4685
+            ld d, a		; E3.cls 4686
+            ld e, 0		; E3.cls 4687
+            ld a, (fn_e3_lib_tx_x)		; E3.cls 4688
+            and 7		; E3.cls 4689
+            jr z, fn_e3_lib_cu_s0		; E3.cls 4690
+fn_e3_lib_cu_sh:		; E3.cls 4691
+            srl d		; E3.cls 4692
+            rr e		; E3.cls 4693
+            dec a		; E3.cls 4694
+            jr nz, fn_e3_lib_cu_sh		; E3.cls 4695
+fn_e3_lib_cu_s0:		; E3.cls 4696
+            ld a, (hl)		; E3.cls 4697
+            or d		; E3.cls 4698
+            ld (hl), a		; E3.cls 4699
+            inc l		; E3.cls 4700
+            ld a, (hl)		; E3.cls 4701
+            or e		; E3.cls 4702
+            ld (hl), a		; E3.cls 4703
+fn_e3_lib_cu_nx:		; E3.cls 4704
+            ld hl, fn_e3_lib_tx_r		; E3.cls 4705
+            inc (hl)		; E3.cls 4706
+            ld hl, (fn_e3_lib_tx_g)		; E3.cls 4707
+            inc hl		; E3.cls 4708
+            ld (fn_e3_lib_tx_g), hl		; E3.cls 4709
+            pop bc		; E3.cls 4710
+            djnz fn_e3_lib_cu_row		; E3.cls 4711
+            ld a, (fn_e3_lib_tx_y)            ; the attributes: the top row's cells and the bottom's [4712]
+            call fn_e3_lib_cu_at		; E3.cls 4713
+            ld a, (fn_e3_lib_tx_y)		; E3.cls 4714
+            add a, 6		; E3.cls 4715
+            call fn_e3_lib_cu_at		; E3.cls 4716
+            ld a, (fn_e3_lib_dpage)		; E3.cls 4717
+            db #ED, #92, #56		; E3.cls 4718
+            ret		; E3.cls 4719
+fn_e3_lib_cu_at:                              ; A: a pixel row - its cells at tx_x and tx_x + 5 [4720]
+            cp 192		; E3.cls 4721
+            ret nc		; E3.cls 4722
+            and #F8		; E3.cls 4723
+            ld l, a		; E3.cls 4724
+            ld h, 0		; E3.cls 4725
             add hl, hl		; E3.cls 4726
-            ld a, (fn_e3_lib_tx_x)		; E3.cls 4727
-            rrca		; E3.cls 4728
+            add hl, hl		; E3.cls 4727
+            ld a, (fn_e3_lib_tx_x)		; E3.cls 4728
             rrca		; E3.cls 4729
             rrca		; E3.cls 4730
-            and 31		; E3.cls 4731
-            or l		; E3.cls 4732
-            ld l, a		; E3.cls 4733
-            ld a, h		; E3.cls 4734
-            add a, #D8		; E3.cls 4735
-            ld h, a		; E3.cls 4736
-            ld a, (fn_e3_lib_tx_c)		; E3.cls 4737
-            ld (hl), a		; E3.cls 4738
-            ld e, a		; E3.cls 4739
-            ld a, (fn_e3_lib_tx_x)		; E3.cls 4740
-            and 7		; E3.cls 4741
-            cp 4		; E3.cls 4742
-            ret c		; E3.cls 4743
-            inc l		; E3.cls 4744
-            ld (hl), e		; E3.cls 4745
-            ret		; E3.cls 4746
+            rrca		; E3.cls 4731
+            and 31		; E3.cls 4732
+            or l		; E3.cls 4733
+            ld l, a		; E3.cls 4734
+            ld a, h		; E3.cls 4735
+            add a, #D8		; E3.cls 4736
+            ld h, a		; E3.cls 4737
+            ld a, (fn_e3_lib_tx_c)		; E3.cls 4738
+            ld (hl), a		; E3.cls 4739
+            ld e, a		; E3.cls 4740
+            ld a, (fn_e3_lib_tx_x)		; E3.cls 4741
+            and 7		; E3.cls 4742
+            cp 4		; E3.cls 4743
+            ret c		; E3.cls 4744
+            inc l		; E3.cls 4745
+            ld (hl), e		; E3.cls 4746
+            ret		; E3.cls 4747
 ; cu_addr: (NEW) HL = the ULA screen's byte (in slot 6) for pixel row A, x tx_x
-fn_e3_lib_cu_addr:		; E3.cls 4748
-            ld e, a		; E3.cls 4749
-            and 7		; E3.cls 4750
-            ld h, a		; E3.cls 4751
-            ld a, e		; E3.cls 4752
-            and #C0		; E3.cls 4753
-            rrca		; E3.cls 4754
+fn_e3_lib_cu_addr:		; E3.cls 4749
+            ld e, a		; E3.cls 4750
+            and 7		; E3.cls 4751
+            ld h, a		; E3.cls 4752
+            ld a, e		; E3.cls 4753
+            and #C0		; E3.cls 4754
             rrca		; E3.cls 4755
             rrca		; E3.cls 4756
-            or h		; E3.cls 4757
-            or #C0		; E3.cls 4758
-            ld h, a		; E3.cls 4759
-            ld a, e		; E3.cls 4760
-            and #38		; E3.cls 4761
-            rlca		; E3.cls 4762
+            rrca		; E3.cls 4757
+            or h		; E3.cls 4758
+            or #C0		; E3.cls 4759
+            ld h, a		; E3.cls 4760
+            ld a, e		; E3.cls 4761
+            and #38		; E3.cls 4762
             rlca		; E3.cls 4763
-            ld l, a		; E3.cls 4764
-            ld a, (fn_e3_lib_tx_x)		; E3.cls 4765
-            rrca		; E3.cls 4766
+            rlca		; E3.cls 4764
+            ld l, a		; E3.cls 4765
+            ld a, (fn_e3_lib_tx_x)		; E3.cls 4766
             rrca		; E3.cls 4767
             rrca		; E3.cls 4768
-            and 31		; E3.cls 4769
-            or l		; E3.cls 4770
-            ld l, a		; E3.cls 4771
-            ret		; E3.cls 4772
-fn_e3_lib_tx_g:       dw 0		; E3.cls 4773
-fn_e3_lib_tx_r:       db 0		; E3.cls 4774
-fn_e3_lib_tx_sy:      db 0		; E3.cls 4775
-fn_e3_lib_tx_w:       db 0		; E3.cls 4776
-fn_e3_lib_tx_x:       db 0		; E3.cls 4777
-fn_e3_lib_tx_y:       db 0		; E3.cls 4778
-fn_e3_lib_tx_c:       db 0		; E3.cls 4779
+            rrca		; E3.cls 4769
+            and 31		; E3.cls 4770
+            or l		; E3.cls 4771
+            ld l, a		; E3.cls 4772
+            ret		; E3.cls 4773
+fn_e3_lib_tx_g:       dw 0		; E3.cls 4774
+fn_e3_lib_tx_r:       db 0		; E3.cls 4775
+fn_e3_lib_tx_sy:      db 0		; E3.cls 4776
+fn_e3_lib_tx_w:       db 0		; E3.cls 4777
+fn_e3_lib_tx_x:       db 0		; E3.cls 4778
+fn_e3_lib_tx_y:       db 0		; E3.cls 4779
+fn_e3_lib_tx_c:       db 0		; E3.cls 4780
 ; tx_step: tx_x on a character (6 x txs)
-fn_e3_lib_tx_step:		; E3.cls 4781
-            ld a, (var_e3_txs)		; E3.cls 4782
-            ld b, a		; E3.cls 4783
-            ld a, (fn_e3_lib_tx_x)		; E3.cls 4784
-fn_e3_lib_ts_lp:		; E3.cls 4785
-            add a, 6		; E3.cls 4786
-            djnz fn_e3_lib_ts_lp		; E3.cls 4787
-            ld (fn_e3_lib_tx_x), a		; E3.cls 4788
-            ret		; E3.cls 4789
+fn_e3_lib_tx_step:		; E3.cls 4782
+            ld a, (var_e3_txs)		; E3.cls 4783
+            ld b, a		; E3.cls 4784
+            ld a, (fn_e3_lib_tx_x)		; E3.cls 4785
+fn_e3_lib_ts_lp:		; E3.cls 4786
+            add a, 6		; E3.cls 4787
+            djnz fn_e3_lib_ts_lp		; E3.cls 4788
+            ld (fn_e3_lib_tx_x), a		; E3.cls 4789
+            ret		; E3.cls 4790
 ; aim: the point (aimp: x, y, z / 256 in the world) in the view: aimv (3 words, shifted right by
 ; aimk to fit 15 bits; its length << aimk is how far)
-fn_e3_lib_aim:		; E3.cls 4792
-            ld ix, arr_e3_cp		; E3.cls 4793
-            ld iy, arr_e3_aimp		; E3.cls 4794
-            ld hl, fn_e3_lib_pl_d		; E3.cls 4795
-            ld b, 3		; E3.cls 4796
-fn_e3_lib_am_dl:		; E3.cls 4797
-            xor a		; E3.cls 4798
-            sub (ix + 1)		; E3.cls 4799
-            ld (hl), a		; E3.cls 4800
-            inc hl		; E3.cls 4801
-            ld a, (iy + 0)		; E3.cls 4802
-            sbc a, (ix + 2)		; E3.cls 4803
-            ld (hl), a		; E3.cls 4804
-            inc hl		; E3.cls 4805
-            ld a, (iy + 1)		; E3.cls 4806
-            sbc a, (ix + 3)		; E3.cls 4807
-            ld (hl), a		; E3.cls 4808
-            inc hl		; E3.cls 4809
-            ld de, 4		; E3.cls 4810
-            add ix, de		; E3.cls 4811
-            inc iy		; E3.cls 4812
+fn_e3_lib_aim:		; E3.cls 4793
+            ld ix, arr_e3_cp		; E3.cls 4794
+            ld iy, arr_e3_aimp		; E3.cls 4795
+            ld hl, fn_e3_lib_pl_d		; E3.cls 4796
+            ld b, 3		; E3.cls 4797
+fn_e3_lib_am_dl:		; E3.cls 4798
+            xor a		; E3.cls 4799
+            sub (ix + 1)		; E3.cls 4800
+            ld (hl), a		; E3.cls 4801
+            inc hl		; E3.cls 4802
+            ld a, (iy + 0)		; E3.cls 4803
+            sbc a, (ix + 2)		; E3.cls 4804
+            ld (hl), a		; E3.cls 4805
+            inc hl		; E3.cls 4806
+            ld a, (iy + 1)		; E3.cls 4807
+            sbc a, (ix + 3)		; E3.cls 4808
+            ld (hl), a		; E3.cls 4809
+            inc hl		; E3.cls 4810
+            ld de, 4		; E3.cls 4811
+            add ix, de		; E3.cls 4812
             inc iy		; E3.cls 4813
-            djnz fn_e3_lib_am_dl		; E3.cls 4814
-            xor a		; E3.cls 4815
-            ld (fn_e3_lib_pl_k), a		; E3.cls 4816
-            call fn_e3_lib_pl_fit		; E3.cls 4817
-            ld a, (fn_e3_lib_pl_k)		; E3.cls 4818
-            ld (var_e3_aimk), a		; E3.cls 4819
-            ld iy, fn_e3_lib_pl_w		; E3.cls 4820
-            ld ix, arr_e3_cm		; E3.cls 4821
-            call fn_e3_lib_mrow		; E3.cls 4822
-            ld (arr_e3_aimv), hl		; E3.cls 4823
-            ld ix, arr_e3_cm + 6		; E3.cls 4824
-            call fn_e3_lib_mrow		; E3.cls 4825
-            ld (arr_e3_aimv + 2), hl		; E3.cls 4826
-            ld ix, arr_e3_cm + 12		; E3.cls 4827
-            call fn_e3_lib_mrow		; E3.cls 4828
-            ld (arr_e3_aimv + 4), hl		; E3.cls 4829
-            ret		; E3.cls 4830
+            inc iy		; E3.cls 4814
+            djnz fn_e3_lib_am_dl		; E3.cls 4815
+            xor a		; E3.cls 4816
+            ld (fn_e3_lib_pl_k), a		; E3.cls 4817
+            call fn_e3_lib_pl_fit		; E3.cls 4818
+            ld a, (fn_e3_lib_pl_k)		; E3.cls 4819
+            ld (var_e3_aimk), a		; E3.cls 4820
+            ld iy, fn_e3_lib_pl_w		; E3.cls 4821
+            ld ix, arr_e3_cm		; E3.cls 4822
+            call fn_e3_lib_mrow		; E3.cls 4823
+            ld (arr_e3_aimv), hl		; E3.cls 4824
+            ld ix, arr_e3_cm + 6		; E3.cls 4825
+            call fn_e3_lib_mrow		; E3.cls 4826
+            ld (arr_e3_aimv + 2), hl		; E3.cls 4827
+            ld ix, arr_e3_cm + 12		; E3.cls 4828
+            call fn_e3_lib_mrow		; E3.cls 4829
+            ld (arr_e3_aimv + 4), hl		; E3.cls 4830
+            ret		; E3.cls 4831
 ; ============================================================================ the stars
 ; stars: E3Data's stars (directions) by the camera's 8 bit copy: a pixel each in the view, in its
 ; colour (none when nstar is 0)
-fn_e3_lib_stars:		; E3.cls 4834
-            ld a, (var_e3_nstar)		; E3.cls 4835
-            or a		; E3.cls 4836
-            ret z		; E3.cls 4837
-            ld b, a		; E3.cls 4838
-            ld hl, d_stars		; E3.cls 4839
-            ld a, 255		; E3.cls 4840
-            ld (fn_e3_lib_st_w), a		; E3.cls 4841
-fn_e3_lib_st_lp:		; E3.cls 4842
-            push bc		; E3.cls 4843
-            ld (fn_e3_lib_st_p), hl		; E3.cls 4844
-            ld a, (hl)		; E3.cls 4845
-            ld (fn_e3_lib_st_v), a		; E3.cls 4846
-            inc hl		; E3.cls 4847
-            ld a, (hl)		; E3.cls 4848
-            ld (fn_e3_lib_st_v + 1), a		; E3.cls 4849
-            inc hl		; E3.cls 4850
-            ld a, (hl)		; E3.cls 4851
-            ld (fn_e3_lib_st_v + 2), a		; E3.cls 4852
-            inc hl		; E3.cls 4853
-            ld a, (hl)		; E3.cls 4854
-            ld (fn_e3_lib_st_c), a		; E3.cls 4855
-            ld ix, fn_e3_lib_cm8 + 6          ; z first: behind - none [4856]
-            call fn_e3_lib_st_dot		; E3.cls 4857
-            ld a, h		; E3.cls 4858
-            or a		; E3.cls 4859
-            jp m, fn_e3_lib_st_nx		; E3.cls 4860
-            cp 32                   ; (z under 8192: far off the view) [4861]
-            jp c, fn_e3_lib_st_nx		; E3.cls 4862
-            ld (fn_e3_lib_st_z), hl		; E3.cls 4863
-            ld ix, fn_e3_lib_cm8		; E3.cls 4864
-            call fn_e3_lib_st_dot		; E3.cls 4865
-            ld (fn_e3_lib_st_x), hl		; E3.cls 4866
-            call fn_e3_lib_absh               ; |x| < z [4867]
-            ld de, (fn_e3_lib_st_z)		; E3.cls 4868
-            or a		; E3.cls 4869
-            sbc hl, de		; E3.cls 4870
-            jp nc, fn_e3_lib_st_nx		; E3.cls 4871
-            ld ix, fn_e3_lib_cm8 + 3		; E3.cls 4872
-            call fn_e3_lib_st_dot		; E3.cls 4873
-            ld (fn_e3_lib_st_y), hl		; E3.cls 4874
-            call fn_e3_lib_absh               ; |y| < z [4875]
-            ld de, (fn_e3_lib_st_z)		; E3.cls 4876
-            or a		; E3.cls 4877
-            sbc hl, de		; E3.cls 4878
-            jp nc, fn_e3_lib_st_nx		; E3.cls 4879
-            ld hl, (fn_e3_lib_st_z)           ; R = 2^24 / (z / 4); x R >> 19 (x / 4 by pj_m) [4880]
-            srl h		; E3.cls 4881
-            rr l		; E3.cls 4882
-            srl h		; E3.cls 4883
-            rr l		; E3.cls 4884
-            dec h		; E3.cls 4885
-            add hl, hl		; E3.cls 4886
-            ld de, d_rproj		; E3.cls 4887
-            add hl, de		; E3.cls 4888
-            ld a, (hl)		; E3.cls 4889
-            ld (fn_e3_lib_pj_rl), a		; E3.cls 4890
-            inc hl		; E3.cls 4891
-            ld a, (hl)		; E3.cls 4892
-            ld (fn_e3_lib_pj_rh), a		; E3.cls 4893
-            ld hl, (fn_e3_lib_st_x)		; E3.cls 4894
-            sra h		; E3.cls 4895
-            rr l		; E3.cls 4896
-            sra h		; E3.cls 4897
-            rr l		; E3.cls 4898
-            call fn_e3_lib_pj_m		; E3.cls 4899
-            ld de, 128		; E3.cls 4900
-            add hl, de		; E3.cls 4901
-            ld a, h		; E3.cls 4902
-            or a		; E3.cls 4903
-            jp nz, fn_e3_lib_st_nx		; E3.cls 4904
-            ld a, l		; E3.cls 4905
-            ld (fn_e3_lib_st_sx), a		; E3.cls 4906
-            ld hl, (fn_e3_lib_st_y)		; E3.cls 4907
-            sra h		; E3.cls 4908
-            rr l		; E3.cls 4909
-            sra h		; E3.cls 4910
-            rr l		; E3.cls 4911
-            call fn_e3_lib_pj_m		; E3.cls 4912
-            ex de, hl		; E3.cls 4913
-            ld hl, 96		; E3.cls 4914
-            or a		; E3.cls 4915
-            sbc hl, de		; E3.cls 4916
-            ld a, h		; E3.cls 4917
-            or a		; E3.cls 4918
-            jp nz, fn_e3_lib_st_nx		; E3.cls 4919
-            ld a, l		; E3.cls 4920
-            ld hl, var_e3_stymax		; E3.cls 4921
-            cp (hl)		; E3.cls 4922
-            jp nc, fn_e3_lib_st_nx		; E3.cls 4923
-            ld e, a                 ; the pixel [4924]
-            rlca		; E3.cls 4925
+fn_e3_lib_stars:		; E3.cls 4835
+            ld a, (var_e3_nstar)		; E3.cls 4836
+            or a		; E3.cls 4837
+            ret z		; E3.cls 4838
+            ld b, a		; E3.cls 4839
+            ld hl, d_stars		; E3.cls 4840
+            ld a, 255		; E3.cls 4841
+            ld (fn_e3_lib_st_w), a		; E3.cls 4842
+fn_e3_lib_st_lp:		; E3.cls 4843
+            push bc		; E3.cls 4844
+            ld (fn_e3_lib_st_p), hl		; E3.cls 4845
+            ld a, (hl)		; E3.cls 4846
+            ld (fn_e3_lib_st_v), a		; E3.cls 4847
+            inc hl		; E3.cls 4848
+            ld a, (hl)		; E3.cls 4849
+            ld (fn_e3_lib_st_v + 1), a		; E3.cls 4850
+            inc hl		; E3.cls 4851
+            ld a, (hl)		; E3.cls 4852
+            ld (fn_e3_lib_st_v + 2), a		; E3.cls 4853
+            inc hl		; E3.cls 4854
+            ld a, (hl)		; E3.cls 4855
+            ld (fn_e3_lib_st_c), a		; E3.cls 4856
+            ld ix, fn_e3_lib_cm8 + 6          ; z first: behind - none [4857]
+            call fn_e3_lib_st_dot		; E3.cls 4858
+            ld a, h		; E3.cls 4859
+            or a		; E3.cls 4860
+            jp m, fn_e3_lib_st_nx		; E3.cls 4861
+            cp 32                   ; (z under 8192: far off the view) [4862]
+            jp c, fn_e3_lib_st_nx		; E3.cls 4863
+            ld (fn_e3_lib_st_z), hl		; E3.cls 4864
+            ld ix, fn_e3_lib_cm8		; E3.cls 4865
+            call fn_e3_lib_st_dot		; E3.cls 4866
+            ld (fn_e3_lib_st_x), hl		; E3.cls 4867
+            call fn_e3_lib_absh               ; |x| < z [4868]
+            ld de, (fn_e3_lib_st_z)		; E3.cls 4869
+            or a		; E3.cls 4870
+            sbc hl, de		; E3.cls 4871
+            jp nc, fn_e3_lib_st_nx		; E3.cls 4872
+            ld ix, fn_e3_lib_cm8 + 3		; E3.cls 4873
+            call fn_e3_lib_st_dot		; E3.cls 4874
+            ld (fn_e3_lib_st_y), hl		; E3.cls 4875
+            call fn_e3_lib_absh               ; |y| < z [4876]
+            ld de, (fn_e3_lib_st_z)		; E3.cls 4877
+            or a		; E3.cls 4878
+            sbc hl, de		; E3.cls 4879
+            jp nc, fn_e3_lib_st_nx		; E3.cls 4880
+            ld hl, (fn_e3_lib_st_z)           ; R = 2^24 / (z / 4); x R >> 19 (x / 4 by pj_m) [4881]
+            srl h		; E3.cls 4882
+            rr l		; E3.cls 4883
+            srl h		; E3.cls 4884
+            rr l		; E3.cls 4885
+            dec h		; E3.cls 4886
+            add hl, hl		; E3.cls 4887
+            ld de, d_rproj		; E3.cls 4888
+            add hl, de		; E3.cls 4889
+            ld a, (hl)		; E3.cls 4890
+            ld (fn_e3_lib_pj_rl), a		; E3.cls 4891
+            inc hl		; E3.cls 4892
+            ld a, (hl)		; E3.cls 4893
+            ld (fn_e3_lib_pj_rh), a		; E3.cls 4894
+            ld hl, (fn_e3_lib_st_x)		; E3.cls 4895
+            sra h		; E3.cls 4896
+            rr l		; E3.cls 4897
+            sra h		; E3.cls 4898
+            rr l		; E3.cls 4899
+            call fn_e3_lib_pj_m		; E3.cls 4900
+            ld de, 128		; E3.cls 4901
+            add hl, de		; E3.cls 4902
+            ld a, h		; E3.cls 4903
+            or a		; E3.cls 4904
+            jp nz, fn_e3_lib_st_nx		; E3.cls 4905
+            ld a, l		; E3.cls 4906
+            ld (fn_e3_lib_st_sx), a		; E3.cls 4907
+            ld hl, (fn_e3_lib_st_y)		; E3.cls 4908
+            sra h		; E3.cls 4909
+            rr l		; E3.cls 4910
+            sra h		; E3.cls 4911
+            rr l		; E3.cls 4912
+            call fn_e3_lib_pj_m		; E3.cls 4913
+            ex de, hl		; E3.cls 4914
+            ld hl, 96		; E3.cls 4915
+            or a		; E3.cls 4916
+            sbc hl, de		; E3.cls 4917
+            ld a, h		; E3.cls 4918
+            or a		; E3.cls 4919
+            jp nz, fn_e3_lib_st_nx		; E3.cls 4920
+            ld a, l		; E3.cls 4921
+            ld hl, var_e3_stymax		; E3.cls 4922
+            cp (hl)		; E3.cls 4923
+            jp nc, fn_e3_lib_st_nx		; E3.cls 4924
+            ld e, a                 ; the pixel [4925]
             rlca		; E3.cls 4926
-            and 3		; E3.cls 4927
-            ld d, a		; E3.cls 4928
-            ld a, (fn_e3_lib_st_w)		; E3.cls 4929
-            cp d		; E3.cls 4930
-            jr z, fn_e3_lib_st_wok		; E3.cls 4931
-            ld a, d		; E3.cls 4932
-            ld (fn_e3_lib_st_w), a		; E3.cls 4933
-            add a, a		; E3.cls 4934
-            ld c, a		; E3.cls 4935
-            ld a, (var_e3_back)		; E3.cls 4936
-            add a, a		; E3.cls 4937
-            add a, c		; E3.cls 4938
-            db #ED, #92, #56		; E3.cls 4939
-            inc a		; E3.cls 4940
-            db #ED, #92, #57		; E3.cls 4941
-fn_e3_lib_st_wok:		; E3.cls 4942
-            ld a, e		; E3.cls 4943
-            and 63		; E3.cls 4944
-            or #C0		; E3.cls 4945
-            ld h, a		; E3.cls 4946
-            ld a, (fn_e3_lib_st_sx)		; E3.cls 4947
-            ld l, a		; E3.cls 4948
-            ld a, (fn_e3_lib_st_c)		; E3.cls 4949
-            ld (hl), a		; E3.cls 4950
-            ld a, 255               ; (the data pages back: the stars and RProj are in them) [4951]
-            ld (fn_e3_lib_st_w), a		; E3.cls 4952
-            ld a, (fn_e3_lib_dpage)		; E3.cls 4953
-            db #ED, #92, #56		; E3.cls 4954
-            inc a		; E3.cls 4955
-            db #ED, #92, #57		; E3.cls 4956
-fn_e3_lib_st_nx:		; E3.cls 4957
-            ld hl, (fn_e3_lib_st_p)		; E3.cls 4958
-            ld de, 4		; E3.cls 4959
-            add hl, de		; E3.cls 4960
-            pop bc		; E3.cls 4961
-            ld a, b		; E3.cls 4962
-            and 7		; E3.cls 4963
-            call z, fn_e3_lib_vpoll		; E3.cls 4964
-            dec b		; E3.cls 4965
-            jp nz, fn_e3_lib_st_lp		; E3.cls 4966
-            ld a, (fn_e3_lib_dpage)		; E3.cls 4967
-            db #ED, #92, #56		; E3.cls 4968
-            inc a		; E3.cls 4969
-            db #ED, #92, #57		; E3.cls 4970
-            ret		; E3.cls 4971
-fn_e3_lib_st_dot:                             ; (IX: 3 bytes of the camera) . the star -> HL [4972]
-            ld d, (ix + 0)		; E3.cls 4973
-            ld a, (fn_e3_lib_st_v)		; E3.cls 4974
-            ld e, a		; E3.cls 4975
-            call fn_e3_lib_mul8s		; E3.cls 4976
-            push de		; E3.cls 4977
-            ld d, (ix + 1)		; E3.cls 4978
-            ld a, (fn_e3_lib_st_v + 1)		; E3.cls 4979
-            ld e, a		; E3.cls 4980
-            call fn_e3_lib_mul8s		; E3.cls 4981
-            pop hl		; E3.cls 4982
-            add hl, de		; E3.cls 4983
-            push hl		; E3.cls 4984
-            ld d, (ix + 2)		; E3.cls 4985
-            ld a, (fn_e3_lib_st_v + 2)		; E3.cls 4986
-            ld e, a		; E3.cls 4987
-            call fn_e3_lib_mul8s		; E3.cls 4988
-            pop hl		; E3.cls 4989
-            add hl, de		; E3.cls 4990
-            ret		; E3.cls 4991
-fn_e3_lib_st_p:       dw 0		; E3.cls 4992
-fn_e3_lib_st_v:       ds 3		; E3.cls 4993
-fn_e3_lib_st_c:       db 0		; E3.cls 4994
-fn_e3_lib_st_w:       db 0		; E3.cls 4995
-fn_e3_lib_st_sx:      db 0		; E3.cls 4996
-fn_e3_lib_st_x:       dw 0		; E3.cls 4997
-fn_e3_lib_st_y:       dw 0		; E3.cls 4998
-fn_e3_lib_st_z:       dw 0		; E3.cls 4999
+            rlca		; E3.cls 4927
+            and 3		; E3.cls 4928
+            ld d, a		; E3.cls 4929
+            ld a, (fn_e3_lib_st_w)		; E3.cls 4930
+            cp d		; E3.cls 4931
+            jr z, fn_e3_lib_st_wok		; E3.cls 4932
+            ld a, d		; E3.cls 4933
+            ld (fn_e3_lib_st_w), a		; E3.cls 4934
+            add a, a		; E3.cls 4935
+            ld c, a		; E3.cls 4936
+            ld a, (var_e3_back)		; E3.cls 4937
+            add a, a		; E3.cls 4938
+            add a, c		; E3.cls 4939
+            db #ED, #92, #56		; E3.cls 4940
+            inc a		; E3.cls 4941
+            db #ED, #92, #57		; E3.cls 4942
+fn_e3_lib_st_wok:		; E3.cls 4943
+            ld a, e		; E3.cls 4944
+            and 63		; E3.cls 4945
+            or #C0		; E3.cls 4946
+            ld h, a		; E3.cls 4947
+            ld a, (fn_e3_lib_st_sx)		; E3.cls 4948
+            ld l, a		; E3.cls 4949
+            ld a, (fn_e3_lib_st_c)		; E3.cls 4950
+            ld (hl), a		; E3.cls 4951
+            ld a, 255               ; (the data pages back: the stars and RProj are in them) [4952]
+            ld (fn_e3_lib_st_w), a		; E3.cls 4953
+            ld a, (fn_e3_lib_dpage)		; E3.cls 4954
+            db #ED, #92, #56		; E3.cls 4955
+            inc a		; E3.cls 4956
+            db #ED, #92, #57		; E3.cls 4957
+fn_e3_lib_st_nx:		; E3.cls 4958
+            ld hl, (fn_e3_lib_st_p)		; E3.cls 4959
+            ld de, 4		; E3.cls 4960
+            add hl, de		; E3.cls 4961
+            pop bc		; E3.cls 4962
+            ld a, b		; E3.cls 4963
+            and 7		; E3.cls 4964
+            call z, fn_e3_lib_vpoll		; E3.cls 4965
+            dec b		; E3.cls 4966
+            jp nz, fn_e3_lib_st_lp		; E3.cls 4967
+            ld a, (fn_e3_lib_dpage)		; E3.cls 4968
+            db #ED, #92, #56		; E3.cls 4969
+            inc a		; E3.cls 4970
+            db #ED, #92, #57		; E3.cls 4971
+            ret		; E3.cls 4972
+fn_e3_lib_st_dot:                             ; (IX: 3 bytes of the camera) . the star -> HL [4973]
+            ld d, (ix + 0)		; E3.cls 4974
+            ld a, (fn_e3_lib_st_v)		; E3.cls 4975
+            ld e, a		; E3.cls 4976
+            call fn_e3_lib_mul8s		; E3.cls 4977
+            push de		; E3.cls 4978
+            ld d, (ix + 1)		; E3.cls 4979
+            ld a, (fn_e3_lib_st_v + 1)		; E3.cls 4980
+            ld e, a		; E3.cls 4981
+            call fn_e3_lib_mul8s		; E3.cls 4982
+            pop hl		; E3.cls 4983
+            add hl, de		; E3.cls 4984
+            push hl		; E3.cls 4985
+            ld d, (ix + 2)		; E3.cls 4986
+            ld a, (fn_e3_lib_st_v + 2)		; E3.cls 4987
+            ld e, a		; E3.cls 4988
+            call fn_e3_lib_mul8s		; E3.cls 4989
+            pop hl		; E3.cls 4990
+            add hl, de		; E3.cls 4991
+            ret		; E3.cls 4992
+fn_e3_lib_st_p:       dw 0		; E3.cls 4993
+fn_e3_lib_st_v:       ds 3		; E3.cls 4994
+fn_e3_lib_st_c:       db 0		; E3.cls 4995
+fn_e3_lib_st_w:       db 0		; E3.cls 4996
+fn_e3_lib_st_sx:      db 0		; E3.cls 4997
+fn_e3_lib_st_x:       dw 0		; E3.cls 4998
+fn_e3_lib_st_y:       dw 0		; E3.cls 4999
+fn_e3_lib_st_z:       dw 0		; E3.cls 5000
 ; ============================================================================ the scene
 ; scene: the objects in obj (nobj records of 16 bytes: x, y, z, oa, ob, da, db, kind, osc, rad,
 ; dot colour) turned by their spins, those seen sorted far to near and drawn: near ones by their
 ; kind's near model, far ones (rad * 8 < z) by its far model, tiny ones (rad * 64 < z) as dots
-fn_e3_lib_scene:		; E3.cls 5004
-            xor a		; E3.cls 5005
-            ld (fn_e3_lib_sc_n), a		; E3.cls 5006
-            ld a, (var_e3_scene0)        ; objects scene0 .. nobj - 1 [5007]
-            ld (fn_e3_lib_sc_i), a		; E3.cls 5008
-            ld b, a		; E3.cls 5009
-            ld a, (var_e3_nobj)		; E3.cls 5010
-            sub b		; E3.cls 5011
-            ret z		; E3.cls 5012
-            ret c		; E3.cls 5013
-            ld (fn_e3_lib_sc_k), a		; E3.cls 5014
-            ld l, b		; E3.cls 5015
-            ld h, 0		; E3.cls 5016
-            add hl, hl		; E3.cls 5017
+fn_e3_lib_scene:		; E3.cls 5005
+            xor a		; E3.cls 5006
+            ld (fn_e3_lib_sc_n), a		; E3.cls 5007
+            ld a, (var_e3_scene0)        ; objects scene0 .. nobj - 1 [5008]
+            ld (fn_e3_lib_sc_i), a		; E3.cls 5009
+            ld b, a		; E3.cls 5010
+            ld a, (var_e3_nobj)		; E3.cls 5011
+            sub b		; E3.cls 5012
+            ret z		; E3.cls 5013
+            ret c		; E3.cls 5014
+            ld (fn_e3_lib_sc_k), a		; E3.cls 5015
+            ld l, b		; E3.cls 5016
+            ld h, 0		; E3.cls 5017
             add hl, hl		; E3.cls 5018
             add hl, hl		; E3.cls 5019
             add hl, hl		; E3.cls 5020
-            ld de, arr_e3_obj		; E3.cls 5021
-            add hl, de		; E3.cls 5022
-            ld (fn_e3_lib_sc_p), hl		; E3.cls 5023
-fn_e3_lib_sc_lp:		; E3.cls 5024
-            ld hl, (fn_e3_lib_sc_p)		; E3.cls 5025
-            ld de, 10		; E3.cls 5026
-            add hl, de		; E3.cls 5027
-            ld a, (hl)              ; (kind 255: not there - left out) [5028]
-            inc a		; E3.cls 5029
-            jp z, fn_e3_lib_sc_nx		; E3.cls 5030
-            call fn_e3_lib_vpoll		; E3.cls 5031
-            ld hl, (fn_e3_lib_sc_p)		; E3.cls 5032
-            ld de, arr_e3_op		; E3.cls 5033
-            ld bc, 6		; E3.cls 5034
-            ldir                    ; the position [5035]
-            ld a, (hl)              ; turned: oa += da, ob += db [5036]
-            inc hl		; E3.cls 5037
+            add hl, hl		; E3.cls 5021
+            ld de, arr_e3_obj		; E3.cls 5022
+            add hl, de		; E3.cls 5023
+            ld (fn_e3_lib_sc_p), hl		; E3.cls 5024
+fn_e3_lib_sc_lp:		; E3.cls 5025
+            ld hl, (fn_e3_lib_sc_p)		; E3.cls 5026
+            ld de, 10		; E3.cls 5027
+            add hl, de		; E3.cls 5028
+            ld a, (hl)              ; (kind 255: not there - left out) [5029]
+            inc a		; E3.cls 5030
+            jp z, fn_e3_lib_sc_nx		; E3.cls 5031
+            call fn_e3_lib_vpoll		; E3.cls 5032
+            ld hl, (fn_e3_lib_sc_p)		; E3.cls 5033
+            ld de, arr_e3_op		; E3.cls 5034
+            ld bc, 6		; E3.cls 5035
+            ldir                    ; the position [5036]
+            ld a, (hl)              ; turned: oa += da, ob += db [5037]
             inc hl		; E3.cls 5038
-            add a, (hl)		; E3.cls 5039
-            dec hl		; E3.cls 5040
+            inc hl		; E3.cls 5039
+            add a, (hl)		; E3.cls 5040
             dec hl		; E3.cls 5041
-            ld (hl), a		; E3.cls 5042
-            inc hl		; E3.cls 5043
-            ld a, (hl)		; E3.cls 5044
-            inc hl		; E3.cls 5045
+            dec hl		; E3.cls 5042
+            ld (hl), a		; E3.cls 5043
+            inc hl		; E3.cls 5044
+            ld a, (hl)		; E3.cls 5045
             inc hl		; E3.cls 5046
-            add a, (hl)		; E3.cls 5047
-            dec hl		; E3.cls 5048
+            inc hl		; E3.cls 5047
+            add a, (hl)		; E3.cls 5048
             dec hl		; E3.cls 5049
-            ld (hl), a		; E3.cls 5050
-            ld de, 5		; E3.cls 5051
-            add hl, de		; E3.cls 5052
-            ld e, (hl)		; E3.cls 5053
-            inc hl		; E3.cls 5054
-            ld d, (hl)		; E3.cls 5055
-            ld (var_e3_orad), de		; E3.cls 5056
-            ld a, (var_e3_scache)		; E3.cls 5057
-            or a		; E3.cls 5058
-            jr z, fn_e3_lib_sc_o8		; E3.cls 5059
-            ld a, (fn_e3_lib_sc_i)		; E3.cls 5060
-            ld l, a		; E3.cls 5061
-            ld h, 0		; E3.cls 5062
-            add hl, hl		; E3.cls 5063
-            ld (fn_e3_lib_sc_vo), hl		; E3.cls 5064
-            ld de, arr_e3_vwz		; E3.cls 5065
-            add hl, de		; E3.cls 5066
-            ld e, (hl)		; E3.cls 5067
-            inc hl		; E3.cls 5068
-            ld d, (hl)		; E3.cls 5069
-            ld hl, #8000		; E3.cls 5070
-            or a		; E3.cls 5071
-            sbc hl, de		; E3.cls 5072
-            jp z, fn_e3_lib_sc_nx		; E3.cls 5073
-            ld hl, 32767		; E3.cls 5074
-            or a		; E3.cls 5075
-            sbc hl, de		; E3.cls 5076
-            jp z, fn_e3_lib_sc_nx		; E3.cls 5077
-            ld (arr_e3_oc + 4), de		; E3.cls 5078
-            ld hl, (fn_e3_lib_sc_vo)		; E3.cls 5079
-            ld de, arr_e3_vwx		; E3.cls 5080
-            add hl, de		; E3.cls 5081
-            ld e, (hl)		; E3.cls 5082
-            inc hl		; E3.cls 5083
-            ld d, (hl)		; E3.cls 5084
-            ld (arr_e3_oc), de		; E3.cls 5085
-            ld hl, (fn_e3_lib_sc_vo)		; E3.cls 5086
-            ld de, arr_e3_vwy		; E3.cls 5087
-            add hl, de		; E3.cls 5088
-            ld e, (hl)		; E3.cls 5089
-            inc hl		; E3.cls 5090
-            ld d, (hl)		; E3.cls 5091
-            ld (arr_e3_oc + 2), de		; E3.cls 5092
-            call fn_e3_lib_ocull		; E3.cls 5093
-            jr fn_e3_lib_sc_ov		; E3.cls 5094
-fn_e3_lib_sc_o8:		; E3.cls 5095
-            call fn_e3_lib_oprep8		; E3.cls 5096
-fn_e3_lib_sc_ov:		; E3.cls 5097
-            ld a, (var_e3_ovis)		; E3.cls 5098
-            or a		; E3.cls 5099
-            jp z, fn_e3_lib_sc_nx		; E3.cls 5100
-            ld hl, (arr_e3_oc + 4)       ; into the list, far first [5101]
-            ld (fn_e3_lib_sc_zn), hl		; E3.cls 5102
-            ld a, (fn_e3_lib_sc_n)		; E3.cls 5103
-            ld b, a		; E3.cls 5104
-fn_e3_lib_sc_in:		; E3.cls 5105
-            ld a, b		; E3.cls 5106
-            or a		; E3.cls 5107
-            jr z, fn_e3_lib_sc_put		; E3.cls 5108
-            dec a		; E3.cls 5109
-            add a, a		; E3.cls 5110
-            ld e, a		; E3.cls 5111
-            ld d, 0		; E3.cls 5112
-            ld hl, fn_e3_lib_sc_z		; E3.cls 5113
-            add hl, de		; E3.cls 5114
-            ld (fn_e3_lib_sc_pz), hl		; E3.cls 5115
-            ld e, (hl)		; E3.cls 5116
-            inc hl		; E3.cls 5117
-            ld d, (hl)		; E3.cls 5118
-            ld hl, (fn_e3_lib_sc_zn)		; E3.cls 5119
-            ex de, hl		; E3.cls 5120
-            or a		; E3.cls 5121
-            sbc hl, de		; E3.cls 5122
-            jp p, fn_e3_lib_sc_put            ; z(j - 1) >= z: here [5123]
-            ld hl, (fn_e3_lib_sc_pz)          ; z(j) = z(j - 1) [5124]
-            ld e, (hl)		; E3.cls 5125
-            inc hl		; E3.cls 5126
-            ld d, (hl)		; E3.cls 5127
-            inc hl		; E3.cls 5128
-            ld (hl), e		; E3.cls 5129
-            inc hl		; E3.cls 5130
-            ld (hl), d		; E3.cls 5131
-            ld hl, fn_e3_lib_sc_x - 1         ; x(j) = x(j - 1) [5132]
-            ld e, b		; E3.cls 5133
-            ld d, 0		; E3.cls 5134
-            add hl, de		; E3.cls 5135
-            ld a, (hl)		; E3.cls 5136
-            inc hl		; E3.cls 5137
-            ld (hl), a		; E3.cls 5138
-            dec b		; E3.cls 5139
-            jr fn_e3_lib_sc_in		; E3.cls 5140
-fn_e3_lib_sc_put:		; E3.cls 5141
-            ld a, b		; E3.cls 5142
-            add a, a		; E3.cls 5143
-            ld e, a		; E3.cls 5144
-            ld d, 0		; E3.cls 5145
-            ld hl, fn_e3_lib_sc_z		; E3.cls 5146
-            add hl, de		; E3.cls 5147
-            ld de, (fn_e3_lib_sc_zn)		; E3.cls 5148
-            ld (hl), e		; E3.cls 5149
-            inc hl		; E3.cls 5150
-            ld (hl), d		; E3.cls 5151
-            ld hl, fn_e3_lib_sc_x		; E3.cls 5152
-            ld e, b		; E3.cls 5153
-            ld d, 0		; E3.cls 5154
-            add hl, de		; E3.cls 5155
-            ld a, (fn_e3_lib_sc_i)		; E3.cls 5156
-            ld (hl), a		; E3.cls 5157
-            ld hl, fn_e3_lib_sc_n		; E3.cls 5158
-            inc (hl)		; E3.cls 5159
-fn_e3_lib_sc_nx:		; E3.cls 5160
-            ld hl, (fn_e3_lib_sc_p)		; E3.cls 5161
-            ld de, 16		; E3.cls 5162
-            add hl, de		; E3.cls 5163
-            ld (fn_e3_lib_sc_p), hl		; E3.cls 5164
-            ld hl, fn_e3_lib_sc_i		; E3.cls 5165
-            inc (hl)		; E3.cls 5166
-            ld hl, fn_e3_lib_sc_k		; E3.cls 5167
-            dec (hl)		; E3.cls 5168
-            jp nz, fn_e3_lib_sc_lp		; E3.cls 5169
+            dec hl		; E3.cls 5050
+            ld (hl), a		; E3.cls 5051
+            ld de, 5		; E3.cls 5052
+            add hl, de		; E3.cls 5053
+            ld e, (hl)		; E3.cls 5054
+            inc hl		; E3.cls 5055
+            ld d, (hl)		; E3.cls 5056
+            ld (var_e3_orad), de		; E3.cls 5057
+            ld a, (var_e3_scache)		; E3.cls 5058
+            or a		; E3.cls 5059
+            jr z, fn_e3_lib_sc_o8		; E3.cls 5060
+            ld a, (fn_e3_lib_sc_i)		; E3.cls 5061
+            ld l, a		; E3.cls 5062
+            ld h, 0		; E3.cls 5063
+            add hl, hl		; E3.cls 5064
+            ld (fn_e3_lib_sc_vo), hl		; E3.cls 5065
+            ld de, arr_e3_vwz		; E3.cls 5066
+            add hl, de		; E3.cls 5067
+            ld e, (hl)		; E3.cls 5068
+            inc hl		; E3.cls 5069
+            ld d, (hl)		; E3.cls 5070
+            ld hl, #8000		; E3.cls 5071
+            or a		; E3.cls 5072
+            sbc hl, de		; E3.cls 5073
+            jp z, fn_e3_lib_sc_nx		; E3.cls 5074
+            ld hl, 32767		; E3.cls 5075
+            or a		; E3.cls 5076
+            sbc hl, de		; E3.cls 5077
+            jp z, fn_e3_lib_sc_nx		; E3.cls 5078
+            ld (arr_e3_oc + 4), de		; E3.cls 5079
+            ld hl, (fn_e3_lib_sc_vo)		; E3.cls 5080
+            ld de, arr_e3_vwx		; E3.cls 5081
+            add hl, de		; E3.cls 5082
+            ld e, (hl)		; E3.cls 5083
+            inc hl		; E3.cls 5084
+            ld d, (hl)		; E3.cls 5085
+            ld (arr_e3_oc), de		; E3.cls 5086
+            ld hl, (fn_e3_lib_sc_vo)		; E3.cls 5087
+            ld de, arr_e3_vwy		; E3.cls 5088
+            add hl, de		; E3.cls 5089
+            ld e, (hl)		; E3.cls 5090
+            inc hl		; E3.cls 5091
+            ld d, (hl)		; E3.cls 5092
+            ld (arr_e3_oc + 2), de		; E3.cls 5093
+            call fn_e3_lib_ocull		; E3.cls 5094
+            jr fn_e3_lib_sc_ov		; E3.cls 5095
+fn_e3_lib_sc_o8:		; E3.cls 5096
+            call fn_e3_lib_oprep8		; E3.cls 5097
+fn_e3_lib_sc_ov:		; E3.cls 5098
+            ld a, (var_e3_ovis)		; E3.cls 5099
+            or a		; E3.cls 5100
+            jp z, fn_e3_lib_sc_nx		; E3.cls 5101
+            ld hl, (arr_e3_oc + 4)       ; into the list, far first [5102]
+            ld (fn_e3_lib_sc_zn), hl		; E3.cls 5103
+            ld a, (fn_e3_lib_sc_n)		; E3.cls 5104
+            ld b, a		; E3.cls 5105
+fn_e3_lib_sc_in:		; E3.cls 5106
+            ld a, b		; E3.cls 5107
+            or a		; E3.cls 5108
+            jr z, fn_e3_lib_sc_put		; E3.cls 5109
+            dec a		; E3.cls 5110
+            add a, a		; E3.cls 5111
+            ld e, a		; E3.cls 5112
+            ld d, 0		; E3.cls 5113
+            ld hl, fn_e3_lib_sc_z		; E3.cls 5114
+            add hl, de		; E3.cls 5115
+            ld (fn_e3_lib_sc_pz), hl		; E3.cls 5116
+            ld e, (hl)		; E3.cls 5117
+            inc hl		; E3.cls 5118
+            ld d, (hl)		; E3.cls 5119
+            ld hl, (fn_e3_lib_sc_zn)		; E3.cls 5120
+            ex de, hl		; E3.cls 5121
+            or a		; E3.cls 5122
+            sbc hl, de		; E3.cls 5123
+            jp p, fn_e3_lib_sc_put            ; z(j - 1) >= z: here [5124]
+            ld hl, (fn_e3_lib_sc_pz)          ; z(j) = z(j - 1) [5125]
+            ld e, (hl)		; E3.cls 5126
+            inc hl		; E3.cls 5127
+            ld d, (hl)		; E3.cls 5128
+            inc hl		; E3.cls 5129
+            ld (hl), e		; E3.cls 5130
+            inc hl		; E3.cls 5131
+            ld (hl), d		; E3.cls 5132
+            ld hl, fn_e3_lib_sc_x - 1         ; x(j) = x(j - 1) [5133]
+            ld e, b		; E3.cls 5134
+            ld d, 0		; E3.cls 5135
+            add hl, de		; E3.cls 5136
+            ld a, (hl)		; E3.cls 5137
+            inc hl		; E3.cls 5138
+            ld (hl), a		; E3.cls 5139
+            dec b		; E3.cls 5140
+            jr fn_e3_lib_sc_in		; E3.cls 5141
+fn_e3_lib_sc_put:		; E3.cls 5142
+            ld a, b		; E3.cls 5143
+            add a, a		; E3.cls 5144
+            ld e, a		; E3.cls 5145
+            ld d, 0		; E3.cls 5146
+            ld hl, fn_e3_lib_sc_z		; E3.cls 5147
+            add hl, de		; E3.cls 5148
+            ld de, (fn_e3_lib_sc_zn)		; E3.cls 5149
+            ld (hl), e		; E3.cls 5150
+            inc hl		; E3.cls 5151
+            ld (hl), d		; E3.cls 5152
+            ld hl, fn_e3_lib_sc_x		; E3.cls 5153
+            ld e, b		; E3.cls 5154
+            ld d, 0		; E3.cls 5155
+            add hl, de		; E3.cls 5156
+            ld a, (fn_e3_lib_sc_i)		; E3.cls 5157
+            ld (hl), a		; E3.cls 5158
+            ld hl, fn_e3_lib_sc_n		; E3.cls 5159
+            inc (hl)		; E3.cls 5160
+fn_e3_lib_sc_nx:		; E3.cls 5161
+            ld hl, (fn_e3_lib_sc_p)		; E3.cls 5162
+            ld de, 16		; E3.cls 5163
+            add hl, de		; E3.cls 5164
+            ld (fn_e3_lib_sc_p), hl		; E3.cls 5165
+            ld hl, fn_e3_lib_sc_i		; E3.cls 5166
+            inc (hl)		; E3.cls 5167
+            ld hl, fn_e3_lib_sc_k		; E3.cls 5168
+            dec (hl)		; E3.cls 5169
+            jp nz, fn_e3_lib_sc_lp		; E3.cls 5170
             ; ---- drawn far to near
-            ld a, (fn_e3_lib_sc_n)		; E3.cls 5171
-            or a		; E3.cls 5172
-            ret z		; E3.cls 5173
-            ld (fn_e3_lib_sc_k), a		; E3.cls 5174
-            xor a		; E3.cls 5175
-            ld (fn_e3_lib_sc_j), a		; E3.cls 5176
-fn_e3_lib_sc_dl:		; E3.cls 5177
-            call fn_e3_lib_vpoll		; E3.cls 5178
-            ld a, (fn_e3_lib_sc_j)		; E3.cls 5179
-            ld e, a		; E3.cls 5180
-            ld d, 0		; E3.cls 5181
-            ld hl, fn_e3_lib_sc_x		; E3.cls 5182
-            add hl, de		; E3.cls 5183
-            ld l, (hl)              ; P = obj + 16 i [5184]
-            ld h, 0		; E3.cls 5185
-            add hl, hl		; E3.cls 5186
+            ld a, (fn_e3_lib_sc_n)		; E3.cls 5172
+            or a		; E3.cls 5173
+            ret z		; E3.cls 5174
+            ld (fn_e3_lib_sc_k), a		; E3.cls 5175
+            xor a		; E3.cls 5176
+            ld (fn_e3_lib_sc_j), a		; E3.cls 5177
+fn_e3_lib_sc_dl:		; E3.cls 5178
+            call fn_e3_lib_vpoll		; E3.cls 5179
+            ld a, (fn_e3_lib_sc_j)		; E3.cls 5180
+            ld e, a		; E3.cls 5181
+            ld d, 0		; E3.cls 5182
+            ld hl, fn_e3_lib_sc_x		; E3.cls 5183
+            add hl, de		; E3.cls 5184
+            ld l, (hl)              ; P = obj + 16 i [5185]
+            ld h, 0		; E3.cls 5186
             add hl, hl		; E3.cls 5187
             add hl, hl		; E3.cls 5188
             add hl, hl		; E3.cls 5189
-            ld de, arr_e3_obj		; E3.cls 5190
-            add hl, de		; E3.cls 5191
-            ld de, arr_e3_op		; E3.cls 5192
-            ld bc, 6		; E3.cls 5193
-            ldir		; E3.cls 5194
-            ld a, (hl)		; E3.cls 5195
-            ld (var_e3_oa), a		; E3.cls 5196
-            inc hl		; E3.cls 5197
-            ld a, (hl)		; E3.cls 5198
-            ld (var_e3_ob), a		; E3.cls 5199
-            inc hl		; E3.cls 5200
+            add hl, hl		; E3.cls 5190
+            ld de, arr_e3_obj		; E3.cls 5191
+            add hl, de		; E3.cls 5192
+            ld de, arr_e3_op		; E3.cls 5193
+            ld bc, 6		; E3.cls 5194
+            ldir		; E3.cls 5195
+            ld a, (hl)		; E3.cls 5196
+            ld (var_e3_oa), a		; E3.cls 5197
+            inc hl		; E3.cls 5198
+            ld a, (hl)		; E3.cls 5199
+            ld (var_e3_ob), a		; E3.cls 5200
             inc hl		; E3.cls 5201
             inc hl		; E3.cls 5202
-            ld a, (hl)              ; the kind [5203]
-            ld (fn_e3_lib_sc_kind), a		; E3.cls 5204
-            inc hl		; E3.cls 5205
-            ld a, (hl)		; E3.cls 5206
-            ld (var_e3_osc), a		; E3.cls 5207
-            inc hl		; E3.cls 5208
-            ld e, (hl)		; E3.cls 5209
-            inc hl		; E3.cls 5210
-            ld d, (hl)		; E3.cls 5211
-            ld (var_e3_orad), de		; E3.cls 5212
-            inc hl		; E3.cls 5213
-            ld a, (hl)		; E3.cls 5214
-            ld (fn_e3_lib_sc_dc), a           ; the dot's colour [5215]
-            ld a, (fn_e3_lib_sc_j)            ; z: how far [5216]
-            add a, a		; E3.cls 5217
-            ld e, a		; E3.cls 5218
-            ld d, 0		; E3.cls 5219
-            ld hl, fn_e3_lib_sc_z		; E3.cls 5220
-            add hl, de		; E3.cls 5221
-            ld e, (hl)		; E3.cls 5222
-            inc hl		; E3.cls 5223
-            ld d, (hl)		; E3.cls 5224
-            ex de, hl               ; HL = z: how big (128 rad / z): over 32 pixels near (exact, the [5225]
-            ld b, 2                 ; near model); 16..32 far (the cheap way, the near model); 4..16 [5226]
-            call fn_e3_lib_sc_shr             ; far (the far model); 2..4 a blob; under 2 a dot [5227]
-            ld c, 0		; E3.cls 5228
-            ld a, 0		; E3.cls 5229
-            jr nc, fn_e3_lib_sc_mod		; E3.cls 5230
-            ld b, 1		; E3.cls 5231
-            call fn_e3_lib_sc_shr		; E3.cls 5232
-            ld a, 1		; E3.cls 5233
-            jr nc, fn_e3_lib_sc_mod		; E3.cls 5234
-            ld a, (var_e3_lodb)          ; <--- CHANGED (was 2: the far model down to 4 pixels; lodb 1: [5235]
-            ld b, a                 ; <--- NEW      down to 8, then a blob - cheaper with many far off) [5236]
-            call fn_e3_lib_sc_shr		; E3.cls 5237
-            ld c, 2		; E3.cls 5238
-            ld a, 1                 ; <--- NEW (A as it was) [5239]
-            jr nc, fn_e3_lib_sc_mod		; E3.cls 5240
-            ld b, 1		; E3.cls 5241
-            call fn_e3_lib_sc_shr		; E3.cls 5242
-            jp nc, fn_e3_lib_sc_blob		; E3.cls 5243
-            jr fn_e3_lib_sc_dot		; E3.cls 5244
-fn_e3_lib_sc_mod:		; E3.cls 5245
-            ld (fn_e3_lib_od_far), a		; E3.cls 5246
-            ld a, (fn_e3_lib_sc_kind)		; E3.cls 5247
-            add a, a		; E3.cls 5248
+            inc hl		; E3.cls 5203
+            ld a, (hl)              ; the kind [5204]
+            ld (fn_e3_lib_sc_kind), a		; E3.cls 5205
+            inc hl		; E3.cls 5206
+            ld a, (hl)		; E3.cls 5207
+            ld (var_e3_osc), a		; E3.cls 5208
+            inc hl		; E3.cls 5209
+            ld e, (hl)		; E3.cls 5210
+            inc hl		; E3.cls 5211
+            ld d, (hl)		; E3.cls 5212
+            ld (var_e3_orad), de		; E3.cls 5213
+            inc hl		; E3.cls 5214
+            ld a, (hl)		; E3.cls 5215
+            ld (fn_e3_lib_sc_dc), a           ; the dot's colour [5216]
+            ld a, (fn_e3_lib_sc_j)            ; z: how far [5217]
+            add a, a		; E3.cls 5218
+            ld e, a		; E3.cls 5219
+            ld d, 0		; E3.cls 5220
+            ld hl, fn_e3_lib_sc_z		; E3.cls 5221
+            add hl, de		; E3.cls 5222
+            ld e, (hl)		; E3.cls 5223
+            inc hl		; E3.cls 5224
+            ld d, (hl)		; E3.cls 5225
+            ex de, hl               ; HL = z: how big (128 rad / z): over 32 pixels near (exact, the [5226]
+            ld b, 2                 ; near model); 16..32 far (the cheap way, the near model); 4..16 [5227]
+            call fn_e3_lib_sc_shr             ; far (the far model); 2..4 a blob; under 2 a dot [5228]
+            ld c, 0		; E3.cls 5229
+            ld a, 0		; E3.cls 5230
+            jr nc, fn_e3_lib_sc_mod		; E3.cls 5231
+            ld b, 1		; E3.cls 5232
+            call fn_e3_lib_sc_shr		; E3.cls 5233
+            ld a, 1		; E3.cls 5234
+            jr nc, fn_e3_lib_sc_mod		; E3.cls 5235
+            ld a, (var_e3_lodb)          ; <--- CHANGED (was 2: the far model down to 4 pixels; lodb 1: [5236]
+            ld b, a                 ; <--- NEW      down to 8, then a blob - cheaper with many far off) [5237]
+            call fn_e3_lib_sc_shr		; E3.cls 5238
+            ld c, 2		; E3.cls 5239
+            ld a, 1                 ; <--- NEW (A as it was) [5240]
+            jr nc, fn_e3_lib_sc_mod		; E3.cls 5241
+            ld b, 1		; E3.cls 5242
+            call fn_e3_lib_sc_shr		; E3.cls 5243
+            jp nc, fn_e3_lib_sc_blob		; E3.cls 5244
+            jr fn_e3_lib_sc_dot		; E3.cls 5245
+fn_e3_lib_sc_mod:		; E3.cls 5246
+            ld (fn_e3_lib_od_far), a		; E3.cls 5247
+            ld a, (fn_e3_lib_sc_kind)		; E3.cls 5248
             add a, a		; E3.cls 5249
-            add a, c		; E3.cls 5250
-            ld e, a		; E3.cls 5251
-            ld d, 0		; E3.cls 5252
-            ld hl, d_modeltab		; E3.cls 5253
-            add hl, de		; E3.cls 5254
-            ld e, (hl)		; E3.cls 5255
-            inc hl		; E3.cls 5256
-            ld d, (hl)		; E3.cls 5257
-            ld hl, d_modeldata		; E3.cls 5258
-            add hl, de		; E3.cls 5259
-            ld (var_e3_omod), hl		; E3.cls 5260
-            call fn_e3_lib_odraw		; E3.cls 5261
-            jr fn_e3_lib_sc_dnx		; E3.cls 5262
-fn_e3_lib_sc_blob:		; E3.cls 5263
-            ld a, 1		; E3.cls 5264
-            ld (fn_e3_lib_sc_isb), a		; E3.cls 5265
-            jr fn_e3_lib_sc_db		; E3.cls 5266
-fn_e3_lib_sc_dot:		; E3.cls 5267
-            xor a		; E3.cls 5268
-            ld (fn_e3_lib_sc_isb), a		; E3.cls 5269
-fn_e3_lib_sc_db:		; E3.cls 5270
-            call fn_e3_lib_oprep8		; E3.cls 5271
-            ld a, (var_e3_ovis)		; E3.cls 5272
-            or a		; E3.cls 5273
-            jr z, fn_e3_lib_sc_dnx		; E3.cls 5274
-            ld hl, (arr_e3_oc)		; E3.cls 5275
-            ld de, (arr_e3_oc + 2)		; E3.cls 5276
-            ld bc, (arr_e3_oc + 4)		; E3.cls 5277
-            ld a, b		; E3.cls 5278
-            or a		; E3.cls 5279
-            jp m, fn_e3_lib_sc_dnx		; E3.cls 5280
-            ld a, c		; E3.cls 5281
-            cp 16		; E3.cls 5282
-            jr nc, fn_e3_lib_sc_dp		; E3.cls 5283
-            ld a, b		; E3.cls 5284
-            or a		; E3.cls 5285
-            jr z, fn_e3_lib_sc_dnx            ; (z under 16) [5286]
-fn_e3_lib_sc_dp:		; E3.cls 5287
-            ld a, (fn_e3_lib_sc_isb)		; E3.cls 5288
-            or a		; E3.cls 5289
-            jr nz, fn_e3_lib_sc_bl		; E3.cls 5290
-            call fn_e3_lib_proj		; E3.cls 5291
-            ld a, (fn_e3_lib_sc_dc)		; E3.cls 5292
-            call fn_e3_lib_dot		; E3.cls 5293
-            jr fn_e3_lib_sc_dnx		; E3.cls 5294
-fn_e3_lib_sc_bl:		; E3.cls 5295
-            call fn_e3_lib_blob		; E3.cls 5296
-fn_e3_lib_sc_dnx:		; E3.cls 5297
-            ld hl, fn_e3_lib_sc_j		; E3.cls 5298
-            inc (hl)		; E3.cls 5299
-            ld hl, fn_e3_lib_sc_k		; E3.cls 5300
-            dec (hl)		; E3.cls 5301
-            jp nz, fn_e3_lib_sc_dl		; E3.cls 5302
-            ret		; E3.cls 5303
-fn_e3_lib_sc_shr:                             ; carry: HL >> B > orad (HL kept shifted) [5304]
-            sra h		; E3.cls 5305
-            rr l		; E3.cls 5306
-            djnz fn_e3_lib_sc_shr		; E3.cls 5307
-            push hl		; E3.cls 5308
-            ld de, (var_e3_orad)		; E3.cls 5309
-            ex de, hl		; E3.cls 5310
-            or a		; E3.cls 5311
-            sbc hl, de              ; orad - (z >> n) < 0: carry [5312]
-            pop hl		; E3.cls 5313
-            jp m, fn_e3_lib_sc_sc		; E3.cls 5314
-            or a		; E3.cls 5315
-            ret		; E3.cls 5316
-fn_e3_lib_sc_sc:		; E3.cls 5317
-            scf		; E3.cls 5318
-            ret		; E3.cls 5319
+            add a, a		; E3.cls 5250
+            add a, c		; E3.cls 5251
+            ld e, a		; E3.cls 5252
+            ld d, 0		; E3.cls 5253
+            ld hl, d_modeltab		; E3.cls 5254
+            add hl, de		; E3.cls 5255
+            ld e, (hl)		; E3.cls 5256
+            inc hl		; E3.cls 5257
+            ld d, (hl)		; E3.cls 5258
+            ld hl, d_modeldata		; E3.cls 5259
+            add hl, de		; E3.cls 5260
+            ld (var_e3_omod), hl		; E3.cls 5261
+            call fn_e3_lib_odraw		; E3.cls 5262
+            jr fn_e3_lib_sc_dnx		; E3.cls 5263
+fn_e3_lib_sc_blob:		; E3.cls 5264
+            ld a, 1		; E3.cls 5265
+            ld (fn_e3_lib_sc_isb), a		; E3.cls 5266
+            jr fn_e3_lib_sc_db		; E3.cls 5267
+fn_e3_lib_sc_dot:		; E3.cls 5268
+            xor a		; E3.cls 5269
+            ld (fn_e3_lib_sc_isb), a		; E3.cls 5270
+fn_e3_lib_sc_db:		; E3.cls 5271
+            call fn_e3_lib_oprep8		; E3.cls 5272
+            ld a, (var_e3_ovis)		; E3.cls 5273
+            or a		; E3.cls 5274
+            jr z, fn_e3_lib_sc_dnx		; E3.cls 5275
+            ld hl, (arr_e3_oc)		; E3.cls 5276
+            ld de, (arr_e3_oc + 2)		; E3.cls 5277
+            ld bc, (arr_e3_oc + 4)		; E3.cls 5278
+            ld a, b		; E3.cls 5279
+            or a		; E3.cls 5280
+            jp m, fn_e3_lib_sc_dnx		; E3.cls 5281
+            ld a, c		; E3.cls 5282
+            cp 16		; E3.cls 5283
+            jr nc, fn_e3_lib_sc_dp		; E3.cls 5284
+            ld a, b		; E3.cls 5285
+            or a		; E3.cls 5286
+            jr z, fn_e3_lib_sc_dnx            ; (z under 16) [5287]
+fn_e3_lib_sc_dp:		; E3.cls 5288
+            ld a, (fn_e3_lib_sc_isb)		; E3.cls 5289
+            or a		; E3.cls 5290
+            jr nz, fn_e3_lib_sc_bl		; E3.cls 5291
+            call fn_e3_lib_proj		; E3.cls 5292
+            ld a, (fn_e3_lib_sc_dc)		; E3.cls 5293
+            call fn_e3_lib_dot		; E3.cls 5294
+            jr fn_e3_lib_sc_dnx		; E3.cls 5295
+fn_e3_lib_sc_bl:		; E3.cls 5296
+            call fn_e3_lib_blob		; E3.cls 5297
+fn_e3_lib_sc_dnx:		; E3.cls 5298
+            ld hl, fn_e3_lib_sc_j		; E3.cls 5299
+            inc (hl)		; E3.cls 5300
+            ld hl, fn_e3_lib_sc_k		; E3.cls 5301
+            dec (hl)		; E3.cls 5302
+            jp nz, fn_e3_lib_sc_dl		; E3.cls 5303
+            ret		; E3.cls 5304
+fn_e3_lib_sc_shr:                             ; carry: HL >> B > orad (HL kept shifted) [5305]
+            sra h		; E3.cls 5306
+            rr l		; E3.cls 5307
+            djnz fn_e3_lib_sc_shr		; E3.cls 5308
+            push hl		; E3.cls 5309
+            ld de, (var_e3_orad)		; E3.cls 5310
+            ex de, hl		; E3.cls 5311
+            or a		; E3.cls 5312
+            sbc hl, de              ; orad - (z >> n) < 0: carry [5313]
+            pop hl		; E3.cls 5314
+            jp m, fn_e3_lib_sc_sc		; E3.cls 5315
+            or a		; E3.cls 5316
+            ret		; E3.cls 5317
+fn_e3_lib_sc_sc:		; E3.cls 5318
+            scf		; E3.cls 5319
+            ret		; E3.cls 5320
 ; blob: the object at oc as a hexagon its size on the screen (orad), in its dot colour (dithered
 ; with the next shade)
-fn_e3_lib_blob:		; E3.cls 5322
-            ld (fn_e3_lib_bl_z), bc		; E3.cls 5323
-            push hl		; E3.cls 5324
-            push de		; E3.cls 5325
-            call fn_e3_lib_proj               ; the middle [5326]
-            ld (fn_e3_lib_bl_x), hl		; E3.cls 5327
-            ld (fn_e3_lib_bl_y), de		; E3.cls 5328
-            ld hl, (var_e3_orad)         ; the size: (128 + rad 128 / z) - 128 [5329]
-            ld de, 0		; E3.cls 5330
-            ld bc, (fn_e3_lib_bl_z)		; E3.cls 5331
-            call fn_e3_lib_proj		; E3.cls 5332
-            ld de, -128		; E3.cls 5333
-            add hl, de		; E3.cls 5334
-            pop de		; E3.cls 5335
+fn_e3_lib_blob:		; E3.cls 5323
+            ld (fn_e3_lib_bl_z), bc		; E3.cls 5324
+            push hl		; E3.cls 5325
+            push de		; E3.cls 5326
+            call fn_e3_lib_proj               ; the middle [5327]
+            ld (fn_e3_lib_bl_x), hl		; E3.cls 5328
+            ld (fn_e3_lib_bl_y), de		; E3.cls 5329
+            ld hl, (var_e3_orad)         ; the size: (128 + rad 128 / z) - 128 [5330]
+            ld de, 0		; E3.cls 5331
+            ld bc, (fn_e3_lib_bl_z)		; E3.cls 5332
+            call fn_e3_lib_proj		; E3.cls 5333
+            ld de, -128		; E3.cls 5334
+            add hl, de		; E3.cls 5335
             pop de		; E3.cls 5336
-            ld a, h		; E3.cls 5337
-            or a		; E3.cls 5338
-            ret nz		; E3.cls 5339
-            ld a, l		; E3.cls 5340
-            or a		; E3.cls 5341
-            ret z		; E3.cls 5342
-            ld (fn_e3_lib_bl_r), a		; E3.cls 5343
-            srl a		; E3.cls 5344
-            ld (fn_e3_lib_bl_r2), a           ; r / 2 [5345]
-            ld a, (fn_e3_lib_bl_r)            ; r * 7 / 8 [5346]
-            ld b, a		; E3.cls 5347
-            srl a		; E3.cls 5348
+            pop de		; E3.cls 5337
+            ld a, h		; E3.cls 5338
+            or a		; E3.cls 5339
+            ret nz		; E3.cls 5340
+            ld a, l		; E3.cls 5341
+            or a		; E3.cls 5342
+            ret z		; E3.cls 5343
+            ld (fn_e3_lib_bl_r), a		; E3.cls 5344
+            srl a		; E3.cls 5345
+            ld (fn_e3_lib_bl_r2), a           ; r / 2 [5346]
+            ld a, (fn_e3_lib_bl_r)            ; r * 7 / 8 [5347]
+            ld b, a		; E3.cls 5348
             srl a		; E3.cls 5349
             srl a		; E3.cls 5350
-            neg		; E3.cls 5351
-            add a, b		; E3.cls 5352
-            ld (fn_e3_lib_bl_r7), a		; E3.cls 5353
-            ld ix, arr_e3_pvx            ; clockwise from the top left [5354]
-            ld de, (fn_e3_lib_bl_r2)		; E3.cls 5355
-            ld d, 0		; E3.cls 5356
-            ld hl, (fn_e3_lib_bl_x)		; E3.cls 5357
-            or a		; E3.cls 5358
-            sbc hl, de		; E3.cls 5359
-            ld (ix + 0), l		; E3.cls 5360
-            ld (ix + 1), h		; E3.cls 5361
-            ld (ix + 8), l		; E3.cls 5362
-            ld (ix + 9), h		; E3.cls 5363
-            ld hl, (fn_e3_lib_bl_x)		; E3.cls 5364
-            add hl, de		; E3.cls 5365
-            ld (ix + 2), l		; E3.cls 5366
-            ld (ix + 3), h		; E3.cls 5367
-            ld (ix + 6), l		; E3.cls 5368
-            ld (ix + 7), h		; E3.cls 5369
-            ld a, (fn_e3_lib_bl_r)		; E3.cls 5370
-            ld e, a		; E3.cls 5371
-            ld hl, (fn_e3_lib_bl_x)		; E3.cls 5372
-            add hl, de		; E3.cls 5373
-            ld (ix + 4), l		; E3.cls 5374
-            ld (ix + 5), h		; E3.cls 5375
-            ld hl, (fn_e3_lib_bl_x)		; E3.cls 5376
-            or a		; E3.cls 5377
-            sbc hl, de		; E3.cls 5378
-            ld (ix + 10), l		; E3.cls 5379
-            ld (ix + 11), h		; E3.cls 5380
-            ld a, (fn_e3_lib_bl_r7)		; E3.cls 5381
-            ld e, a		; E3.cls 5382
-            ld hl, (fn_e3_lib_bl_y)		; E3.cls 5383
-            or a		; E3.cls 5384
-            sbc hl, de		; E3.cls 5385
-            ld (ix + 96), l		; E3.cls 5386
-            ld (ix + 97), h		; E3.cls 5387
-            ld (ix + 98), l		; E3.cls 5388
-            ld (ix + 99), h		; E3.cls 5389
-            ld hl, (fn_e3_lib_bl_y)		; E3.cls 5390
-            add hl, de		; E3.cls 5391
-            ld (ix + 102), l		; E3.cls 5392
-            ld (ix + 103), h		; E3.cls 5393
-            ld (ix + 104), l		; E3.cls 5394
-            ld (ix + 105), h		; E3.cls 5395
-            ld hl, (fn_e3_lib_bl_y)		; E3.cls 5396
-            ld (ix + 100), l		; E3.cls 5397
-            ld (ix + 101), h		; E3.cls 5398
-            ld (ix + 106), l		; E3.cls 5399
-            ld (ix + 107), h		; E3.cls 5400
-            ld a, 6		; E3.cls 5401
-            ld (var_e3_pn), a		; E3.cls 5402
-            ld a, (fn_e3_lib_sc_dc)		; E3.cls 5403
-            ld l, a		; E3.cls 5404
-            inc a		; E3.cls 5405
-            ld h, a		; E3.cls 5406
-            ld (var_e3_pc), hl		; E3.cls 5407
-            jp fn_e3_lib_fill		; E3.cls 5408
-fn_e3_lib_bl_x:       dw 0		; E3.cls 5409
-fn_e3_lib_bl_y:       dw 0		; E3.cls 5410
-fn_e3_lib_bl_z:       dw 0		; E3.cls 5411
-fn_e3_lib_bl_r:       db 0		; E3.cls 5412
-fn_e3_lib_bl_r2:      db 0		; E3.cls 5413
-            db 0		; E3.cls 5414
-fn_e3_lib_bl_r7:      db 0		; E3.cls 5415
+            srl a		; E3.cls 5351
+            neg		; E3.cls 5352
+            add a, b		; E3.cls 5353
+            ld (fn_e3_lib_bl_r7), a		; E3.cls 5354
+            ld ix, arr_e3_pvx            ; clockwise from the top left [5355]
+            ld de, (fn_e3_lib_bl_r2)		; E3.cls 5356
+            ld d, 0		; E3.cls 5357
+            ld hl, (fn_e3_lib_bl_x)		; E3.cls 5358
+            or a		; E3.cls 5359
+            sbc hl, de		; E3.cls 5360
+            ld (ix + 0), l		; E3.cls 5361
+            ld (ix + 1), h		; E3.cls 5362
+            ld (ix + 8), l		; E3.cls 5363
+            ld (ix + 9), h		; E3.cls 5364
+            ld hl, (fn_e3_lib_bl_x)		; E3.cls 5365
+            add hl, de		; E3.cls 5366
+            ld (ix + 2), l		; E3.cls 5367
+            ld (ix + 3), h		; E3.cls 5368
+            ld (ix + 6), l		; E3.cls 5369
+            ld (ix + 7), h		; E3.cls 5370
+            ld a, (fn_e3_lib_bl_r)		; E3.cls 5371
+            ld e, a		; E3.cls 5372
+            ld hl, (fn_e3_lib_bl_x)		; E3.cls 5373
+            add hl, de		; E3.cls 5374
+            ld (ix + 4), l		; E3.cls 5375
+            ld (ix + 5), h		; E3.cls 5376
+            ld hl, (fn_e3_lib_bl_x)		; E3.cls 5377
+            or a		; E3.cls 5378
+            sbc hl, de		; E3.cls 5379
+            ld (ix + 10), l		; E3.cls 5380
+            ld (ix + 11), h		; E3.cls 5381
+            ld a, (fn_e3_lib_bl_r7)		; E3.cls 5382
+            ld e, a		; E3.cls 5383
+            ld hl, (fn_e3_lib_bl_y)		; E3.cls 5384
+            or a		; E3.cls 5385
+            sbc hl, de		; E3.cls 5386
+            ld (ix + 96), l		; E3.cls 5387
+            ld (ix + 97), h		; E3.cls 5388
+            ld (ix + 98), l		; E3.cls 5389
+            ld (ix + 99), h		; E3.cls 5390
+            ld hl, (fn_e3_lib_bl_y)		; E3.cls 5391
+            add hl, de		; E3.cls 5392
+            ld (ix + 102), l		; E3.cls 5393
+            ld (ix + 103), h		; E3.cls 5394
+            ld (ix + 104), l		; E3.cls 5395
+            ld (ix + 105), h		; E3.cls 5396
+            ld hl, (fn_e3_lib_bl_y)		; E3.cls 5397
+            ld (ix + 100), l		; E3.cls 5398
+            ld (ix + 101), h		; E3.cls 5399
+            ld (ix + 106), l		; E3.cls 5400
+            ld (ix + 107), h		; E3.cls 5401
+            ld a, 6		; E3.cls 5402
+            ld (var_e3_pn), a		; E3.cls 5403
+            ld a, (fn_e3_lib_sc_dc)		; E3.cls 5404
+            ld l, a		; E3.cls 5405
+            inc a		; E3.cls 5406
+            ld h, a		; E3.cls 5407
+            ld (var_e3_pc), hl		; E3.cls 5408
+            jp fn_e3_lib_fill		; E3.cls 5409
+fn_e3_lib_bl_x:       dw 0		; E3.cls 5410
+fn_e3_lib_bl_y:       dw 0		; E3.cls 5411
+fn_e3_lib_bl_z:       dw 0		; E3.cls 5412
+fn_e3_lib_bl_r:       db 0		; E3.cls 5413
+fn_e3_lib_bl_r2:      db 0		; E3.cls 5414
+            db 0		; E3.cls 5415
+fn_e3_lib_bl_r7:      db 0		; E3.cls 5416
 ; dot: HL = x, DE = y on the screen, A = the colour: 2 x 2 pixels
-fn_e3_lib_dot:		; E3.cls 5417
-            ld (fn_e3_lib_dt_c), a		; E3.cls 5418
-            ld a, h		; E3.cls 5419
-            or d		; E3.cls 5420
-            ret nz		; E3.cls 5421
-            ld a, l		; E3.cls 5422
-            cp 255		; E3.cls 5423
-            ret nc		; E3.cls 5424
-            ld a, e		; E3.cls 5425
-            cp 191		; E3.cls 5426
-            ret nc		; E3.cls 5427
-            rlca		; E3.cls 5428
+fn_e3_lib_dot:		; E3.cls 5418
+            ld (fn_e3_lib_dt_c), a		; E3.cls 5419
+            ld a, h		; E3.cls 5420
+            or d		; E3.cls 5421
+            ret nz		; E3.cls 5422
+            ld a, l		; E3.cls 5423
+            cp 255		; E3.cls 5424
+            ret nc		; E3.cls 5425
+            ld a, e		; E3.cls 5426
+            cp 191		; E3.cls 5427
+            ret nc		; E3.cls 5428
             rlca		; E3.cls 5429
-            and 3		; E3.cls 5430
-            add a, a		; E3.cls 5431
-            ld c, a		; E3.cls 5432
-            ld a, (var_e3_back)		; E3.cls 5433
-            add a, a		; E3.cls 5434
-            add a, c		; E3.cls 5435
-            db #ED, #92, #56		; E3.cls 5436
-            inc a		; E3.cls 5437
-            db #ED, #92, #57		; E3.cls 5438
-            ld a, e		; E3.cls 5439
-            and 63		; E3.cls 5440
-            or #C0		; E3.cls 5441
-            ld h, a		; E3.cls 5442
-            ld a, (fn_e3_lib_dt_c)		; E3.cls 5443
-            ld (hl), a		; E3.cls 5444
-            inc l		; E3.cls 5445
-            ld (hl), a		; E3.cls 5446
-            inc h		; E3.cls 5447
-            jr z, fn_e3_lib_dt_e              ; (the row's in the next window: left out) [5448]
-            ld (hl), a		; E3.cls 5449
-            dec l		; E3.cls 5450
-            ld (hl), a		; E3.cls 5451
-fn_e3_lib_dt_e:		; E3.cls 5452
-            ld a, (fn_e3_lib_dpage)		; E3.cls 5453
-            db #ED, #92, #56		; E3.cls 5454
-            inc a		; E3.cls 5455
-            db #ED, #92, #57		; E3.cls 5456
-            ret		; E3.cls 5457
-fn_e3_lib_dt_c:       db 0		; E3.cls 5458
-fn_e3_lib_sc_n:       db 0		; E3.cls 5459
-fn_e3_lib_sc_k:       db 0		; E3.cls 5460
-fn_e3_lib_sc_i:       db 0		; E3.cls 5461
-fn_e3_lib_sc_j:       db 0		; E3.cls 5462
-fn_e3_lib_sc_p:       dw 0		; E3.cls 5463
-fn_e3_lib_sc_zn:      dw 0		; E3.cls 5464
-fn_e3_lib_sc_pz:      dw 0		; E3.cls 5465
-fn_e3_lib_sc_kind:    db 0		; E3.cls 5466
-fn_e3_lib_sc_dc:      db 0		; E3.cls 5467
-fn_e3_lib_sc_isb:     db 0		; E3.cls 5468
-fn_e3_lib_sc_vo:      dw 0		; E3.cls 5469
-fn_e3_lib_sc_z:       ds 128		; E3.cls 5470
-fn_e3_lib_sc_x:       ds 64		; E3.cls 5471
+            rlca		; E3.cls 5430
+            and 3		; E3.cls 5431
+            add a, a		; E3.cls 5432
+            ld c, a		; E3.cls 5433
+            ld a, (var_e3_back)		; E3.cls 5434
+            add a, a		; E3.cls 5435
+            add a, c		; E3.cls 5436
+            db #ED, #92, #56		; E3.cls 5437
+            inc a		; E3.cls 5438
+            db #ED, #92, #57		; E3.cls 5439
+            ld a, e		; E3.cls 5440
+            and 63		; E3.cls 5441
+            or #C0		; E3.cls 5442
+            ld h, a		; E3.cls 5443
+            ld a, (fn_e3_lib_dt_c)		; E3.cls 5444
+            ld (hl), a		; E3.cls 5445
+            inc l		; E3.cls 5446
+            ld (hl), a		; E3.cls 5447
+            inc h		; E3.cls 5448
+            jr z, fn_e3_lib_dt_e              ; (the row's in the next window: left out) [5449]
+            ld (hl), a		; E3.cls 5450
+            dec l		; E3.cls 5451
+            ld (hl), a		; E3.cls 5452
+fn_e3_lib_dt_e:		; E3.cls 5453
+            ld a, (fn_e3_lib_dpage)		; E3.cls 5454
+            db #ED, #92, #56		; E3.cls 5455
+            inc a		; E3.cls 5456
+            db #ED, #92, #57		; E3.cls 5457
+            ret		; E3.cls 5458
+fn_e3_lib_dt_c:       db 0		; E3.cls 5459
+fn_e3_lib_sc_n:       db 0		; E3.cls 5460
+fn_e3_lib_sc_k:       db 0		; E3.cls 5461
+fn_e3_lib_sc_i:       db 0		; E3.cls 5462
+fn_e3_lib_sc_j:       db 0		; E3.cls 5463
+fn_e3_lib_sc_p:       dw 0		; E3.cls 5464
+fn_e3_lib_sc_zn:      dw 0		; E3.cls 5465
+fn_e3_lib_sc_pz:      dw 0		; E3.cls 5466
+fn_e3_lib_sc_kind:    db 0		; E3.cls 5467
+fn_e3_lib_sc_dc:      db 0		; E3.cls 5468
+fn_e3_lib_sc_isb:     db 0		; E3.cls 5469
+fn_e3_lib_sc_vo:      dw 0		; E3.cls 5470
+fn_e3_lib_sc_z:       ds 128		; E3.cls 5471
+fn_e3_lib_sc_x:       ds 64		; E3.cls 5472
 ; ============================================================================ objects
 ; reld: HL (a position, world, 16 bits) - the camera's (IX: 32 bits, 24.8) -> HL, carry: too far
 ; (over 16000 any way)
-fn_e3_lib_reld:		; E3.cls 5475
-            ld a, h		; E3.cls 5476
-            rla		; E3.cls 5477
-            sbc a, a		; E3.cls 5478
-            ld c, a		; E3.cls 5479
-            ld a, l		; E3.cls 5480
-            sub (ix + 1)		; E3.cls 5481
-            ld l, a		; E3.cls 5482
-            ld a, h		; E3.cls 5483
-            sbc a, (ix + 2)		; E3.cls 5484
-            ld h, a		; E3.cls 5485
-            ld a, c		; E3.cls 5486
-            sbc a, (ix + 3)		; E3.cls 5487
-            ld c, a		; E3.cls 5488
-            ld a, h		; E3.cls 5489
-            rla		; E3.cls 5490
-            sbc a, a		; E3.cls 5491
-            cp c		; E3.cls 5492
-            jr nz, fn_e3_lib_rd_far		; E3.cls 5493
-            bit 7, h		; E3.cls 5494
-            jr z, fn_e3_lib_rd_pos		; E3.cls 5495
-            ld de, 16000		; E3.cls 5496
-            push hl		; E3.cls 5497
-            add hl, de		; E3.cls 5498
-            pop hl		; E3.cls 5499
-            ccf		; E3.cls 5500
-            ret		; E3.cls 5501
-fn_e3_lib_rd_pos:		; E3.cls 5502
-            ld de, 16001		; E3.cls 5503
-            push hl		; E3.cls 5504
-            or a		; E3.cls 5505
-            sbc hl, de		; E3.cls 5506
-            pop hl		; E3.cls 5507
-            ccf		; E3.cls 5508
-            ret		; E3.cls 5509
-fn_e3_lib_rd_far:		; E3.cls 5510
-            scf		; E3.cls 5511
-            ret		; E3.cls 5512
+fn_e3_lib_reld:		; E3.cls 5476
+            ld a, h		; E3.cls 5477
+            rla		; E3.cls 5478
+            sbc a, a		; E3.cls 5479
+            ld c, a		; E3.cls 5480
+            ld a, l		; E3.cls 5481
+            sub (ix + 1)		; E3.cls 5482
+            ld l, a		; E3.cls 5483
+            ld a, h		; E3.cls 5484
+            sbc a, (ix + 2)		; E3.cls 5485
+            ld h, a		; E3.cls 5486
+            ld a, c		; E3.cls 5487
+            sbc a, (ix + 3)		; E3.cls 5488
+            ld c, a		; E3.cls 5489
+            ld a, h		; E3.cls 5490
+            rla		; E3.cls 5491
+            sbc a, a		; E3.cls 5492
+            cp c		; E3.cls 5493
+            jr nz, fn_e3_lib_rd_far		; E3.cls 5494
+            bit 7, h		; E3.cls 5495
+            jr z, fn_e3_lib_rd_pos		; E3.cls 5496
+            ld de, 16000		; E3.cls 5497
+            push hl		; E3.cls 5498
+            add hl, de		; E3.cls 5499
+            pop hl		; E3.cls 5500
+            ccf		; E3.cls 5501
+            ret		; E3.cls 5502
+fn_e3_lib_rd_pos:		; E3.cls 5503
+            ld de, 16001		; E3.cls 5504
+            push hl		; E3.cls 5505
+            or a		; E3.cls 5506
+            sbc hl, de		; E3.cls 5507
+            pop hl		; E3.cls 5508
+            ccf		; E3.cls 5509
+            ret		; E3.cls 5510
+fn_e3_lib_rd_far:		; E3.cls 5511
+            scf		; E3.cls 5512
+            ret		; E3.cls 5513
 ; ctest: HL = a plane's distance, DE = the radius -> A: 0 inside, 1 crossing, 2 outside
-fn_e3_lib_ctest:		; E3.cls 5514
-            push hl		; E3.cls 5515
-            or a		; E3.cls 5516
-            adc hl, de		; E3.cls 5517
-            pop hl		; E3.cls 5518
-            ld a, 2		; E3.cls 5519
-            ret m		; E3.cls 5520
-            or a		; E3.cls 5521
-            sbc hl, de		; E3.cls 5522
-            ld a, 1		; E3.cls 5523
-            ret m		; E3.cls 5524
-            xor a		; E3.cls 5525
-            ret		; E3.cls 5526
+fn_e3_lib_ctest:		; E3.cls 5515
+            push hl		; E3.cls 5516
+            or a		; E3.cls 5517
+            adc hl, de		; E3.cls 5518
+            pop hl		; E3.cls 5519
+            ld a, 2		; E3.cls 5520
+            ret m		; E3.cls 5521
+            or a		; E3.cls 5522
+            sbc hl, de		; E3.cls 5523
+            ld a, 1		; E3.cls 5524
+            ret m		; E3.cls 5525
+            xor a		; E3.cls 5526
+            ret		; E3.cls 5527
 ; ocull: oc (in the view), orad -> ovis: 0 outside, 1 all in, 2 crossing the view's edges
-fn_e3_lib_ocull:		; E3.cls 5528
-            xor a		; E3.cls 5529
-            ld (fn_e3_lib_op_part), a		; E3.cls 5530
-            ld hl, (var_e3_orad)         ; rk = r * 17 / 16 (the side planes lean: their distances are short) [5531]
-            ld d, h		; E3.cls 5532
-            ld e, l		; E3.cls 5533
-            srl d		; E3.cls 5534
-            rr e		; E3.cls 5535
-            srl d		; E3.cls 5536
-            rr e		; E3.cls 5537
-            srl d		; E3.cls 5538
-            rr e		; E3.cls 5539
-            srl d		; E3.cls 5540
-            rr e		; E3.cls 5541
-            add hl, de		; E3.cls 5542
-            ld (fn_e3_lib_op_rk), hl		; E3.cls 5543
-            ld hl, (arr_e3_oc + 4)       ; near: z - 16 [5544]
-            ld de, -16		; E3.cls 5545
-            add hl, de		; E3.cls 5546
-            ld de, (var_e3_orad)		; E3.cls 5547
-            call fn_e3_lib_ctest		; E3.cls 5548
-            call fn_e3_lib_op_acc		; E3.cls 5549
-            jp z, fn_e3_lib_op_out		; E3.cls 5550
-            ld hl, (arr_e3_oc)           ; z - x / 4 [5551]
-            sra h		; E3.cls 5552
-            rr l		; E3.cls 5553
-            sra h		; E3.cls 5554
-            rr l		; E3.cls 5555
-            ex de, hl		; E3.cls 5556
-            ld hl, (arr_e3_oc + 4)		; E3.cls 5557
-            or a		; E3.cls 5558
-            sbc hl, de		; E3.cls 5559
-            ld de, (fn_e3_lib_op_rk)		; E3.cls 5560
-            call fn_e3_lib_ctest		; E3.cls 5561
-            call fn_e3_lib_op_acc		; E3.cls 5562
-            jp z, fn_e3_lib_op_out		; E3.cls 5563
-            ld hl, (arr_e3_oc)           ; z + x / 4 [5564]
-            sra h		; E3.cls 5565
-            rr l		; E3.cls 5566
-            sra h		; E3.cls 5567
-            rr l		; E3.cls 5568
-            ld de, (arr_e3_oc + 4)		; E3.cls 5569
-            add hl, de		; E3.cls 5570
-            ld de, (fn_e3_lib_op_rk)		; E3.cls 5571
-            call fn_e3_lib_ctest		; E3.cls 5572
-            call fn_e3_lib_op_acc		; E3.cls 5573
-            jp z, fn_e3_lib_op_out		; E3.cls 5574
-            ld hl, (arr_e3_oc + 2)       ; z - y / 4 [5575]
-            sra h		; E3.cls 5576
-            rr l		; E3.cls 5577
-            sra h		; E3.cls 5578
-            rr l		; E3.cls 5579
-            ex de, hl		; E3.cls 5580
-            ld hl, (arr_e3_oc + 4)		; E3.cls 5581
-            or a		; E3.cls 5582
-            sbc hl, de		; E3.cls 5583
-            ld de, (fn_e3_lib_op_rk)		; E3.cls 5584
-            call fn_e3_lib_ctest		; E3.cls 5585
-            call fn_e3_lib_op_acc		; E3.cls 5586
-            jp z, fn_e3_lib_op_out		; E3.cls 5587
-            ld hl, (arr_e3_oc + 2)       ; z + y / 4 [5588]
-            sra h		; E3.cls 5589
-            rr l		; E3.cls 5590
-            sra h		; E3.cls 5591
-            rr l		; E3.cls 5592
-            ld de, (arr_e3_oc + 4)		; E3.cls 5593
-            add hl, de		; E3.cls 5594
-            ld de, (fn_e3_lib_op_rk)		; E3.cls 5595
-            call fn_e3_lib_ctest		; E3.cls 5596
-            call fn_e3_lib_op_acc		; E3.cls 5597
-            jp z, fn_e3_lib_op_out		; E3.cls 5598
-            ld a, (fn_e3_lib_op_part)		; E3.cls 5599
-            inc a		; E3.cls 5600
-            ld (var_e3_ovis), a		; E3.cls 5601
-            xor a		; E3.cls 5602
-            ld (var_e3_ovis + 1), a		; E3.cls 5603
-            ret		; E3.cls 5604
-fn_e3_lib_op_out:		; E3.cls 5605
-            xor a		; E3.cls 5606
-            ld (var_e3_ovis), a		; E3.cls 5607
-            ld (var_e3_ovis + 1), a		; E3.cls 5608
-            ret		; E3.cls 5609
-fn_e3_lib_op_acc:                             ; A (ctest): Z set when outside [5610]
-            cp 2		; E3.cls 5611
-            ret z		; E3.cls 5612
-            ld b, a		; E3.cls 5613
-            ld a, (fn_e3_lib_op_part)		; E3.cls 5614
-            or b		; E3.cls 5615
-            ld (fn_e3_lib_op_part), a		; E3.cls 5616
-            or 1		; E3.cls 5617
-            ret		; E3.cls 5618
-fn_e3_lib_op_part:    db 0		; E3.cls 5619
-fn_e3_lib_op_rk:      dw 0		; E3.cls 5620
+fn_e3_lib_ocull:		; E3.cls 5529
+            xor a		; E3.cls 5530
+            ld (fn_e3_lib_op_part), a		; E3.cls 5531
+            ld hl, (var_e3_orad)         ; rk = r * 17 / 16 (the side planes lean: their distances are short) [5532]
+            ld d, h		; E3.cls 5533
+            ld e, l		; E3.cls 5534
+            srl d		; E3.cls 5535
+            rr e		; E3.cls 5536
+            srl d		; E3.cls 5537
+            rr e		; E3.cls 5538
+            srl d		; E3.cls 5539
+            rr e		; E3.cls 5540
+            srl d		; E3.cls 5541
+            rr e		; E3.cls 5542
+            add hl, de		; E3.cls 5543
+            ld (fn_e3_lib_op_rk), hl		; E3.cls 5544
+            ld hl, (arr_e3_oc + 4)       ; near: z - 16 [5545]
+            ld de, -16		; E3.cls 5546
+            add hl, de		; E3.cls 5547
+            ld de, (var_e3_orad)		; E3.cls 5548
+            call fn_e3_lib_ctest		; E3.cls 5549
+            call fn_e3_lib_op_acc		; E3.cls 5550
+            jp z, fn_e3_lib_op_out		; E3.cls 5551
+            ld hl, (arr_e3_oc)           ; z - x / 4 [5552]
+            sra h		; E3.cls 5553
+            rr l		; E3.cls 5554
+            sra h		; E3.cls 5555
+            rr l		; E3.cls 5556
+            ex de, hl		; E3.cls 5557
+            ld hl, (arr_e3_oc + 4)		; E3.cls 5558
+            or a		; E3.cls 5559
+            sbc hl, de		; E3.cls 5560
+            ld de, (fn_e3_lib_op_rk)		; E3.cls 5561
+            call fn_e3_lib_ctest		; E3.cls 5562
+            call fn_e3_lib_op_acc		; E3.cls 5563
+            jp z, fn_e3_lib_op_out		; E3.cls 5564
+            ld hl, (arr_e3_oc)           ; z + x / 4 [5565]
+            sra h		; E3.cls 5566
+            rr l		; E3.cls 5567
+            sra h		; E3.cls 5568
+            rr l		; E3.cls 5569
+            ld de, (arr_e3_oc + 4)		; E3.cls 5570
+            add hl, de		; E3.cls 5571
+            ld de, (fn_e3_lib_op_rk)		; E3.cls 5572
+            call fn_e3_lib_ctest		; E3.cls 5573
+            call fn_e3_lib_op_acc		; E3.cls 5574
+            jp z, fn_e3_lib_op_out		; E3.cls 5575
+            ld hl, (arr_e3_oc + 2)       ; z - y / 4 [5576]
+            sra h		; E3.cls 5577
+            rr l		; E3.cls 5578
+            sra h		; E3.cls 5579
+            rr l		; E3.cls 5580
+            ex de, hl		; E3.cls 5581
+            ld hl, (arr_e3_oc + 4)		; E3.cls 5582
+            or a		; E3.cls 5583
+            sbc hl, de		; E3.cls 5584
+            ld de, (fn_e3_lib_op_rk)		; E3.cls 5585
+            call fn_e3_lib_ctest		; E3.cls 5586
+            call fn_e3_lib_op_acc		; E3.cls 5587
+            jp z, fn_e3_lib_op_out		; E3.cls 5588
+            ld hl, (arr_e3_oc + 2)       ; z + y / 4 [5589]
+            sra h		; E3.cls 5590
+            rr l		; E3.cls 5591
+            sra h		; E3.cls 5592
+            rr l		; E3.cls 5593
+            ld de, (arr_e3_oc + 4)		; E3.cls 5594
+            add hl, de		; E3.cls 5595
+            ld de, (fn_e3_lib_op_rk)		; E3.cls 5596
+            call fn_e3_lib_ctest		; E3.cls 5597
+            call fn_e3_lib_op_acc		; E3.cls 5598
+            jp z, fn_e3_lib_op_out		; E3.cls 5599
+            ld a, (fn_e3_lib_op_part)		; E3.cls 5600
+            inc a		; E3.cls 5601
+            ld (var_e3_ovis), a		; E3.cls 5602
+            xor a		; E3.cls 5603
+            ld (var_e3_ovis + 1), a		; E3.cls 5604
+            ret		; E3.cls 5605
+fn_e3_lib_op_out:		; E3.cls 5606
+            xor a		; E3.cls 5607
+            ld (var_e3_ovis), a		; E3.cls 5608
+            ld (var_e3_ovis + 1), a		; E3.cls 5609
+            ret		; E3.cls 5610
+fn_e3_lib_op_acc:                             ; A (ctest): Z set when outside [5611]
+            cp 2		; E3.cls 5612
+            ret z		; E3.cls 5613
+            ld b, a		; E3.cls 5614
+            ld a, (fn_e3_lib_op_part)		; E3.cls 5615
+            or b		; E3.cls 5616
+            ld (fn_e3_lib_op_part), a		; E3.cls 5617
+            or 1		; E3.cls 5618
+            ret		; E3.cls 5619
+fn_e3_lib_op_part:    db 0		; E3.cls 5620
+fn_e3_lib_op_rk:      dw 0		; E3.cls 5621
 ; orel: od = op - the camera; carry: too far
-fn_e3_lib_orel:		; E3.cls 5622
-            ld ix, arr_e3_cp		; E3.cls 5623
-            ld hl, (arr_e3_op)		; E3.cls 5624
-            call fn_e3_lib_reld		; E3.cls 5625
-            ret c		; E3.cls 5626
-            ld (arr_e3_od), hl		; E3.cls 5627
-            ld ix, arr_e3_cp + 4		; E3.cls 5628
-            ld hl, (arr_e3_op + 2)		; E3.cls 5629
-            call fn_e3_lib_reld		; E3.cls 5630
-            ret c		; E3.cls 5631
-            ld (arr_e3_od + 2), hl		; E3.cls 5632
-            ld ix, arr_e3_cp + 8		; E3.cls 5633
-            ld hl, (arr_e3_op + 4)		; E3.cls 5634
-            call fn_e3_lib_reld		; E3.cls 5635
-            ret c		; E3.cls 5636
-            ld (arr_e3_od + 4), hl		; E3.cls 5637
-            ret		; E3.cls 5638
+fn_e3_lib_orel:		; E3.cls 5623
+            ld ix, arr_e3_cp		; E3.cls 5624
+            ld hl, (arr_e3_op)		; E3.cls 5625
+            call fn_e3_lib_reld		; E3.cls 5626
+            ret c		; E3.cls 5627
+            ld (arr_e3_od), hl		; E3.cls 5628
+            ld ix, arr_e3_cp + 4		; E3.cls 5629
+            ld hl, (arr_e3_op + 2)		; E3.cls 5630
+            call fn_e3_lib_reld		; E3.cls 5631
+            ret c		; E3.cls 5632
+            ld (arr_e3_od + 2), hl		; E3.cls 5633
+            ld ix, arr_e3_cp + 8		; E3.cls 5634
+            ld hl, (arr_e3_op + 4)		; E3.cls 5635
+            call fn_e3_lib_reld		; E3.cls 5636
+            ret c		; E3.cls 5637
+            ld (arr_e3_od + 4), hl		; E3.cls 5638
+            ret		; E3.cls 5639
 ; oprep: od, oc (exact), ovis
-fn_e3_lib_oprep:		; E3.cls 5640
-            call fn_e3_lib_orel		; E3.cls 5641
-            jr c, fn_e3_lib_op_out		; E3.cls 5642
-            ld iy, arr_e3_od		; E3.cls 5643
-            ld ix, arr_e3_cm		; E3.cls 5644
-            call fn_e3_lib_mrow		; E3.cls 5645
-            ld (arr_e3_oc), hl		; E3.cls 5646
-            ld ix, arr_e3_cm + 6		; E3.cls 5647
-            call fn_e3_lib_mrow		; E3.cls 5648
-            ld (arr_e3_oc + 2), hl		; E3.cls 5649
-            ld ix, arr_e3_cm + 12		; E3.cls 5650
-            call fn_e3_lib_mrow		; E3.cls 5651
-            ld (arr_e3_oc + 4), hl		; E3.cls 5652
-            jp fn_e3_lib_ocull		; E3.cls 5653
+fn_e3_lib_oprep:		; E3.cls 5641
+            call fn_e3_lib_orel		; E3.cls 5642
+            jr c, fn_e3_lib_op_out		; E3.cls 5643
+            ld iy, arr_e3_od		; E3.cls 5644
+            ld ix, arr_e3_cm		; E3.cls 5645
+            call fn_e3_lib_mrow		; E3.cls 5646
+            ld (arr_e3_oc), hl		; E3.cls 5647
+            ld ix, arr_e3_cm + 6		; E3.cls 5648
+            call fn_e3_lib_mrow		; E3.cls 5649
+            ld (arr_e3_oc + 2), hl		; E3.cls 5650
+            ld ix, arr_e3_cm + 12		; E3.cls 5651
+            call fn_e3_lib_mrow		; E3.cls 5652
+            ld (arr_e3_oc + 4), hl		; E3.cls 5653
+            jp fn_e3_lib_ocull		; E3.cls 5654
 ; oprep8: od, oc (by the camera's 8 bit copy: to 1/128), ovis - for sorting and leaving out
-fn_e3_lib_oprep8:		; E3.cls 5655
-            call fn_e3_lib_orel		; E3.cls 5656
-            jr c, fn_e3_lib_op_out		; E3.cls 5657
-            ld hl, fn_e3_lib_cm8		; E3.cls 5658
-            ld de, arr_e3_oc		; E3.cls 5659
-            ld b, 3		; E3.cls 5660
-fn_e3_lib_o8_r:		; E3.cls 5661
-            push bc		; E3.cls 5662
-            push de		; E3.cls 5663
-            ld (fn_e3_lib_o8_m), hl		; E3.cls 5664
-            ld hl, 0		; E3.cls 5665
-            ld (fn_e3_lib_o8_s), hl		; E3.cls 5666
-            ld ix, arr_e3_od		; E3.cls 5667
-            ld b, 3		; E3.cls 5668
-fn_e3_lib_o8_t:		; E3.cls 5669
-            push bc		; E3.cls 5670
-            ld hl, (fn_e3_lib_o8_m)		; E3.cls 5671
-            ld a, (hl)		; E3.cls 5672
-            inc hl		; E3.cls 5673
-            ld (fn_e3_lib_o8_m), hl		; E3.cls 5674
-            ld e, (ix + 0)		; E3.cls 5675
-            ld d, (ix + 1)		; E3.cls 5676
-            call fn_e3_lib_mt		; E3.cls 5677
-            ld de, (fn_e3_lib_o8_s)		; E3.cls 5678
-            add hl, de		; E3.cls 5679
-            ld (fn_e3_lib_o8_s), hl		; E3.cls 5680
-            inc ix		; E3.cls 5681
+fn_e3_lib_oprep8:		; E3.cls 5656
+            call fn_e3_lib_orel		; E3.cls 5657
+            jr c, fn_e3_lib_op_out		; E3.cls 5658
+            ld hl, fn_e3_lib_cm8		; E3.cls 5659
+            ld de, arr_e3_oc		; E3.cls 5660
+            ld b, 3		; E3.cls 5661
+fn_e3_lib_o8_r:		; E3.cls 5662
+            push bc		; E3.cls 5663
+            push de		; E3.cls 5664
+            ld (fn_e3_lib_o8_m), hl		; E3.cls 5665
+            ld hl, 0		; E3.cls 5666
+            ld (fn_e3_lib_o8_s), hl		; E3.cls 5667
+            ld ix, arr_e3_od		; E3.cls 5668
+            ld b, 3		; E3.cls 5669
+fn_e3_lib_o8_t:		; E3.cls 5670
+            push bc		; E3.cls 5671
+            ld hl, (fn_e3_lib_o8_m)		; E3.cls 5672
+            ld a, (hl)		; E3.cls 5673
+            inc hl		; E3.cls 5674
+            ld (fn_e3_lib_o8_m), hl		; E3.cls 5675
+            ld e, (ix + 0)		; E3.cls 5676
+            ld d, (ix + 1)		; E3.cls 5677
+            call fn_e3_lib_mt		; E3.cls 5678
+            ld de, (fn_e3_lib_o8_s)		; E3.cls 5679
+            add hl, de		; E3.cls 5680
+            ld (fn_e3_lib_o8_s), hl		; E3.cls 5681
             inc ix		; E3.cls 5682
-            pop bc		; E3.cls 5683
-            djnz fn_e3_lib_o8_t		; E3.cls 5684
-            pop de		; E3.cls 5685
-            ld hl, (fn_e3_lib_o8_s)		; E3.cls 5686
-            ex de, hl		; E3.cls 5687
-            ld (hl), e		; E3.cls 5688
-            inc hl		; E3.cls 5689
-            ld (hl), d		; E3.cls 5690
-            inc hl		; E3.cls 5691
-            ex de, hl		; E3.cls 5692
-            ld hl, (fn_e3_lib_o8_m)		; E3.cls 5693
-            pop bc		; E3.cls 5694
-            djnz fn_e3_lib_o8_r		; E3.cls 5695
-            jp fn_e3_lib_ocull		; E3.cls 5696
-fn_e3_lib_o8_m:       dw 0		; E3.cls 5697
-fn_e3_lib_o8_s:       dw 0		; E3.cls 5698
+            inc ix		; E3.cls 5683
+            pop bc		; E3.cls 5684
+            djnz fn_e3_lib_o8_t		; E3.cls 5685
+            pop de		; E3.cls 5686
+            ld hl, (fn_e3_lib_o8_s)		; E3.cls 5687
+            ex de, hl		; E3.cls 5688
+            ld (hl), e		; E3.cls 5689
+            inc hl		; E3.cls 5690
+            ld (hl), d		; E3.cls 5691
+            inc hl		; E3.cls 5692
+            ex de, hl		; E3.cls 5693
+            ld hl, (fn_e3_lib_o8_m)		; E3.cls 5694
+            pop bc		; E3.cls 5695
+            djnz fn_e3_lib_o8_r		; E3.cls 5696
+            jp fn_e3_lib_ocull		; E3.cls 5697
+fn_e3_lib_o8_m:       dw 0		; E3.cls 5698
+fn_e3_lib_o8_s:       dw 0		; E3.cls 5699
 ; mt: DE (signed) x A (signed, 127 = 1) >> 7 -> HL
-fn_e3_lib_mt:		; E3.cls 5700
-            or a                    ; <--- NEW (a 0 either side: 0, quickly - a level camera and [5701]
-            jr z, fn_e3_lib_mt_z              ; <--- NEW  things turned about y only have many) [5702]
-            ld c, a		; E3.cls 5703
-            ld a, d                 ; <--- NEW [5704]
-            or e                    ; <--- NEW [5705]
-            jr z, fn_e3_lib_mt_z              ; <--- NEW [5706]
-            ld a, c                 ; <--- NEW [5707]
-            xor d		; E3.cls 5708
-            ld (fn_e3_lib_mt_sg), a		; E3.cls 5709
-            ld a, c		; E3.cls 5710
-            or a		; E3.cls 5711
-            jp p, fn_e3_lib_mt_1		; E3.cls 5712
-            neg		; E3.cls 5713
-            ld c, a		; E3.cls 5714
-fn_e3_lib_mt_1:		; E3.cls 5715
-            bit 7, d		; E3.cls 5716
-            jr z, fn_e3_lib_mt_2		; E3.cls 5717
-            xor a		; E3.cls 5718
-            sub e		; E3.cls 5719
-            ld e, a		; E3.cls 5720
-            sbc a, a		; E3.cls 5721
-            sub d		; E3.cls 5722
-            ld d, a		; E3.cls 5723
-fn_e3_lib_mt_2:		; E3.cls 5724
-            ld a, d                 ; hi [5725]
-            ld d, c		; E3.cls 5726
-            mul d, e                ; |a| lo [5727]
-            ex de, hl		; E3.cls 5728
-            add hl, hl              ; (carry, H) = |a| lo >> 7 [5729]
-            ld l, h		; E3.cls 5730
-            ld h, 0		; E3.cls 5731
-            rl h		; E3.cls 5732
-            ld e, a		; E3.cls 5733
-            ld d, c		; E3.cls 5734
-            mul d, e                ; |a| hi [5735]
-            ex de, hl		; E3.cls 5736
-            add hl, hl		; E3.cls 5737
-            add hl, de              ; 2 |a| hi + (|a| lo >> 7) [5738]
-            ld a, (fn_e3_lib_mt_sg)		; E3.cls 5739
-            or a		; E3.cls 5740
-            ret p		; E3.cls 5741
-            ex de, hl		; E3.cls 5742
-            ld hl, 0		; E3.cls 5743
-            or a		; E3.cls 5744
-            sbc hl, de		; E3.cls 5745
-            ret		; E3.cls 5746
-fn_e3_lib_mt_z:                               ; <--- NEW [5747]
-            ld h, a                 ; <--- NEW (A is 0 here) [5748]
-            ld l, a                 ; <--- NEW [5749]
-            ret                     ; <--- NEW [5750]
-fn_e3_lib_mt_sg:      db 0		; E3.cls 5751
+fn_e3_lib_mt:		; E3.cls 5701
+            or a                    ; <--- NEW (a 0 either side: 0, quickly - a level camera and [5702]
+            jr z, fn_e3_lib_mt_z              ; <--- NEW  things turned about y only have many) [5703]
+            ld c, a		; E3.cls 5704
+            ld a, d                 ; <--- NEW [5705]
+            or e                    ; <--- NEW [5706]
+            jr z, fn_e3_lib_mt_z              ; <--- NEW [5707]
+            ld a, c                 ; <--- NEW [5708]
+            xor d		; E3.cls 5709
+            ld (fn_e3_lib_mt_sg), a		; E3.cls 5710
+            ld a, c		; E3.cls 5711
+            or a		; E3.cls 5712
+            jp p, fn_e3_lib_mt_1		; E3.cls 5713
+            neg		; E3.cls 5714
+            ld c, a		; E3.cls 5715
+fn_e3_lib_mt_1:		; E3.cls 5716
+            bit 7, d		; E3.cls 5717
+            jr z, fn_e3_lib_mt_2		; E3.cls 5718
+            xor a		; E3.cls 5719
+            sub e		; E3.cls 5720
+            ld e, a		; E3.cls 5721
+            sbc a, a		; E3.cls 5722
+            sub d		; E3.cls 5723
+            ld d, a		; E3.cls 5724
+fn_e3_lib_mt_2:		; E3.cls 5725
+            ld a, d                 ; hi [5726]
+            ld d, c		; E3.cls 5727
+            mul d, e                ; |a| lo [5728]
+            ex de, hl		; E3.cls 5729
+            add hl, hl              ; (carry, H) = |a| lo >> 7 [5730]
+            ld l, h		; E3.cls 5731
+            ld h, 0		; E3.cls 5732
+            rl h		; E3.cls 5733
+            ld e, a		; E3.cls 5734
+            ld d, c		; E3.cls 5735
+            mul d, e                ; |a| hi [5736]
+            ex de, hl		; E3.cls 5737
+            add hl, hl		; E3.cls 5738
+            add hl, de              ; 2 |a| hi + (|a| lo >> 7) [5739]
+            ld a, (fn_e3_lib_mt_sg)		; E3.cls 5740
+            or a		; E3.cls 5741
+            ret p		; E3.cls 5742
+            ex de, hl		; E3.cls 5743
+            ld hl, 0		; E3.cls 5744
+            or a		; E3.cls 5745
+            sbc hl, de		; E3.cls 5746
+            ret		; E3.cls 5747
+fn_e3_lib_mt_z:                               ; <--- NEW [5748]
+            ld h, a                 ; <--- NEW (A is 0 here) [5749]
+            ld l, a                 ; <--- NEW [5750]
+            ret                     ; <--- NEW [5751]
+fn_e3_lib_mt_sg:      db 0		; E3.cls 5752
 ; odraw: the object drawn
-fn_e3_lib_odraw:		; E3.cls 5753
-            ld a, (fn_e3_lib_od_far)          ; (far: the cheap way - by the 8 bit camera) [5754]
-            or a		; E3.cls 5755
-            jr z, fn_e3_lib_od_ex		; E3.cls 5756
-            call fn_e3_lib_oprep8		; E3.cls 5757
-            jr fn_e3_lib_od_vis		; E3.cls 5758
-fn_e3_lib_od_ex:		; E3.cls 5759
-            call fn_e3_lib_oprep		; E3.cls 5760
-fn_e3_lib_od_vis:		; E3.cls 5761
-            ld a, (var_e3_ovis)		; E3.cls 5762
-            or a		; E3.cls 5763
-            ret z		; E3.cls 5764
-            xor a		; E3.cls 5765
-            ld (fn_e3_lib_oe_ok), a		; E3.cls 5766
+fn_e3_lib_odraw:		; E3.cls 5754
+            ld a, (fn_e3_lib_od_far)          ; (far: the cheap way - by the 8 bit camera) [5755]
+            or a		; E3.cls 5756
+            jr z, fn_e3_lib_od_ex		; E3.cls 5757
+            call fn_e3_lib_oprep8		; E3.cls 5758
+            jr fn_e3_lib_od_vis		; E3.cls 5759
+fn_e3_lib_od_ex:		; E3.cls 5760
+            call fn_e3_lib_oprep		; E3.cls 5761
+fn_e3_lib_od_vis:		; E3.cls 5762
+            ld a, (var_e3_ovis)		; E3.cls 5763
+            or a		; E3.cls 5764
+            ret z		; E3.cls 5765
+            xor a		; E3.cls 5766
+            ld (fn_e3_lib_oe_ok), a		; E3.cls 5767
             ; O = Ry(oa) Rx(ob): C = M O by columns: Cc0 = ca Mc0 - sa Mc2, P = sa Mc0 + ca Mc2,
             ; Cc1 = sb P + cb Mc1, Cc2 = cb P - sb Mc1 (Mc j: the camera's column j)
-            ld a, (var_e3_oa)		; E3.cls 5769
-            call fn_e3_lib_trig		; E3.cls 5770
-            ld (fn_e3_lib_od_sa), a		; E3.cls 5771
-            ld a, c		; E3.cls 5772
-            ld (fn_e3_lib_od_ca), a		; E3.cls 5773
-            ld a, (var_e3_ob)		; E3.cls 5774
-            call fn_e3_lib_trig		; E3.cls 5775
-            ld (fn_e3_lib_od_sb), a		; E3.cls 5776
-            ld a, c		; E3.cls 5777
-            ld (fn_e3_lib_od_cb), a		; E3.cls 5778
-            ld hl, (var_e3_omod)         ; <--- NEW: a compound model with two views (#FF, 2, their [5779]
-            ld a, (hl)              ; <--- NEW  offsets): the one for the side the camera's on [5780]
-            inc a                   ; <--- NEW [5781]
-            call z, fn_e3_lib_od_cmp          ; <--- NEW [5782]
-            ld a, 6		; E3.cls 5783
-            ld hl, var_e3_osc		; E3.cls 5784
-            sub (hl)		; E3.cls 5785
-            ld (fn_e3_lib_od_shf), a		; E3.cls 5786
-            ld a, (fn_e3_lib_od_far)		; E3.cls 5787
-            or a		; E3.cls 5788
-            jp nz, fn_e3_lib_od_c8		; E3.cls 5789
-            ld a, (fn_e3_lib_od_shf)          ; the camera >> (6 - osc) [5790]
-            ld l, a		; E3.cls 5791
-            add a, a		; E3.cls 5792
+            ld a, (var_e3_oa)		; E3.cls 5770
+            call fn_e3_lib_trig		; E3.cls 5771
+            ld (fn_e3_lib_od_sa), a		; E3.cls 5772
+            ld a, c		; E3.cls 5773
+            ld (fn_e3_lib_od_ca), a		; E3.cls 5774
+            ld a, (var_e3_ob)		; E3.cls 5775
+            call fn_e3_lib_trig		; E3.cls 5776
+            ld (fn_e3_lib_od_sb), a		; E3.cls 5777
+            ld a, c		; E3.cls 5778
+            ld (fn_e3_lib_od_cb), a		; E3.cls 5779
+            ld hl, (var_e3_omod)         ; <--- NEW: a compound model with two views (#FF, 2, their [5780]
+            ld a, (hl)              ; <--- NEW  offsets): the one for the side the camera's on [5781]
+            inc a                   ; <--- NEW [5782]
+            call z, fn_e3_lib_od_cmp          ; <--- NEW [5783]
+            ld a, 6		; E3.cls 5784
+            ld hl, var_e3_osc		; E3.cls 5785
+            sub (hl)		; E3.cls 5786
+            ld (fn_e3_lib_od_shf), a		; E3.cls 5787
+            ld a, (fn_e3_lib_od_far)		; E3.cls 5788
+            or a		; E3.cls 5789
+            jp nz, fn_e3_lib_od_c8		; E3.cls 5790
+            ld a, (fn_e3_lib_od_shf)          ; the camera >> (6 - osc) [5791]
+            ld l, a		; E3.cls 5792
             add a, a		; E3.cls 5793
             add a, a		; E3.cls 5794
-            add a, l		; E3.cls 5795
-            add a, a                ; * 18 [5796]
-            ld e, a		; E3.cls 5797
-            ld d, 0		; E3.cls 5798
-            ld ix, fn_e3_lib_cms		; E3.cls 5799
-            add ix, de		; E3.cls 5800
-            ld iy, arr_e3_ccl		; E3.cls 5801
-            ld b, 3		; E3.cls 5802
-fn_e3_lib_oc_lp:		; E3.cls 5803
-            push bc		; E3.cls 5804
-            ld e, (ix + 0)          ; Cc0 = ca Mc0 - sa Mc2 [5805]
-            ld d, (ix + 1)		; E3.cls 5806
-            ld a, (fn_e3_lib_od_ca)		; E3.cls 5807
-            call fn_e3_lib_mt		; E3.cls 5808
-            ld (fn_e3_lib_od_t), hl		; E3.cls 5809
-            ld e, (ix + 4)		; E3.cls 5810
-            ld d, (ix + 5)		; E3.cls 5811
-            ld a, (fn_e3_lib_od_sa)		; E3.cls 5812
-            call fn_e3_lib_mt		; E3.cls 5813
-            ex de, hl		; E3.cls 5814
-            ld hl, (fn_e3_lib_od_t)		; E3.cls 5815
-            or a		; E3.cls 5816
-            sbc hl, de		; E3.cls 5817
-            ld (iy + 0), l		; E3.cls 5818
-            ld (iy + 1), h		; E3.cls 5819
-            ld e, (ix + 0)          ; P = sa Mc0 + ca Mc2 [5820]
-            ld d, (ix + 1)		; E3.cls 5821
-            ld a, (fn_e3_lib_od_sa)		; E3.cls 5822
-            call fn_e3_lib_mt		; E3.cls 5823
-            ld (fn_e3_lib_od_t), hl		; E3.cls 5824
-            ld e, (ix + 4)		; E3.cls 5825
-            ld d, (ix + 5)		; E3.cls 5826
-            ld a, (fn_e3_lib_od_ca)		; E3.cls 5827
-            call fn_e3_lib_mt		; E3.cls 5828
-            ld de, (fn_e3_lib_od_t)		; E3.cls 5829
-            add hl, de		; E3.cls 5830
-            ld (fn_e3_lib_od_p), hl		; E3.cls 5831
-            ex de, hl               ; Cc1 = sb P + cb Mc1 [5832]
-            ld a, (fn_e3_lib_od_sb)		; E3.cls 5833
-            call fn_e3_lib_mt		; E3.cls 5834
-            ld (fn_e3_lib_od_t), hl		; E3.cls 5835
-            ld e, (ix + 2)		; E3.cls 5836
-            ld d, (ix + 3)		; E3.cls 5837
-            ld a, (fn_e3_lib_od_cb)		; E3.cls 5838
-            call fn_e3_lib_mt		; E3.cls 5839
-            ld de, (fn_e3_lib_od_t)		; E3.cls 5840
-            add hl, de		; E3.cls 5841
-            ld (iy + 6), l		; E3.cls 5842
-            ld (iy + 7), h		; E3.cls 5843
-            ld de, (fn_e3_lib_od_p)           ; Cc2 = cb P - sb Mc1 [5844]
-            ld a, (fn_e3_lib_od_cb)		; E3.cls 5845
-            call fn_e3_lib_mt		; E3.cls 5846
-            ld (fn_e3_lib_od_t), hl		; E3.cls 5847
-            ld e, (ix + 2)		; E3.cls 5848
-            ld d, (ix + 3)		; E3.cls 5849
-            ld a, (fn_e3_lib_od_sb)		; E3.cls 5850
-            call fn_e3_lib_mt		; E3.cls 5851
-            ex de, hl		; E3.cls 5852
-            ld hl, (fn_e3_lib_od_t)		; E3.cls 5853
-            or a		; E3.cls 5854
-            sbc hl, de		; E3.cls 5855
-            ld (iy + 12), l		; E3.cls 5856
-            ld (iy + 13), h		; E3.cls 5857
-            ld de, 6		; E3.cls 5858
-            add ix, de		; E3.cls 5859
-            inc iy		; E3.cls 5860
+            add a, a		; E3.cls 5795
+            add a, l		; E3.cls 5796
+            add a, a                ; * 18 [5797]
+            ld e, a		; E3.cls 5798
+            ld d, 0		; E3.cls 5799
+            ld ix, fn_e3_lib_cms		; E3.cls 5800
+            add ix, de		; E3.cls 5801
+            ld iy, arr_e3_ccl		; E3.cls 5802
+            ld b, 3		; E3.cls 5803
+fn_e3_lib_oc_lp:		; E3.cls 5804
+            push bc		; E3.cls 5805
+            ld e, (ix + 0)          ; Cc0 = ca Mc0 - sa Mc2 [5806]
+            ld d, (ix + 1)		; E3.cls 5807
+            ld a, (fn_e3_lib_od_ca)		; E3.cls 5808
+            call fn_e3_lib_mt		; E3.cls 5809
+            ld (fn_e3_lib_od_t), hl		; E3.cls 5810
+            ld e, (ix + 4)		; E3.cls 5811
+            ld d, (ix + 5)		; E3.cls 5812
+            ld a, (fn_e3_lib_od_sa)		; E3.cls 5813
+            call fn_e3_lib_mt		; E3.cls 5814
+            ex de, hl		; E3.cls 5815
+            ld hl, (fn_e3_lib_od_t)		; E3.cls 5816
+            or a		; E3.cls 5817
+            sbc hl, de		; E3.cls 5818
+            ld (iy + 0), l		; E3.cls 5819
+            ld (iy + 1), h		; E3.cls 5820
+            ld e, (ix + 0)          ; P = sa Mc0 + ca Mc2 [5821]
+            ld d, (ix + 1)		; E3.cls 5822
+            ld a, (fn_e3_lib_od_sa)		; E3.cls 5823
+            call fn_e3_lib_mt		; E3.cls 5824
+            ld (fn_e3_lib_od_t), hl		; E3.cls 5825
+            ld e, (ix + 4)		; E3.cls 5826
+            ld d, (ix + 5)		; E3.cls 5827
+            ld a, (fn_e3_lib_od_ca)		; E3.cls 5828
+            call fn_e3_lib_mt		; E3.cls 5829
+            ld de, (fn_e3_lib_od_t)		; E3.cls 5830
+            add hl, de		; E3.cls 5831
+            ld (fn_e3_lib_od_p), hl		; E3.cls 5832
+            ex de, hl               ; Cc1 = sb P + cb Mc1 [5833]
+            ld a, (fn_e3_lib_od_sb)		; E3.cls 5834
+            call fn_e3_lib_mt		; E3.cls 5835
+            ld (fn_e3_lib_od_t), hl		; E3.cls 5836
+            ld e, (ix + 2)		; E3.cls 5837
+            ld d, (ix + 3)		; E3.cls 5838
+            ld a, (fn_e3_lib_od_cb)		; E3.cls 5839
+            call fn_e3_lib_mt		; E3.cls 5840
+            ld de, (fn_e3_lib_od_t)		; E3.cls 5841
+            add hl, de		; E3.cls 5842
+            ld (iy + 6), l		; E3.cls 5843
+            ld (iy + 7), h		; E3.cls 5844
+            ld de, (fn_e3_lib_od_p)           ; Cc2 = cb P - sb Mc1 [5845]
+            ld a, (fn_e3_lib_od_cb)		; E3.cls 5846
+            call fn_e3_lib_mt		; E3.cls 5847
+            ld (fn_e3_lib_od_t), hl		; E3.cls 5848
+            ld e, (ix + 2)		; E3.cls 5849
+            ld d, (ix + 3)		; E3.cls 5850
+            ld a, (fn_e3_lib_od_sb)		; E3.cls 5851
+            call fn_e3_lib_mt		; E3.cls 5852
+            ex de, hl		; E3.cls 5853
+            ld hl, (fn_e3_lib_od_t)		; E3.cls 5854
+            or a		; E3.cls 5855
+            sbc hl, de		; E3.cls 5856
+            ld (iy + 12), l		; E3.cls 5857
+            ld (iy + 13), h		; E3.cls 5858
+            ld de, 6		; E3.cls 5859
+            add ix, de		; E3.cls 5860
             inc iy		; E3.cls 5861
-            pop bc		; E3.cls 5862
-            dec b		; E3.cls 5863
-            jp nz, fn_e3_lib_oc_lp		; E3.cls 5864
-fn_e3_lib_od_osn:		; E3.cls 5865
+            inc iy		; E3.cls 5862
+            pop bc		; E3.cls 5863
+            dec b		; E3.cls 5864
+            jp nz, fn_e3_lib_oc_lp		; E3.cls 5865
+fn_e3_lib_od_osn:		; E3.cls 5866
             ; the sun in the model (8 bit): osn8 = O^T sunw8 = Rx^T (Ry^T sunw8)
-            ld a, (fn_e3_lib_sunw8)           ; Ry^T: x1 = ca sx - sa sz, z1 = sa sx + ca sz [5867]
-            ld d, a		; E3.cls 5868
-            ld a, (fn_e3_lib_od_ca)		; E3.cls 5869
-            ld e, a		; E3.cls 5870
-            call fn_e3_lib_mul8s		; E3.cls 5871
-            push de		; E3.cls 5872
-            ld a, (fn_e3_lib_sunw8 + 2)		; E3.cls 5873
-            ld d, a		; E3.cls 5874
-            ld a, (fn_e3_lib_od_sa)		; E3.cls 5875
-            ld e, a		; E3.cls 5876
-            call fn_e3_lib_mul8s		; E3.cls 5877
-            pop hl		; E3.cls 5878
-            or a		; E3.cls 5879
-            sbc hl, de		; E3.cls 5880
-            add hl, hl		; E3.cls 5881
-            ld a, h		; E3.cls 5882
-            ld (fn_e3_lib_osn8), a            ; x [5883]
-            ld a, (fn_e3_lib_sunw8)		; E3.cls 5884
-            ld d, a		; E3.cls 5885
-            ld a, (fn_e3_lib_od_sa)		; E3.cls 5886
-            ld e, a		; E3.cls 5887
-            call fn_e3_lib_mul8s		; E3.cls 5888
-            push de		; E3.cls 5889
-            ld a, (fn_e3_lib_sunw8 + 2)		; E3.cls 5890
-            ld d, a		; E3.cls 5891
-            ld a, (fn_e3_lib_od_ca)		; E3.cls 5892
-            ld e, a		; E3.cls 5893
-            call fn_e3_lib_mul8s		; E3.cls 5894
-            pop hl		; E3.cls 5895
-            add hl, de		; E3.cls 5896
-            add hl, hl		; E3.cls 5897
-            ld a, h		; E3.cls 5898
-            ld (fn_e3_lib_od_z1), a           ; z1 [5899]
-            ld a, (fn_e3_lib_sunw8 + 1)       ; Rx^T: y = cb sy + sb z1, z = cb z1 - sb sy [5900]
-            ld d, a		; E3.cls 5901
-            ld a, (fn_e3_lib_od_cb)		; E3.cls 5902
-            ld e, a		; E3.cls 5903
-            call fn_e3_lib_mul8s		; E3.cls 5904
-            push de		; E3.cls 5905
-            ld a, (fn_e3_lib_od_z1)		; E3.cls 5906
-            ld d, a		; E3.cls 5907
-            ld a, (fn_e3_lib_od_sb)		; E3.cls 5908
-            ld e, a		; E3.cls 5909
-            call fn_e3_lib_mul8s		; E3.cls 5910
-            pop hl		; E3.cls 5911
-            add hl, de		; E3.cls 5912
-            add hl, hl		; E3.cls 5913
-            ld a, h		; E3.cls 5914
-            ld (fn_e3_lib_osn8 + 1), a		; E3.cls 5915
-            ld a, (fn_e3_lib_od_z1)		; E3.cls 5916
-            ld d, a		; E3.cls 5917
-            ld a, (fn_e3_lib_od_cb)		; E3.cls 5918
-            ld e, a		; E3.cls 5919
-            call fn_e3_lib_mul8s		; E3.cls 5920
-            push de		; E3.cls 5921
-            ld a, (fn_e3_lib_sunw8 + 1)		; E3.cls 5922
-            ld d, a		; E3.cls 5923
-            ld a, (fn_e3_lib_od_sb)		; E3.cls 5924
-            ld e, a		; E3.cls 5925
-            call fn_e3_lib_mul8s		; E3.cls 5926
-            pop hl		; E3.cls 5927
-            or a		; E3.cls 5928
-            sbc hl, de		; E3.cls 5929
-            add hl, hl		; E3.cls 5930
-            ld a, h		; E3.cls 5931
-            ld (fn_e3_lib_osn8 + 2), a		; E3.cls 5932
+            ld a, (fn_e3_lib_sunw8)           ; Ry^T: x1 = ca sx - sa sz, z1 = sa sx + ca sz [5868]
+            ld d, a		; E3.cls 5869
+            ld a, (fn_e3_lib_od_ca)		; E3.cls 5870
+            ld e, a		; E3.cls 5871
+            call fn_e3_lib_mul8s		; E3.cls 5872
+            push de		; E3.cls 5873
+            ld a, (fn_e3_lib_sunw8 + 2)		; E3.cls 5874
+            ld d, a		; E3.cls 5875
+            ld a, (fn_e3_lib_od_sa)		; E3.cls 5876
+            ld e, a		; E3.cls 5877
+            call fn_e3_lib_mul8s		; E3.cls 5878
+            pop hl		; E3.cls 5879
+            or a		; E3.cls 5880
+            sbc hl, de		; E3.cls 5881
+            add hl, hl		; E3.cls 5882
+            ld a, h		; E3.cls 5883
+            ld (fn_e3_lib_osn8), a            ; x [5884]
+            ld a, (fn_e3_lib_sunw8)		; E3.cls 5885
+            ld d, a		; E3.cls 5886
+            ld a, (fn_e3_lib_od_sa)		; E3.cls 5887
+            ld e, a		; E3.cls 5888
+            call fn_e3_lib_mul8s		; E3.cls 5889
+            push de		; E3.cls 5890
+            ld a, (fn_e3_lib_sunw8 + 2)		; E3.cls 5891
+            ld d, a		; E3.cls 5892
+            ld a, (fn_e3_lib_od_ca)		; E3.cls 5893
+            ld e, a		; E3.cls 5894
+            call fn_e3_lib_mul8s		; E3.cls 5895
+            pop hl		; E3.cls 5896
+            add hl, de		; E3.cls 5897
+            add hl, hl		; E3.cls 5898
+            ld a, h		; E3.cls 5899
+            ld (fn_e3_lib_od_z1), a           ; z1 [5900]
+            ld a, (fn_e3_lib_sunw8 + 1)       ; Rx^T: y = cb sy + sb z1, z = cb z1 - sb sy [5901]
+            ld d, a		; E3.cls 5902
+            ld a, (fn_e3_lib_od_cb)		; E3.cls 5903
+            ld e, a		; E3.cls 5904
+            call fn_e3_lib_mul8s		; E3.cls 5905
+            push de		; E3.cls 5906
+            ld a, (fn_e3_lib_od_z1)		; E3.cls 5907
+            ld d, a		; E3.cls 5908
+            ld a, (fn_e3_lib_od_sb)		; E3.cls 5909
+            ld e, a		; E3.cls 5910
+            call fn_e3_lib_mul8s		; E3.cls 5911
+            pop hl		; E3.cls 5912
+            add hl, de		; E3.cls 5913
+            add hl, hl		; E3.cls 5914
+            ld a, h		; E3.cls 5915
+            ld (fn_e3_lib_osn8 + 1), a		; E3.cls 5916
+            ld a, (fn_e3_lib_od_z1)		; E3.cls 5917
+            ld d, a		; E3.cls 5918
+            ld a, (fn_e3_lib_od_cb)		; E3.cls 5919
+            ld e, a		; E3.cls 5920
+            call fn_e3_lib_mul8s		; E3.cls 5921
+            push de		; E3.cls 5922
+            ld a, (fn_e3_lib_sunw8 + 1)		; E3.cls 5923
+            ld d, a		; E3.cls 5924
+            ld a, (fn_e3_lib_od_sb)		; E3.cls 5925
+            ld e, a		; E3.cls 5926
+            call fn_e3_lib_mul8s		; E3.cls 5927
+            pop hl		; E3.cls 5928
+            or a		; E3.cls 5929
+            sbc hl, de		; E3.cls 5930
+            add hl, hl		; E3.cls 5931
+            ld a, h		; E3.cls 5932
+            ld (fn_e3_lib_osn8 + 2), a		; E3.cls 5933
             ; C' (C by the camera scaled to the object's size) into the transform: |C'| and its sign
             ; into each term (;@@SPLIT, tools/gen_xform.py)
-            ld hl, (arr_e3_ccl + 0)		; E3.cls 5935
-            bit 7, h		; E3.cls 5936
-            jr z, fn_e3_lib_xs00p		; E3.cls 5937
-            ex de, hl		; E3.cls 5938
-            ld hl, 0		; E3.cls 5939
-            or a		; E3.cls 5940
-            sbc hl, de		; E3.cls 5941
-            ld a, h		; E3.cls 5942
-            ld (fn_e3_lib_xt00h + 1), a		; E3.cls 5943
-            ld a, l		; E3.cls 5944
-            ld (fn_e3_lib_xt00l + 1), a		; E3.cls 5945
-            ld a, #B7		; E3.cls 5946
-            ld (fn_e3_lib_xt00a), a		; E3.cls 5947
-            ld (fn_e3_lib_xt00b), a		; E3.cls 5948
-            ld hl, #52ED		; E3.cls 5949
-            ld (fn_e3_lib_xt00a + 1), hl		; E3.cls 5950
-            ld (fn_e3_lib_xt00b + 1), hl		; E3.cls 5951
-            jr fn_e3_lib_xs00e		; E3.cls 5952
-fn_e3_lib_xs00p:		; E3.cls 5953
-            ld a, h		; E3.cls 5954
-            ld (fn_e3_lib_xt00h + 1), a		; E3.cls 5955
-            ld a, l		; E3.cls 5956
-            ld (fn_e3_lib_xt00l + 1), a		; E3.cls 5957
-            xor a		; E3.cls 5958
-            ld (fn_e3_lib_xt00a), a		; E3.cls 5959
-            ld (fn_e3_lib_xt00b), a		; E3.cls 5960
-            ld hl, #1900		; E3.cls 5961
-            ld (fn_e3_lib_xt00a + 1), hl		; E3.cls 5962
-            ld (fn_e3_lib_xt00b + 1), hl		; E3.cls 5963
-fn_e3_lib_xs00e:		; E3.cls 5964
-            ld hl, (arr_e3_ccl + 6)		; E3.cls 5965
-            bit 7, h		; E3.cls 5966
-            jr z, fn_e3_lib_xs01p		; E3.cls 5967
-            ex de, hl		; E3.cls 5968
-            ld hl, 0		; E3.cls 5969
-            or a		; E3.cls 5970
-            sbc hl, de		; E3.cls 5971
-            ld a, h		; E3.cls 5972
-            ld (fn_e3_lib_xt01h + 1), a		; E3.cls 5973
-            ld a, l		; E3.cls 5974
-            ld (fn_e3_lib_xt01l + 1), a		; E3.cls 5975
-            ld a, #B7		; E3.cls 5976
-            ld (fn_e3_lib_xt01a), a		; E3.cls 5977
-            ld (fn_e3_lib_xt01b), a		; E3.cls 5978
-            ld hl, #52ED		; E3.cls 5979
-            ld (fn_e3_lib_xt01a + 1), hl		; E3.cls 5980
-            ld (fn_e3_lib_xt01b + 1), hl		; E3.cls 5981
-            jr fn_e3_lib_xs01e		; E3.cls 5982
-fn_e3_lib_xs01p:		; E3.cls 5983
-            ld a, h		; E3.cls 5984
-            ld (fn_e3_lib_xt01h + 1), a		; E3.cls 5985
-            ld a, l		; E3.cls 5986
-            ld (fn_e3_lib_xt01l + 1), a		; E3.cls 5987
-            xor a		; E3.cls 5988
-            ld (fn_e3_lib_xt01a), a		; E3.cls 5989
-            ld (fn_e3_lib_xt01b), a		; E3.cls 5990
-            ld hl, #1900		; E3.cls 5991
-            ld (fn_e3_lib_xt01a + 1), hl		; E3.cls 5992
-            ld (fn_e3_lib_xt01b + 1), hl		; E3.cls 5993
-fn_e3_lib_xs01e:		; E3.cls 5994
-            ld hl, (arr_e3_ccl + 12)		; E3.cls 5995
-            bit 7, h		; E3.cls 5996
-            jr z, fn_e3_lib_xs02p		; E3.cls 5997
-            ex de, hl		; E3.cls 5998
-            ld hl, 0		; E3.cls 5999
-            or a		; E3.cls 6000
-            sbc hl, de		; E3.cls 6001
-            ld a, h		; E3.cls 6002
-            ld (fn_e3_lib_xt02h + 1), a		; E3.cls 6003
-            ld a, l		; E3.cls 6004
-            ld (fn_e3_lib_xt02l + 1), a		; E3.cls 6005
-            ld a, #B7		; E3.cls 6006
-            ld (fn_e3_lib_xt02a), a		; E3.cls 6007
-            ld (fn_e3_lib_xt02b), a		; E3.cls 6008
-            ld hl, #52ED		; E3.cls 6009
-            ld (fn_e3_lib_xt02a + 1), hl		; E3.cls 6010
-            ld (fn_e3_lib_xt02b + 1), hl		; E3.cls 6011
-            jr fn_e3_lib_xs02e		; E3.cls 6012
-fn_e3_lib_xs02p:		; E3.cls 6013
-            ld a, h		; E3.cls 6014
-            ld (fn_e3_lib_xt02h + 1), a		; E3.cls 6015
-            ld a, l		; E3.cls 6016
-            ld (fn_e3_lib_xt02l + 1), a		; E3.cls 6017
-            xor a		; E3.cls 6018
-            ld (fn_e3_lib_xt02a), a		; E3.cls 6019
-            ld (fn_e3_lib_xt02b), a		; E3.cls 6020
-            ld hl, #1900		; E3.cls 6021
-            ld (fn_e3_lib_xt02a + 1), hl		; E3.cls 6022
-            ld (fn_e3_lib_xt02b + 1), hl		; E3.cls 6023
-fn_e3_lib_xs02e:		; E3.cls 6024
-            ld hl, (arr_e3_ccl + 2)		; E3.cls 6025
-            bit 7, h		; E3.cls 6026
-            jr z, fn_e3_lib_xs10p		; E3.cls 6027
-            ex de, hl		; E3.cls 6028
-            ld hl, 0		; E3.cls 6029
-            or a		; E3.cls 6030
-            sbc hl, de		; E3.cls 6031
-            ld a, h		; E3.cls 6032
-            ld (fn_e3_lib_xt10h + 1), a		; E3.cls 6033
-            ld a, l		; E3.cls 6034
-            ld (fn_e3_lib_xt10l + 1), a		; E3.cls 6035
-            ld a, #B7		; E3.cls 6036
-            ld (fn_e3_lib_xt10a), a		; E3.cls 6037
-            ld (fn_e3_lib_xt10b), a		; E3.cls 6038
-            ld hl, #52ED		; E3.cls 6039
-            ld (fn_e3_lib_xt10a + 1), hl		; E3.cls 6040
-            ld (fn_e3_lib_xt10b + 1), hl		; E3.cls 6041
-            jr fn_e3_lib_xs10e		; E3.cls 6042
-fn_e3_lib_xs10p:		; E3.cls 6043
-            ld a, h		; E3.cls 6044
-            ld (fn_e3_lib_xt10h + 1), a		; E3.cls 6045
-            ld a, l		; E3.cls 6046
-            ld (fn_e3_lib_xt10l + 1), a		; E3.cls 6047
-            xor a		; E3.cls 6048
-            ld (fn_e3_lib_xt10a), a		; E3.cls 6049
-            ld (fn_e3_lib_xt10b), a		; E3.cls 6050
-            ld hl, #1900		; E3.cls 6051
-            ld (fn_e3_lib_xt10a + 1), hl		; E3.cls 6052
-            ld (fn_e3_lib_xt10b + 1), hl		; E3.cls 6053
-fn_e3_lib_xs10e:		; E3.cls 6054
-            ld hl, (arr_e3_ccl + 8)		; E3.cls 6055
-            bit 7, h		; E3.cls 6056
-            jr z, fn_e3_lib_xs11p		; E3.cls 6057
-            ex de, hl		; E3.cls 6058
-            ld hl, 0		; E3.cls 6059
-            or a		; E3.cls 6060
-            sbc hl, de		; E3.cls 6061
-            ld a, h		; E3.cls 6062
-            ld (fn_e3_lib_xt11h + 1), a		; E3.cls 6063
-            ld a, l		; E3.cls 6064
-            ld (fn_e3_lib_xt11l + 1), a		; E3.cls 6065
-            ld a, #B7		; E3.cls 6066
-            ld (fn_e3_lib_xt11a), a		; E3.cls 6067
-            ld (fn_e3_lib_xt11b), a		; E3.cls 6068
-            ld hl, #52ED		; E3.cls 6069
-            ld (fn_e3_lib_xt11a + 1), hl		; E3.cls 6070
-            ld (fn_e3_lib_xt11b + 1), hl		; E3.cls 6071
-            jr fn_e3_lib_xs11e		; E3.cls 6072
-fn_e3_lib_xs11p:		; E3.cls 6073
-            ld a, h		; E3.cls 6074
-            ld (fn_e3_lib_xt11h + 1), a		; E3.cls 6075
-            ld a, l		; E3.cls 6076
-            ld (fn_e3_lib_xt11l + 1), a		; E3.cls 6077
-            xor a		; E3.cls 6078
-            ld (fn_e3_lib_xt11a), a		; E3.cls 6079
-            ld (fn_e3_lib_xt11b), a		; E3.cls 6080
-            ld hl, #1900		; E3.cls 6081
-            ld (fn_e3_lib_xt11a + 1), hl		; E3.cls 6082
-            ld (fn_e3_lib_xt11b + 1), hl		; E3.cls 6083
-fn_e3_lib_xs11e:		; E3.cls 6084
-            ld hl, (arr_e3_ccl + 14)		; E3.cls 6085
-            bit 7, h		; E3.cls 6086
-            jr z, fn_e3_lib_xs12p		; E3.cls 6087
-            ex de, hl		; E3.cls 6088
-            ld hl, 0		; E3.cls 6089
-            or a		; E3.cls 6090
-            sbc hl, de		; E3.cls 6091
-            ld a, h		; E3.cls 6092
-            ld (fn_e3_lib_xt12h + 1), a		; E3.cls 6093
-            ld a, l		; E3.cls 6094
-            ld (fn_e3_lib_xt12l + 1), a		; E3.cls 6095
-            ld a, #B7		; E3.cls 6096
-            ld (fn_e3_lib_xt12a), a		; E3.cls 6097
-            ld (fn_e3_lib_xt12b), a		; E3.cls 6098
-            ld hl, #52ED		; E3.cls 6099
-            ld (fn_e3_lib_xt12a + 1), hl		; E3.cls 6100
-            ld (fn_e3_lib_xt12b + 1), hl		; E3.cls 6101
-            jr fn_e3_lib_xs12e		; E3.cls 6102
-fn_e3_lib_xs12p:		; E3.cls 6103
-            ld a, h		; E3.cls 6104
-            ld (fn_e3_lib_xt12h + 1), a		; E3.cls 6105
-            ld a, l		; E3.cls 6106
-            ld (fn_e3_lib_xt12l + 1), a		; E3.cls 6107
-            xor a		; E3.cls 6108
-            ld (fn_e3_lib_xt12a), a		; E3.cls 6109
-            ld (fn_e3_lib_xt12b), a		; E3.cls 6110
-            ld hl, #1900		; E3.cls 6111
-            ld (fn_e3_lib_xt12a + 1), hl		; E3.cls 6112
-            ld (fn_e3_lib_xt12b + 1), hl		; E3.cls 6113
-fn_e3_lib_xs12e:		; E3.cls 6114
-            ld hl, (arr_e3_ccl + 4)		; E3.cls 6115
-            bit 7, h		; E3.cls 6116
-            jr z, fn_e3_lib_xs20p		; E3.cls 6117
-            ex de, hl		; E3.cls 6118
-            ld hl, 0		; E3.cls 6119
-            or a		; E3.cls 6120
-            sbc hl, de		; E3.cls 6121
-            ld a, h		; E3.cls 6122
-            ld (fn_e3_lib_xt20h + 1), a		; E3.cls 6123
-            ld a, l		; E3.cls 6124
-            ld (fn_e3_lib_xt20l + 1), a		; E3.cls 6125
-            ld a, #B7		; E3.cls 6126
-            ld (fn_e3_lib_xt20a), a		; E3.cls 6127
-            ld (fn_e3_lib_xt20b), a		; E3.cls 6128
-            ld hl, #52ED		; E3.cls 6129
-            ld (fn_e3_lib_xt20a + 1), hl		; E3.cls 6130
-            ld (fn_e3_lib_xt20b + 1), hl		; E3.cls 6131
-            jr fn_e3_lib_xs20e		; E3.cls 6132
-fn_e3_lib_xs20p:		; E3.cls 6133
-            ld a, h		; E3.cls 6134
-            ld (fn_e3_lib_xt20h + 1), a		; E3.cls 6135
-            ld a, l		; E3.cls 6136
-            ld (fn_e3_lib_xt20l + 1), a		; E3.cls 6137
-            xor a		; E3.cls 6138
-            ld (fn_e3_lib_xt20a), a		; E3.cls 6139
-            ld (fn_e3_lib_xt20b), a		; E3.cls 6140
-            ld hl, #1900		; E3.cls 6141
-            ld (fn_e3_lib_xt20a + 1), hl		; E3.cls 6142
-            ld (fn_e3_lib_xt20b + 1), hl		; E3.cls 6143
-fn_e3_lib_xs20e:		; E3.cls 6144
-            ld hl, (arr_e3_ccl + 10)		; E3.cls 6145
-            bit 7, h		; E3.cls 6146
-            jr z, fn_e3_lib_xs21p		; E3.cls 6147
-            ex de, hl		; E3.cls 6148
-            ld hl, 0		; E3.cls 6149
-            or a		; E3.cls 6150
-            sbc hl, de		; E3.cls 6151
-            ld a, h		; E3.cls 6152
-            ld (fn_e3_lib_xt21h + 1), a		; E3.cls 6153
-            ld a, l		; E3.cls 6154
-            ld (fn_e3_lib_xt21l + 1), a		; E3.cls 6155
-            ld a, #B7		; E3.cls 6156
-            ld (fn_e3_lib_xt21a), a		; E3.cls 6157
-            ld (fn_e3_lib_xt21b), a		; E3.cls 6158
-            ld hl, #52ED		; E3.cls 6159
-            ld (fn_e3_lib_xt21a + 1), hl		; E3.cls 6160
-            ld (fn_e3_lib_xt21b + 1), hl		; E3.cls 6161
-            jr fn_e3_lib_xs21e		; E3.cls 6162
-fn_e3_lib_xs21p:		; E3.cls 6163
-            ld a, h		; E3.cls 6164
-            ld (fn_e3_lib_xt21h + 1), a		; E3.cls 6165
-            ld a, l		; E3.cls 6166
-            ld (fn_e3_lib_xt21l + 1), a		; E3.cls 6167
-            xor a		; E3.cls 6168
-            ld (fn_e3_lib_xt21a), a		; E3.cls 6169
-            ld (fn_e3_lib_xt21b), a		; E3.cls 6170
-            ld hl, #1900		; E3.cls 6171
-            ld (fn_e3_lib_xt21a + 1), hl		; E3.cls 6172
-            ld (fn_e3_lib_xt21b + 1), hl		; E3.cls 6173
-fn_e3_lib_xs21e:		; E3.cls 6174
-            ld hl, (arr_e3_ccl + 16)		; E3.cls 6175
-            bit 7, h		; E3.cls 6176
-            jr z, fn_e3_lib_xs22p		; E3.cls 6177
-            ex de, hl		; E3.cls 6178
-            ld hl, 0		; E3.cls 6179
-            or a		; E3.cls 6180
-            sbc hl, de		; E3.cls 6181
-            ld a, h		; E3.cls 6182
-            ld (fn_e3_lib_xt22h + 1), a		; E3.cls 6183
-            ld a, l		; E3.cls 6184
-            ld (fn_e3_lib_xt22l + 1), a		; E3.cls 6185
-            ld a, #B7		; E3.cls 6186
-            ld (fn_e3_lib_xt22a), a		; E3.cls 6187
-            ld (fn_e3_lib_xt22b), a		; E3.cls 6188
-            ld hl, #52ED		; E3.cls 6189
-            ld (fn_e3_lib_xt22a + 1), hl		; E3.cls 6190
-            ld (fn_e3_lib_xt22b + 1), hl		; E3.cls 6191
-            jr fn_e3_lib_xs22e		; E3.cls 6192
-fn_e3_lib_xs22p:		; E3.cls 6193
-            ld a, h		; E3.cls 6194
-            ld (fn_e3_lib_xt22h + 1), a		; E3.cls 6195
-            ld a, l		; E3.cls 6196
-            ld (fn_e3_lib_xt22l + 1), a		; E3.cls 6197
-            xor a		; E3.cls 6198
-            ld (fn_e3_lib_xt22a), a		; E3.cls 6199
-            ld (fn_e3_lib_xt22b), a		; E3.cls 6200
-            ld hl, #1900		; E3.cls 6201
-            ld (fn_e3_lib_xt22a + 1), hl		; E3.cls 6202
-            ld (fn_e3_lib_xt22b + 1), hl		; E3.cls 6203
-fn_e3_lib_xs22e:		; E3.cls 6204
+            ld hl, (arr_e3_ccl + 0)		; E3.cls 5936
+            bit 7, h		; E3.cls 5937
+            jr z, fn_e3_lib_xs00p		; E3.cls 5938
+            ex de, hl		; E3.cls 5939
+            ld hl, 0		; E3.cls 5940
+            or a		; E3.cls 5941
+            sbc hl, de		; E3.cls 5942
+            ld a, h		; E3.cls 5943
+            ld (fn_e3_lib_xt00h + 1), a		; E3.cls 5944
+            ld a, l		; E3.cls 5945
+            ld (fn_e3_lib_xt00l + 1), a		; E3.cls 5946
+            ld a, #B7		; E3.cls 5947
+            ld (fn_e3_lib_xt00a), a		; E3.cls 5948
+            ld (fn_e3_lib_xt00b), a		; E3.cls 5949
+            ld hl, #52ED		; E3.cls 5950
+            ld (fn_e3_lib_xt00a + 1), hl		; E3.cls 5951
+            ld (fn_e3_lib_xt00b + 1), hl		; E3.cls 5952
+            jr fn_e3_lib_xs00e		; E3.cls 5953
+fn_e3_lib_xs00p:		; E3.cls 5954
+            ld a, h		; E3.cls 5955
+            ld (fn_e3_lib_xt00h + 1), a		; E3.cls 5956
+            ld a, l		; E3.cls 5957
+            ld (fn_e3_lib_xt00l + 1), a		; E3.cls 5958
+            xor a		; E3.cls 5959
+            ld (fn_e3_lib_xt00a), a		; E3.cls 5960
+            ld (fn_e3_lib_xt00b), a		; E3.cls 5961
+            ld hl, #1900		; E3.cls 5962
+            ld (fn_e3_lib_xt00a + 1), hl		; E3.cls 5963
+            ld (fn_e3_lib_xt00b + 1), hl		; E3.cls 5964
+fn_e3_lib_xs00e:		; E3.cls 5965
+            ld hl, (arr_e3_ccl + 6)		; E3.cls 5966
+            bit 7, h		; E3.cls 5967
+            jr z, fn_e3_lib_xs01p		; E3.cls 5968
+            ex de, hl		; E3.cls 5969
+            ld hl, 0		; E3.cls 5970
+            or a		; E3.cls 5971
+            sbc hl, de		; E3.cls 5972
+            ld a, h		; E3.cls 5973
+            ld (fn_e3_lib_xt01h + 1), a		; E3.cls 5974
+            ld a, l		; E3.cls 5975
+            ld (fn_e3_lib_xt01l + 1), a		; E3.cls 5976
+            ld a, #B7		; E3.cls 5977
+            ld (fn_e3_lib_xt01a), a		; E3.cls 5978
+            ld (fn_e3_lib_xt01b), a		; E3.cls 5979
+            ld hl, #52ED		; E3.cls 5980
+            ld (fn_e3_lib_xt01a + 1), hl		; E3.cls 5981
+            ld (fn_e3_lib_xt01b + 1), hl		; E3.cls 5982
+            jr fn_e3_lib_xs01e		; E3.cls 5983
+fn_e3_lib_xs01p:		; E3.cls 5984
+            ld a, h		; E3.cls 5985
+            ld (fn_e3_lib_xt01h + 1), a		; E3.cls 5986
+            ld a, l		; E3.cls 5987
+            ld (fn_e3_lib_xt01l + 1), a		; E3.cls 5988
+            xor a		; E3.cls 5989
+            ld (fn_e3_lib_xt01a), a		; E3.cls 5990
+            ld (fn_e3_lib_xt01b), a		; E3.cls 5991
+            ld hl, #1900		; E3.cls 5992
+            ld (fn_e3_lib_xt01a + 1), hl		; E3.cls 5993
+            ld (fn_e3_lib_xt01b + 1), hl		; E3.cls 5994
+fn_e3_lib_xs01e:		; E3.cls 5995
+            ld hl, (arr_e3_ccl + 12)		; E3.cls 5996
+            bit 7, h		; E3.cls 5997
+            jr z, fn_e3_lib_xs02p		; E3.cls 5998
+            ex de, hl		; E3.cls 5999
+            ld hl, 0		; E3.cls 6000
+            or a		; E3.cls 6001
+            sbc hl, de		; E3.cls 6002
+            ld a, h		; E3.cls 6003
+            ld (fn_e3_lib_xt02h + 1), a		; E3.cls 6004
+            ld a, l		; E3.cls 6005
+            ld (fn_e3_lib_xt02l + 1), a		; E3.cls 6006
+            ld a, #B7		; E3.cls 6007
+            ld (fn_e3_lib_xt02a), a		; E3.cls 6008
+            ld (fn_e3_lib_xt02b), a		; E3.cls 6009
+            ld hl, #52ED		; E3.cls 6010
+            ld (fn_e3_lib_xt02a + 1), hl		; E3.cls 6011
+            ld (fn_e3_lib_xt02b + 1), hl		; E3.cls 6012
+            jr fn_e3_lib_xs02e		; E3.cls 6013
+fn_e3_lib_xs02p:		; E3.cls 6014
+            ld a, h		; E3.cls 6015
+            ld (fn_e3_lib_xt02h + 1), a		; E3.cls 6016
+            ld a, l		; E3.cls 6017
+            ld (fn_e3_lib_xt02l + 1), a		; E3.cls 6018
+            xor a		; E3.cls 6019
+            ld (fn_e3_lib_xt02a), a		; E3.cls 6020
+            ld (fn_e3_lib_xt02b), a		; E3.cls 6021
+            ld hl, #1900		; E3.cls 6022
+            ld (fn_e3_lib_xt02a + 1), hl		; E3.cls 6023
+            ld (fn_e3_lib_xt02b + 1), hl		; E3.cls 6024
+fn_e3_lib_xs02e:		; E3.cls 6025
+            ld hl, (arr_e3_ccl + 2)		; E3.cls 6026
+            bit 7, h		; E3.cls 6027
+            jr z, fn_e3_lib_xs10p		; E3.cls 6028
+            ex de, hl		; E3.cls 6029
+            ld hl, 0		; E3.cls 6030
+            or a		; E3.cls 6031
+            sbc hl, de		; E3.cls 6032
+            ld a, h		; E3.cls 6033
+            ld (fn_e3_lib_xt10h + 1), a		; E3.cls 6034
+            ld a, l		; E3.cls 6035
+            ld (fn_e3_lib_xt10l + 1), a		; E3.cls 6036
+            ld a, #B7		; E3.cls 6037
+            ld (fn_e3_lib_xt10a), a		; E3.cls 6038
+            ld (fn_e3_lib_xt10b), a		; E3.cls 6039
+            ld hl, #52ED		; E3.cls 6040
+            ld (fn_e3_lib_xt10a + 1), hl		; E3.cls 6041
+            ld (fn_e3_lib_xt10b + 1), hl		; E3.cls 6042
+            jr fn_e3_lib_xs10e		; E3.cls 6043
+fn_e3_lib_xs10p:		; E3.cls 6044
+            ld a, h		; E3.cls 6045
+            ld (fn_e3_lib_xt10h + 1), a		; E3.cls 6046
+            ld a, l		; E3.cls 6047
+            ld (fn_e3_lib_xt10l + 1), a		; E3.cls 6048
+            xor a		; E3.cls 6049
+            ld (fn_e3_lib_xt10a), a		; E3.cls 6050
+            ld (fn_e3_lib_xt10b), a		; E3.cls 6051
+            ld hl, #1900		; E3.cls 6052
+            ld (fn_e3_lib_xt10a + 1), hl		; E3.cls 6053
+            ld (fn_e3_lib_xt10b + 1), hl		; E3.cls 6054
+fn_e3_lib_xs10e:		; E3.cls 6055
+            ld hl, (arr_e3_ccl + 8)		; E3.cls 6056
+            bit 7, h		; E3.cls 6057
+            jr z, fn_e3_lib_xs11p		; E3.cls 6058
+            ex de, hl		; E3.cls 6059
+            ld hl, 0		; E3.cls 6060
+            or a		; E3.cls 6061
+            sbc hl, de		; E3.cls 6062
+            ld a, h		; E3.cls 6063
+            ld (fn_e3_lib_xt11h + 1), a		; E3.cls 6064
+            ld a, l		; E3.cls 6065
+            ld (fn_e3_lib_xt11l + 1), a		; E3.cls 6066
+            ld a, #B7		; E3.cls 6067
+            ld (fn_e3_lib_xt11a), a		; E3.cls 6068
+            ld (fn_e3_lib_xt11b), a		; E3.cls 6069
+            ld hl, #52ED		; E3.cls 6070
+            ld (fn_e3_lib_xt11a + 1), hl		; E3.cls 6071
+            ld (fn_e3_lib_xt11b + 1), hl		; E3.cls 6072
+            jr fn_e3_lib_xs11e		; E3.cls 6073
+fn_e3_lib_xs11p:		; E3.cls 6074
+            ld a, h		; E3.cls 6075
+            ld (fn_e3_lib_xt11h + 1), a		; E3.cls 6076
+            ld a, l		; E3.cls 6077
+            ld (fn_e3_lib_xt11l + 1), a		; E3.cls 6078
+            xor a		; E3.cls 6079
+            ld (fn_e3_lib_xt11a), a		; E3.cls 6080
+            ld (fn_e3_lib_xt11b), a		; E3.cls 6081
+            ld hl, #1900		; E3.cls 6082
+            ld (fn_e3_lib_xt11a + 1), hl		; E3.cls 6083
+            ld (fn_e3_lib_xt11b + 1), hl		; E3.cls 6084
+fn_e3_lib_xs11e:		; E3.cls 6085
+            ld hl, (arr_e3_ccl + 14)		; E3.cls 6086
+            bit 7, h		; E3.cls 6087
+            jr z, fn_e3_lib_xs12p		; E3.cls 6088
+            ex de, hl		; E3.cls 6089
+            ld hl, 0		; E3.cls 6090
+            or a		; E3.cls 6091
+            sbc hl, de		; E3.cls 6092
+            ld a, h		; E3.cls 6093
+            ld (fn_e3_lib_xt12h + 1), a		; E3.cls 6094
+            ld a, l		; E3.cls 6095
+            ld (fn_e3_lib_xt12l + 1), a		; E3.cls 6096
+            ld a, #B7		; E3.cls 6097
+            ld (fn_e3_lib_xt12a), a		; E3.cls 6098
+            ld (fn_e3_lib_xt12b), a		; E3.cls 6099
+            ld hl, #52ED		; E3.cls 6100
+            ld (fn_e3_lib_xt12a + 1), hl		; E3.cls 6101
+            ld (fn_e3_lib_xt12b + 1), hl		; E3.cls 6102
+            jr fn_e3_lib_xs12e		; E3.cls 6103
+fn_e3_lib_xs12p:		; E3.cls 6104
+            ld a, h		; E3.cls 6105
+            ld (fn_e3_lib_xt12h + 1), a		; E3.cls 6106
+            ld a, l		; E3.cls 6107
+            ld (fn_e3_lib_xt12l + 1), a		; E3.cls 6108
+            xor a		; E3.cls 6109
+            ld (fn_e3_lib_xt12a), a		; E3.cls 6110
+            ld (fn_e3_lib_xt12b), a		; E3.cls 6111
+            ld hl, #1900		; E3.cls 6112
+            ld (fn_e3_lib_xt12a + 1), hl		; E3.cls 6113
+            ld (fn_e3_lib_xt12b + 1), hl		; E3.cls 6114
+fn_e3_lib_xs12e:		; E3.cls 6115
+            ld hl, (arr_e3_ccl + 4)		; E3.cls 6116
+            bit 7, h		; E3.cls 6117
+            jr z, fn_e3_lib_xs20p		; E3.cls 6118
+            ex de, hl		; E3.cls 6119
+            ld hl, 0		; E3.cls 6120
+            or a		; E3.cls 6121
+            sbc hl, de		; E3.cls 6122
+            ld a, h		; E3.cls 6123
+            ld (fn_e3_lib_xt20h + 1), a		; E3.cls 6124
+            ld a, l		; E3.cls 6125
+            ld (fn_e3_lib_xt20l + 1), a		; E3.cls 6126
+            ld a, #B7		; E3.cls 6127
+            ld (fn_e3_lib_xt20a), a		; E3.cls 6128
+            ld (fn_e3_lib_xt20b), a		; E3.cls 6129
+            ld hl, #52ED		; E3.cls 6130
+            ld (fn_e3_lib_xt20a + 1), hl		; E3.cls 6131
+            ld (fn_e3_lib_xt20b + 1), hl		; E3.cls 6132
+            jr fn_e3_lib_xs20e		; E3.cls 6133
+fn_e3_lib_xs20p:		; E3.cls 6134
+            ld a, h		; E3.cls 6135
+            ld (fn_e3_lib_xt20h + 1), a		; E3.cls 6136
+            ld a, l		; E3.cls 6137
+            ld (fn_e3_lib_xt20l + 1), a		; E3.cls 6138
+            xor a		; E3.cls 6139
+            ld (fn_e3_lib_xt20a), a		; E3.cls 6140
+            ld (fn_e3_lib_xt20b), a		; E3.cls 6141
+            ld hl, #1900		; E3.cls 6142
+            ld (fn_e3_lib_xt20a + 1), hl		; E3.cls 6143
+            ld (fn_e3_lib_xt20b + 1), hl		; E3.cls 6144
+fn_e3_lib_xs20e:		; E3.cls 6145
+            ld hl, (arr_e3_ccl + 10)		; E3.cls 6146
+            bit 7, h		; E3.cls 6147
+            jr z, fn_e3_lib_xs21p		; E3.cls 6148
+            ex de, hl		; E3.cls 6149
+            ld hl, 0		; E3.cls 6150
+            or a		; E3.cls 6151
+            sbc hl, de		; E3.cls 6152
+            ld a, h		; E3.cls 6153
+            ld (fn_e3_lib_xt21h + 1), a		; E3.cls 6154
+            ld a, l		; E3.cls 6155
+            ld (fn_e3_lib_xt21l + 1), a		; E3.cls 6156
+            ld a, #B7		; E3.cls 6157
+            ld (fn_e3_lib_xt21a), a		; E3.cls 6158
+            ld (fn_e3_lib_xt21b), a		; E3.cls 6159
+            ld hl, #52ED		; E3.cls 6160
+            ld (fn_e3_lib_xt21a + 1), hl		; E3.cls 6161
+            ld (fn_e3_lib_xt21b + 1), hl		; E3.cls 6162
+            jr fn_e3_lib_xs21e		; E3.cls 6163
+fn_e3_lib_xs21p:		; E3.cls 6164
+            ld a, h		; E3.cls 6165
+            ld (fn_e3_lib_xt21h + 1), a		; E3.cls 6166
+            ld a, l		; E3.cls 6167
+            ld (fn_e3_lib_xt21l + 1), a		; E3.cls 6168
+            xor a		; E3.cls 6169
+            ld (fn_e3_lib_xt21a), a		; E3.cls 6170
+            ld (fn_e3_lib_xt21b), a		; E3.cls 6171
+            ld hl, #1900		; E3.cls 6172
+            ld (fn_e3_lib_xt21a + 1), hl		; E3.cls 6173
+            ld (fn_e3_lib_xt21b + 1), hl		; E3.cls 6174
+fn_e3_lib_xs21e:		; E3.cls 6175
+            ld hl, (arr_e3_ccl + 16)		; E3.cls 6176
+            bit 7, h		; E3.cls 6177
+            jr z, fn_e3_lib_xs22p		; E3.cls 6178
+            ex de, hl		; E3.cls 6179
+            ld hl, 0		; E3.cls 6180
+            or a		; E3.cls 6181
+            sbc hl, de		; E3.cls 6182
+            ld a, h		; E3.cls 6183
+            ld (fn_e3_lib_xt22h + 1), a		; E3.cls 6184
+            ld a, l		; E3.cls 6185
+            ld (fn_e3_lib_xt22l + 1), a		; E3.cls 6186
+            ld a, #B7		; E3.cls 6187
+            ld (fn_e3_lib_xt22a), a		; E3.cls 6188
+            ld (fn_e3_lib_xt22b), a		; E3.cls 6189
+            ld hl, #52ED		; E3.cls 6190
+            ld (fn_e3_lib_xt22a + 1), hl		; E3.cls 6191
+            ld (fn_e3_lib_xt22b + 1), hl		; E3.cls 6192
+            jr fn_e3_lib_xs22e		; E3.cls 6193
+fn_e3_lib_xs22p:		; E3.cls 6194
+            ld a, h		; E3.cls 6195
+            ld (fn_e3_lib_xt22h + 1), a		; E3.cls 6196
+            ld a, l		; E3.cls 6197
+            ld (fn_e3_lib_xt22l + 1), a		; E3.cls 6198
+            xor a		; E3.cls 6199
+            ld (fn_e3_lib_xt22a), a		; E3.cls 6200
+            ld (fn_e3_lib_xt22b), a		; E3.cls 6201
+            ld hl, #1900		; E3.cls 6202
+            ld (fn_e3_lib_xt22a + 1), hl		; E3.cls 6203
+            ld (fn_e3_lib_xt22b + 1), hl		; E3.cls 6204
+fn_e3_lib_xs22e:		; E3.cls 6205
             ; the rows' starts: c i - K i (K i = (C'(i, 0) + C'(i, 1) + C'(i, 2)) / 2: the 128 the
             ; points' coordinates carry)
-            ld hl, (arr_e3_ccl + 0)		; E3.cls 6207
-            ld de, (arr_e3_ccl + 6)		; E3.cls 6208
-            add hl, de		; E3.cls 6209
-            ld de, (arr_e3_ccl + 12)		; E3.cls 6210
-            add hl, de		; E3.cls 6211
-            sra h		; E3.cls 6212
-            rr l		; E3.cls 6213
-            ex de, hl		; E3.cls 6214
-            ld hl, (arr_e3_oc + 0)		; E3.cls 6215
-            or a		; E3.cls 6216
-            sbc hl, de		; E3.cls 6217
-            ld (fn_e3_lib_xr0c + 1), hl		; E3.cls 6218
-            ld hl, (arr_e3_ccl + 2)		; E3.cls 6219
-            ld de, (arr_e3_ccl + 8)		; E3.cls 6220
-            add hl, de		; E3.cls 6221
-            ld de, (arr_e3_ccl + 14)		; E3.cls 6222
-            add hl, de		; E3.cls 6223
-            sra h		; E3.cls 6224
-            rr l		; E3.cls 6225
-            ex de, hl		; E3.cls 6226
-            ld hl, (arr_e3_oc + 2)		; E3.cls 6227
-            or a		; E3.cls 6228
-            sbc hl, de		; E3.cls 6229
-            ld (fn_e3_lib_xr1c + 1), hl		; E3.cls 6230
-            ld hl, (arr_e3_ccl + 4)		; E3.cls 6231
-            ld de, (arr_e3_ccl + 10)		; E3.cls 6232
-            add hl, de		; E3.cls 6233
-            ld de, (arr_e3_ccl + 16)		; E3.cls 6234
-            add hl, de		; E3.cls 6235
-            sra h		; E3.cls 6236
-            rr l		; E3.cls 6237
-            ex de, hl		; E3.cls 6238
-            ld hl, (arr_e3_oc + 4)		; E3.cls 6239
-            or a		; E3.cls 6240
-            sbc hl, de		; E3.cls 6241
-            ld (fn_e3_lib_xr2c + 1), hl		; E3.cls 6242
-            jp fn_e3_lib_ov_go		; E3.cls 6243
+            ld hl, (arr_e3_ccl + 0)		; E3.cls 6208
+            ld de, (arr_e3_ccl + 6)		; E3.cls 6209
+            add hl, de		; E3.cls 6210
+            ld de, (arr_e3_ccl + 12)		; E3.cls 6211
+            add hl, de		; E3.cls 6212
+            sra h		; E3.cls 6213
+            rr l		; E3.cls 6214
+            ex de, hl		; E3.cls 6215
+            ld hl, (arr_e3_oc + 0)		; E3.cls 6216
+            or a		; E3.cls 6217
+            sbc hl, de		; E3.cls 6218
+            ld (fn_e3_lib_xr0c + 1), hl		; E3.cls 6219
+            ld hl, (arr_e3_ccl + 2)		; E3.cls 6220
+            ld de, (arr_e3_ccl + 8)		; E3.cls 6221
+            add hl, de		; E3.cls 6222
+            ld de, (arr_e3_ccl + 14)		; E3.cls 6223
+            add hl, de		; E3.cls 6224
+            sra h		; E3.cls 6225
+            rr l		; E3.cls 6226
+            ex de, hl		; E3.cls 6227
+            ld hl, (arr_e3_oc + 2)		; E3.cls 6228
+            or a		; E3.cls 6229
+            sbc hl, de		; E3.cls 6230
+            ld (fn_e3_lib_xr1c + 1), hl		; E3.cls 6231
+            ld hl, (arr_e3_ccl + 4)		; E3.cls 6232
+            ld de, (arr_e3_ccl + 10)		; E3.cls 6233
+            add hl, de		; E3.cls 6234
+            ld de, (arr_e3_ccl + 16)		; E3.cls 6235
+            add hl, de		; E3.cls 6236
+            sra h		; E3.cls 6237
+            rr l		; E3.cls 6238
+            ex de, hl		; E3.cls 6239
+            ld hl, (arr_e3_oc + 4)		; E3.cls 6240
+            or a		; E3.cls 6241
+            sbc hl, de		; E3.cls 6242
+            ld (fn_e3_lib_xr2c + 1), hl		; E3.cls 6243
+            jp fn_e3_lib_ov_go		; E3.cls 6244
 ; od_cmp: (NEW) the view of a compound model at HL (the model tool's): the camera ahead of it (+z  ; <--- NEW (to od_cmp's ret)
 ; in the model: -(sa x + ca z) of od over 0, by the high bytes) - the second, else the first
-fn_e3_lib_od_cmp:		; E3.cls 6246
-            push hl		; E3.cls 6247
-            ld a, (arr_e3_od + 1)		; E3.cls 6248
-            ld d, a		; E3.cls 6249
-            ld a, (fn_e3_lib_od_sa)		; E3.cls 6250
-            ld e, a		; E3.cls 6251
-            call fn_e3_lib_mul8s		; E3.cls 6252
-            push de		; E3.cls 6253
-            ld a, (arr_e3_od + 5)		; E3.cls 6254
-            ld d, a		; E3.cls 6255
-            ld a, (fn_e3_lib_od_ca)		; E3.cls 6256
-            ld e, a		; E3.cls 6257
-            call fn_e3_lib_mul8s		; E3.cls 6258
-            pop hl		; E3.cls 6259
-            add hl, de		; E3.cls 6260
-            ld a, h		; E3.cls 6261
-            pop hl		; E3.cls 6262
-            ld de, 2		; E3.cls 6263
-            add hl, de		; E3.cls 6264
-            rla                     ; (under 0: the camera's ahead: the second) [6265]
-            jr nc, fn_e3_lib_oc_v		; E3.cls 6266
-            inc hl		; E3.cls 6267
+fn_e3_lib_od_cmp:		; E3.cls 6247
+            push hl		; E3.cls 6248
+            ld a, (arr_e3_od + 1)		; E3.cls 6249
+            ld d, a		; E3.cls 6250
+            ld a, (fn_e3_lib_od_sa)		; E3.cls 6251
+            ld e, a		; E3.cls 6252
+            call fn_e3_lib_mul8s		; E3.cls 6253
+            push de		; E3.cls 6254
+            ld a, (arr_e3_od + 5)		; E3.cls 6255
+            ld d, a		; E3.cls 6256
+            ld a, (fn_e3_lib_od_ca)		; E3.cls 6257
+            ld e, a		; E3.cls 6258
+            call fn_e3_lib_mul8s		; E3.cls 6259
+            pop hl		; E3.cls 6260
+            add hl, de		; E3.cls 6261
+            ld a, h		; E3.cls 6262
+            pop hl		; E3.cls 6263
+            ld de, 2		; E3.cls 6264
+            add hl, de		; E3.cls 6265
+            rla                     ; (under 0: the camera's ahead: the second) [6266]
+            jr nc, fn_e3_lib_oc_v		; E3.cls 6267
             inc hl		; E3.cls 6268
-fn_e3_lib_oc_v:		; E3.cls 6269
-            ld e, (hl)		; E3.cls 6270
-            inc hl		; E3.cls 6271
-            ld d, (hl)		; E3.cls 6272
-            ld hl, d_modeldata		; E3.cls 6273
-            add hl, de		; E3.cls 6274
-            ld (var_e3_omod), hl		; E3.cls 6275
-            ret		; E3.cls 6276
-fn_e3_lib_od_sa:      db 0		; E3.cls 6277
-fn_e3_lib_od_ca:      db 0		; E3.cls 6278
-fn_e3_lib_od_sb:      db 0		; E3.cls 6279
-fn_e3_lib_od_cb:      db 0		; E3.cls 6280
-fn_e3_lib_od_sh:      db 0		; E3.cls 6281
-fn_e3_lib_od_t:       dw 0		; E3.cls 6282
-fn_e3_lib_od_p:       dw 0		; E3.cls 6283
-fn_e3_lib_oe_ok:      db 0		; E3.cls 6284
-fn_e3_lib_od_far:     db 0		; E3.cls 6285
-fn_e3_lib_od_shf:     db 0		; E3.cls 6286
-fn_e3_lib_od_p8:      db 0		; E3.cls 6287
-fn_e3_lib_od_z1:      db 0		; E3.cls 6288
-fn_e3_lib_osn8:       ds 3		; E3.cls 6289
+            inc hl		; E3.cls 6269
+fn_e3_lib_oc_v:		; E3.cls 6270
+            ld e, (hl)		; E3.cls 6271
+            inc hl		; E3.cls 6272
+            ld d, (hl)		; E3.cls 6273
+            ld hl, d_modeldata		; E3.cls 6274
+            add hl, de		; E3.cls 6275
+            ld (var_e3_omod), hl		; E3.cls 6276
+            ret		; E3.cls 6277
+fn_e3_lib_od_sa:      db 0		; E3.cls 6278
+fn_e3_lib_od_ca:      db 0		; E3.cls 6279
+fn_e3_lib_od_sb:      db 0		; E3.cls 6280
+fn_e3_lib_od_cb:      db 0		; E3.cls 6281
+fn_e3_lib_od_sh:      db 0		; E3.cls 6282
+fn_e3_lib_od_t:       dw 0		; E3.cls 6283
+fn_e3_lib_od_p:       dw 0		; E3.cls 6284
+fn_e3_lib_oe_ok:      db 0		; E3.cls 6285
+fn_e3_lib_od_far:     db 0		; E3.cls 6286
+fn_e3_lib_od_shf:     db 0		; E3.cls 6287
+fn_e3_lib_od_p8:      db 0		; E3.cls 6288
+fn_e3_lib_od_z1:      db 0		; E3.cls 6289
+fn_e3_lib_osn8:       ds 3		; E3.cls 6290
 ; od_c8: the far way's C' = (the 8 bit camera) O >> (6 - osc), row by row
-fn_e3_lib_od_c8:		; E3.cls 6291
-            ld ix, fn_e3_lib_cm8		; E3.cls 6292
-            ld iy, arr_e3_ccl		; E3.cls 6293
-            ld b, 3		; E3.cls 6294
-fn_e3_lib_c8_lp:		; E3.cls 6295
-            push bc		; E3.cls 6296
-            ld d, (ix + 0)          ; Cc0 = ca M0 - sa M2 [6297]
-            ld a, (fn_e3_lib_od_ca)		; E3.cls 6298
-            ld e, a		; E3.cls 6299
-            call fn_e3_lib_mul8s		; E3.cls 6300
-            push de		; E3.cls 6301
-            ld d, (ix + 2)		; E3.cls 6302
-            ld a, (fn_e3_lib_od_sa)		; E3.cls 6303
-            ld e, a		; E3.cls 6304
-            call fn_e3_lib_mul8s		; E3.cls 6305
-            pop hl		; E3.cls 6306
-            or a		; E3.cls 6307
-            sbc hl, de		; E3.cls 6308
-            call fn_e3_lib_c8_sh		; E3.cls 6309
-            ld (iy + 0), l		; E3.cls 6310
-            ld (iy + 1), h		; E3.cls 6311
-            ld d, (ix + 0)          ; P = (sa M0 + ca M2) >> 7 [6312]
-            ld a, (fn_e3_lib_od_sa)		; E3.cls 6313
-            ld e, a		; E3.cls 6314
-            call fn_e3_lib_mul8s		; E3.cls 6315
-            push de		; E3.cls 6316
-            ld d, (ix + 2)		; E3.cls 6317
-            ld a, (fn_e3_lib_od_ca)		; E3.cls 6318
-            ld e, a		; E3.cls 6319
-            call fn_e3_lib_mul8s		; E3.cls 6320
-            pop hl		; E3.cls 6321
-            add hl, de		; E3.cls 6322
-            add hl, hl		; E3.cls 6323
-            ld a, h		; E3.cls 6324
-            ld (fn_e3_lib_od_p8), a		; E3.cls 6325
-            ld d, a                 ; Cc1 = sb P + cb M1 [6326]
-            ld a, (fn_e3_lib_od_sb)		; E3.cls 6327
-            ld e, a		; E3.cls 6328
-            call fn_e3_lib_mul8s		; E3.cls 6329
-            push de		; E3.cls 6330
-            ld d, (ix + 1)		; E3.cls 6331
-            ld a, (fn_e3_lib_od_cb)		; E3.cls 6332
-            ld e, a		; E3.cls 6333
-            call fn_e3_lib_mul8s		; E3.cls 6334
-            pop hl		; E3.cls 6335
-            add hl, de		; E3.cls 6336
-            call fn_e3_lib_c8_sh		; E3.cls 6337
-            ld (iy + 6), l		; E3.cls 6338
-            ld (iy + 7), h		; E3.cls 6339
-            ld a, (fn_e3_lib_od_p8)           ; Cc2 = cb P - sb M1 [6340]
-            ld d, a		; E3.cls 6341
-            ld a, (fn_e3_lib_od_cb)		; E3.cls 6342
-            ld e, a		; E3.cls 6343
-            call fn_e3_lib_mul8s		; E3.cls 6344
-            push de		; E3.cls 6345
-            ld d, (ix + 1)		; E3.cls 6346
-            ld a, (fn_e3_lib_od_sb)		; E3.cls 6347
-            ld e, a		; E3.cls 6348
-            call fn_e3_lib_mul8s		; E3.cls 6349
-            pop hl		; E3.cls 6350
-            or a		; E3.cls 6351
-            sbc hl, de		; E3.cls 6352
-            call fn_e3_lib_c8_sh		; E3.cls 6353
-            ld (iy + 12), l		; E3.cls 6354
-            ld (iy + 13), h		; E3.cls 6355
-            inc ix		; E3.cls 6356
+fn_e3_lib_od_c8:		; E3.cls 6292
+            ld ix, fn_e3_lib_cm8		; E3.cls 6293
+            ld iy, arr_e3_ccl		; E3.cls 6294
+            ld b, 3		; E3.cls 6295
+fn_e3_lib_c8_lp:		; E3.cls 6296
+            push bc		; E3.cls 6297
+            ld d, (ix + 0)          ; Cc0 = ca M0 - sa M2 [6298]
+            ld a, (fn_e3_lib_od_ca)		; E3.cls 6299
+            ld e, a		; E3.cls 6300
+            call fn_e3_lib_mul8s		; E3.cls 6301
+            push de		; E3.cls 6302
+            ld d, (ix + 2)		; E3.cls 6303
+            ld a, (fn_e3_lib_od_sa)		; E3.cls 6304
+            ld e, a		; E3.cls 6305
+            call fn_e3_lib_mul8s		; E3.cls 6306
+            pop hl		; E3.cls 6307
+            or a		; E3.cls 6308
+            sbc hl, de		; E3.cls 6309
+            call fn_e3_lib_c8_sh		; E3.cls 6310
+            ld (iy + 0), l		; E3.cls 6311
+            ld (iy + 1), h		; E3.cls 6312
+            ld d, (ix + 0)          ; P = (sa M0 + ca M2) >> 7 [6313]
+            ld a, (fn_e3_lib_od_sa)		; E3.cls 6314
+            ld e, a		; E3.cls 6315
+            call fn_e3_lib_mul8s		; E3.cls 6316
+            push de		; E3.cls 6317
+            ld d, (ix + 2)		; E3.cls 6318
+            ld a, (fn_e3_lib_od_ca)		; E3.cls 6319
+            ld e, a		; E3.cls 6320
+            call fn_e3_lib_mul8s		; E3.cls 6321
+            pop hl		; E3.cls 6322
+            add hl, de		; E3.cls 6323
+            add hl, hl		; E3.cls 6324
+            ld a, h		; E3.cls 6325
+            ld (fn_e3_lib_od_p8), a		; E3.cls 6326
+            ld d, a                 ; Cc1 = sb P + cb M1 [6327]
+            ld a, (fn_e3_lib_od_sb)		; E3.cls 6328
+            ld e, a		; E3.cls 6329
+            call fn_e3_lib_mul8s		; E3.cls 6330
+            push de		; E3.cls 6331
+            ld d, (ix + 1)		; E3.cls 6332
+            ld a, (fn_e3_lib_od_cb)		; E3.cls 6333
+            ld e, a		; E3.cls 6334
+            call fn_e3_lib_mul8s		; E3.cls 6335
+            pop hl		; E3.cls 6336
+            add hl, de		; E3.cls 6337
+            call fn_e3_lib_c8_sh		; E3.cls 6338
+            ld (iy + 6), l		; E3.cls 6339
+            ld (iy + 7), h		; E3.cls 6340
+            ld a, (fn_e3_lib_od_p8)           ; Cc2 = cb P - sb M1 [6341]
+            ld d, a		; E3.cls 6342
+            ld a, (fn_e3_lib_od_cb)		; E3.cls 6343
+            ld e, a		; E3.cls 6344
+            call fn_e3_lib_mul8s		; E3.cls 6345
+            push de		; E3.cls 6346
+            ld d, (ix + 1)		; E3.cls 6347
+            ld a, (fn_e3_lib_od_sb)		; E3.cls 6348
+            ld e, a		; E3.cls 6349
+            call fn_e3_lib_mul8s		; E3.cls 6350
+            pop hl		; E3.cls 6351
+            or a		; E3.cls 6352
+            sbc hl, de		; E3.cls 6353
+            call fn_e3_lib_c8_sh		; E3.cls 6354
+            ld (iy + 12), l		; E3.cls 6355
+            ld (iy + 13), h		; E3.cls 6356
             inc ix		; E3.cls 6357
             inc ix		; E3.cls 6358
-            inc iy		; E3.cls 6359
+            inc ix		; E3.cls 6359
             inc iy		; E3.cls 6360
-            pop bc		; E3.cls 6361
-            dec b		; E3.cls 6362
-            jp nz, fn_e3_lib_c8_lp		; E3.cls 6363
-            jp fn_e3_lib_od_osn		; E3.cls 6364
-fn_e3_lib_c8_sh:                              ; HL >> (6 - osc) [6365]
-            ld a, (fn_e3_lib_od_shf)		; E3.cls 6366
-            or a		; E3.cls 6367
-            ret z		; E3.cls 6368
-            ld b, a		; E3.cls 6369
-fn_e3_lib_c8_s:		; E3.cls 6370
-            sra h		; E3.cls 6371
-            rr l		; E3.cls 6372
-            djnz fn_e3_lib_c8_s		; E3.cls 6373
-            ret		; E3.cls 6374
+            inc iy		; E3.cls 6361
+            pop bc		; E3.cls 6362
+            dec b		; E3.cls 6363
+            jp nz, fn_e3_lib_c8_lp		; E3.cls 6364
+            jp fn_e3_lib_od_osn		; E3.cls 6365
+fn_e3_lib_c8_sh:                              ; HL >> (6 - osc) [6366]
+            ld a, (fn_e3_lib_od_shf)		; E3.cls 6367
+            or a		; E3.cls 6368
+            ret z		; E3.cls 6369
+            ld b, a		; E3.cls 6370
+fn_e3_lib_c8_s:		; E3.cls 6371
+            sra h		; E3.cls 6372
+            rr l		; E3.cls 6373
+            djnz fn_e3_lib_c8_s		; E3.cls 6374
+            ret		; E3.cls 6375
 ; od_pa: the far way's faces first: e8 = O^T (-od) (shifted under 64 each way: k), each face seen
 ; if n . e8 > d >> (k - osc); those seen listed (fvis) and their points marked (vmark)
-fn_e3_lib_od_pa:		; E3.cls 6377
-            ld hl, (arr_e3_od)		; E3.cls 6378
-            call fn_e3_lib_oe_neg		; E3.cls 6379
-            ld (fn_e3_lib_pa_w), de		; E3.cls 6380
-            ld hl, (arr_e3_od + 2)		; E3.cls 6381
-            call fn_e3_lib_oe_neg		; E3.cls 6382
-            ld (fn_e3_lib_pa_w + 2), de		; E3.cls 6383
-            ld hl, (arr_e3_od + 4)		; E3.cls 6384
-            call fn_e3_lib_oe_neg		; E3.cls 6385
-            ld (fn_e3_lib_pa_w + 4), de		; E3.cls 6386
-            xor a		; E3.cls 6387
-            ld (fn_e3_lib_pa_k), a		; E3.cls 6388
-fn_e3_lib_pa_fit:		; E3.cls 6389
-            ld hl, fn_e3_lib_pa_w		; E3.cls 6390
-            ld b, 3		; E3.cls 6391
-fn_e3_lib_pa_ck:		; E3.cls 6392
-            ld e, (hl)		; E3.cls 6393
-            inc hl		; E3.cls 6394
-            ld d, (hl)		; E3.cls 6395
-            inc hl		; E3.cls 6396
-            ld a, e                 ; -64..63: w + 64 in 0..127 [6397]
-            add a, 64		; E3.cls 6398
-            ld c, a		; E3.cls 6399
-            ld a, d		; E3.cls 6400
-            adc a, 0		; E3.cls 6401
-            jr nz, fn_e3_lib_pa_half		; E3.cls 6402
-            bit 7, c		; E3.cls 6403
-            jr nz, fn_e3_lib_pa_half		; E3.cls 6404
-            djnz fn_e3_lib_pa_ck		; E3.cls 6405
-            jr fn_e3_lib_pa_rot		; E3.cls 6406
-fn_e3_lib_pa_half:		; E3.cls 6407
-            ld hl, fn_e3_lib_pa_w		; E3.cls 6408
-            ld b, 3		; E3.cls 6409
-fn_e3_lib_pa_hl:		; E3.cls 6410
-            inc hl		; E3.cls 6411
-            sra (hl)		; E3.cls 6412
-            dec hl		; E3.cls 6413
-            rr (hl)		; E3.cls 6414
-            inc hl		; E3.cls 6415
+fn_e3_lib_od_pa:		; E3.cls 6378
+            ld hl, (arr_e3_od)		; E3.cls 6379
+            call fn_e3_lib_oe_neg		; E3.cls 6380
+            ld (fn_e3_lib_pa_w), de		; E3.cls 6381
+            ld hl, (arr_e3_od + 2)		; E3.cls 6382
+            call fn_e3_lib_oe_neg		; E3.cls 6383
+            ld (fn_e3_lib_pa_w + 2), de		; E3.cls 6384
+            ld hl, (arr_e3_od + 4)		; E3.cls 6385
+            call fn_e3_lib_oe_neg		; E3.cls 6386
+            ld (fn_e3_lib_pa_w + 4), de		; E3.cls 6387
+            xor a		; E3.cls 6388
+            ld (fn_e3_lib_pa_k), a		; E3.cls 6389
+fn_e3_lib_pa_fit:		; E3.cls 6390
+            ld hl, fn_e3_lib_pa_w		; E3.cls 6391
+            ld b, 3		; E3.cls 6392
+fn_e3_lib_pa_ck:		; E3.cls 6393
+            ld e, (hl)		; E3.cls 6394
+            inc hl		; E3.cls 6395
+            ld d, (hl)		; E3.cls 6396
+            inc hl		; E3.cls 6397
+            ld a, e                 ; -64..63: w + 64 in 0..127 [6398]
+            add a, 64		; E3.cls 6399
+            ld c, a		; E3.cls 6400
+            ld a, d		; E3.cls 6401
+            adc a, 0		; E3.cls 6402
+            jr nz, fn_e3_lib_pa_half		; E3.cls 6403
+            bit 7, c		; E3.cls 6404
+            jr nz, fn_e3_lib_pa_half		; E3.cls 6405
+            djnz fn_e3_lib_pa_ck		; E3.cls 6406
+            jr fn_e3_lib_pa_rot		; E3.cls 6407
+fn_e3_lib_pa_half:		; E3.cls 6408
+            ld hl, fn_e3_lib_pa_w		; E3.cls 6409
+            ld b, 3		; E3.cls 6410
+fn_e3_lib_pa_hl:		; E3.cls 6411
+            inc hl		; E3.cls 6412
+            sra (hl)		; E3.cls 6413
+            dec hl		; E3.cls 6414
+            rr (hl)		; E3.cls 6415
             inc hl		; E3.cls 6416
-            djnz fn_e3_lib_pa_hl		; E3.cls 6417
-            ld hl, fn_e3_lib_pa_k		; E3.cls 6418
-            inc (hl)		; E3.cls 6419
-            jr fn_e3_lib_pa_fit		; E3.cls 6420
-fn_e3_lib_pa_rot:		; E3.cls 6421
-            ld a, (fn_e3_lib_pa_w)            ; Ry^T: x1 = ca x - sa z, z1 = sa x + ca z [6422]
-            ld d, a		; E3.cls 6423
-            ld a, (fn_e3_lib_od_ca)		; E3.cls 6424
-            ld e, a		; E3.cls 6425
-            call fn_e3_lib_mul8s		; E3.cls 6426
-            push de		; E3.cls 6427
-            ld a, (fn_e3_lib_pa_w + 4)		; E3.cls 6428
-            ld d, a		; E3.cls 6429
-            ld a, (fn_e3_lib_od_sa)		; E3.cls 6430
-            ld e, a		; E3.cls 6431
-            call fn_e3_lib_mul8s		; E3.cls 6432
-            pop hl		; E3.cls 6433
-            or a		; E3.cls 6434
-            sbc hl, de		; E3.cls 6435
-            add hl, hl		; E3.cls 6436
-            ld a, h		; E3.cls 6437
-            ld (fn_e3_lib_pa_e), a		; E3.cls 6438
-            ld a, (fn_e3_lib_pa_w)		; E3.cls 6439
-            ld d, a		; E3.cls 6440
-            ld a, (fn_e3_lib_od_sa)		; E3.cls 6441
-            ld e, a		; E3.cls 6442
-            call fn_e3_lib_mul8s		; E3.cls 6443
-            push de		; E3.cls 6444
-            ld a, (fn_e3_lib_pa_w + 4)		; E3.cls 6445
-            ld d, a		; E3.cls 6446
-            ld a, (fn_e3_lib_od_ca)		; E3.cls 6447
-            ld e, a		; E3.cls 6448
-            call fn_e3_lib_mul8s		; E3.cls 6449
-            pop hl		; E3.cls 6450
-            add hl, de		; E3.cls 6451
-            add hl, hl		; E3.cls 6452
-            ld a, h		; E3.cls 6453
-            ld (fn_e3_lib_pa_z1), a		; E3.cls 6454
-            ld a, (fn_e3_lib_pa_w + 2)        ; Rx^T: y = cb y1 + sb z1, z = cb z1 - sb y1 [6455]
-            ld d, a		; E3.cls 6456
-            ld a, (fn_e3_lib_od_cb)		; E3.cls 6457
-            ld e, a		; E3.cls 6458
-            call fn_e3_lib_mul8s		; E3.cls 6459
-            push de		; E3.cls 6460
-            ld a, (fn_e3_lib_pa_z1)		; E3.cls 6461
-            ld d, a		; E3.cls 6462
-            ld a, (fn_e3_lib_od_sb)		; E3.cls 6463
-            ld e, a		; E3.cls 6464
-            call fn_e3_lib_mul8s		; E3.cls 6465
-            pop hl		; E3.cls 6466
-            add hl, de		; E3.cls 6467
-            add hl, hl		; E3.cls 6468
-            ld a, h		; E3.cls 6469
-            ld (fn_e3_lib_pa_e + 1), a		; E3.cls 6470
-            ld a, (fn_e3_lib_pa_z1)		; E3.cls 6471
-            ld d, a		; E3.cls 6472
-            ld a, (fn_e3_lib_od_cb)		; E3.cls 6473
-            ld e, a		; E3.cls 6474
-            call fn_e3_lib_mul8s		; E3.cls 6475
-            push de		; E3.cls 6476
-            ld a, (fn_e3_lib_pa_w + 2)		; E3.cls 6477
-            ld d, a		; E3.cls 6478
-            ld a, (fn_e3_lib_od_sb)		; E3.cls 6479
-            ld e, a		; E3.cls 6480
-            call fn_e3_lib_mul8s		; E3.cls 6481
-            pop hl		; E3.cls 6482
-            or a		; E3.cls 6483
-            sbc hl, de		; E3.cls 6484
-            add hl, hl		; E3.cls 6485
-            ld a, h		; E3.cls 6486
-            ld (fn_e3_lib_pa_e + 2), a		; E3.cls 6487
-            ld a, (fn_e3_lib_pa_k)            ; m = k - osc [6488]
-            ld hl, var_e3_osc		; E3.cls 6489
-            sub (hl)		; E3.cls 6490
-            ld (fn_e3_lib_pa_m), a		; E3.cls 6491
-            ld hl, (var_e3_omod)         ; no points marked (as many as the model has) [6492]
-            ld b, (hl)		; E3.cls 6493
-            ld hl, fn_e3_lib_vmark		; E3.cls 6494
-fn_e3_lib_pa_cl:		; E3.cls 6495
-            ld (hl), 0		; E3.cls 6496
-            inc hl		; E3.cls 6497
-            djnz fn_e3_lib_pa_cl		; E3.cls 6498
-            ld hl, fn_e3_lib_fvis		; E3.cls 6499
-            ld (fn_e3_lib_pa_lp), hl		; E3.cls 6500
-            xor a		; E3.cls 6501
-            ld (fn_e3_lib_fv_n), a		; E3.cls 6502
-            ld hl, (var_e3_omod)         ; the faces: after the points [6503]
-            ld a, (hl)		; E3.cls 6504
-            ld e, a		; E3.cls 6505
-            add a, a		; E3.cls 6506
-            add a, e		; E3.cls 6507
-            add a, 3		; E3.cls 6508
-            ld e, a		; E3.cls 6509
-            ld d, 0		; E3.cls 6510
-            jr nc, fn_e3_lib_pa_f0		; E3.cls 6511
-            inc d		; E3.cls 6512
-fn_e3_lib_pa_f0:		; E3.cls 6513
-            inc hl		; E3.cls 6514
-            ld a, (hl)		; E3.cls 6515
-            ld (fn_e3_lib_pa_nf), a		; E3.cls 6516
-            dec hl		; E3.cls 6517
-            add hl, de		; E3.cls 6518
-            push hl		; E3.cls 6519
-            pop iy		; E3.cls 6520
-fn_e3_lib_pa_lp0:		; E3.cls 6521
-            ld d, (iy + 2)          ; n . e8 [6522]
-            ld a, (fn_e3_lib_pa_e)		; E3.cls 6523
-            ld e, a		; E3.cls 6524
-            call fn_e3_lib_mul8s		; E3.cls 6525
-            push de		; E3.cls 6526
-            ld d, (iy + 3)		; E3.cls 6527
-            ld a, (fn_e3_lib_pa_e + 1)		; E3.cls 6528
-            ld e, a		; E3.cls 6529
-            call fn_e3_lib_mul8s		; E3.cls 6530
-            pop hl		; E3.cls 6531
-            add hl, de		; E3.cls 6532
-            push hl		; E3.cls 6533
-            ld d, (iy + 4)		; E3.cls 6534
-            ld a, (fn_e3_lib_pa_e + 2)		; E3.cls 6535
-            ld e, a		; E3.cls 6536
-            call fn_e3_lib_mul8s		; E3.cls 6537
-            pop hl		; E3.cls 6538
-            add hl, de		; E3.cls 6539
-            push hl		; E3.cls 6540
-            ld l, (iy + 5)          ; d >> m (m < 0: << -m) [6541]
-            ld h, (iy + 6)		; E3.cls 6542
-            ld a, (fn_e3_lib_pa_m)		; E3.cls 6543
-            or a		; E3.cls 6544
-            jr z, fn_e3_lib_pa_d0		; E3.cls 6545
-            jp m, fn_e3_lib_pa_dl		; E3.cls 6546
-            ld b, a		; E3.cls 6547
-fn_e3_lib_pa_dr:		; E3.cls 6548
-            sra h		; E3.cls 6549
-            rr l		; E3.cls 6550
-            djnz fn_e3_lib_pa_dr		; E3.cls 6551
-            jr fn_e3_lib_pa_d0		; E3.cls 6552
-fn_e3_lib_pa_dl:		; E3.cls 6553
-            neg		; E3.cls 6554
-            ld b, a		; E3.cls 6555
-fn_e3_lib_pa_dls:		; E3.cls 6556
-            add hl, hl		; E3.cls 6557
-            djnz fn_e3_lib_pa_dls		; E3.cls 6558
-fn_e3_lib_pa_d0:		; E3.cls 6559
-            ex de, hl		; E3.cls 6560
-            pop hl		; E3.cls 6561
-            or a		; E3.cls 6562
-            sbc hl, de              ; n . e8 - d': seen when > 0 [6563]
-            jp m, fn_e3_lib_pa_nx		; E3.cls 6564
-            jr z, fn_e3_lib_pa_nx		; E3.cls 6565
-            ld hl, (fn_e3_lib_pa_lp)          ; listed [6566]
-            push iy		; E3.cls 6567
-            pop de		; E3.cls 6568
-            ld (hl), e		; E3.cls 6569
-            inc hl		; E3.cls 6570
-            ld (hl), d		; E3.cls 6571
-            inc hl		; E3.cls 6572
-            ld (fn_e3_lib_pa_lp), hl		; E3.cls 6573
-            ld hl, fn_e3_lib_fv_n		; E3.cls 6574
-            inc (hl)		; E3.cls 6575
-            ld b, (iy + 0)          ; its points marked [6576]
-            push iy		; E3.cls 6577
-            pop hl		; E3.cls 6578
-            ld de, 7		; E3.cls 6579
-            add hl, de		; E3.cls 6580
-fn_e3_lib_pa_mk:		; E3.cls 6581
-            ld a, (hl)		; E3.cls 6582
-            inc hl		; E3.cls 6583
-            push hl		; E3.cls 6584
-            ld e, a		; E3.cls 6585
-            ld d, 0		; E3.cls 6586
-            ld hl, fn_e3_lib_vmark		; E3.cls 6587
-            add hl, de		; E3.cls 6588
-            ld (hl), 1		; E3.cls 6589
-            pop hl		; E3.cls 6590
-            djnz fn_e3_lib_pa_mk		; E3.cls 6591
-fn_e3_lib_pa_nx:		; E3.cls 6592
-            ld a, (iy + 0)		; E3.cls 6593
-            add a, 7		; E3.cls 6594
-            ld e, a		; E3.cls 6595
-            ld d, 0		; E3.cls 6596
-            add iy, de		; E3.cls 6597
-            ld hl, fn_e3_lib_pa_nf		; E3.cls 6598
-            dec (hl)		; E3.cls 6599
-            jp nz, fn_e3_lib_pa_lp0		; E3.cls 6600
-            ret		; E3.cls 6601
-fn_e3_lib_pa_w:       ds 6		; E3.cls 6602
-fn_e3_lib_pa_k:       db 0		; E3.cls 6603
-fn_e3_lib_pa_m:       db 0		; E3.cls 6604
-fn_e3_lib_pa_e:       ds 3		; E3.cls 6605
-fn_e3_lib_pa_z1:      db 0		; E3.cls 6606
-fn_e3_lib_pa_nf:      db 0		; E3.cls 6607
-fn_e3_lib_pa_lp:      dw 0		; E3.cls 6608
-fn_e3_lib_fv_n:       db 0		; E3.cls 6609
-fn_e3_lib_fv_i:       dw 0		; E3.cls 6610
-fn_e3_lib_fvis:       ds 128		; E3.cls 6611
-fn_e3_lib_vmark:      ds 64		; E3.cls 6612
+            inc hl		; E3.cls 6417
+            djnz fn_e3_lib_pa_hl		; E3.cls 6418
+            ld hl, fn_e3_lib_pa_k		; E3.cls 6419
+            inc (hl)		; E3.cls 6420
+            jr fn_e3_lib_pa_fit		; E3.cls 6421
+fn_e3_lib_pa_rot:		; E3.cls 6422
+            ld a, (fn_e3_lib_pa_w)            ; Ry^T: x1 = ca x - sa z, z1 = sa x + ca z [6423]
+            ld d, a		; E3.cls 6424
+            ld a, (fn_e3_lib_od_ca)		; E3.cls 6425
+            ld e, a		; E3.cls 6426
+            call fn_e3_lib_mul8s		; E3.cls 6427
+            push de		; E3.cls 6428
+            ld a, (fn_e3_lib_pa_w + 4)		; E3.cls 6429
+            ld d, a		; E3.cls 6430
+            ld a, (fn_e3_lib_od_sa)		; E3.cls 6431
+            ld e, a		; E3.cls 6432
+            call fn_e3_lib_mul8s		; E3.cls 6433
+            pop hl		; E3.cls 6434
+            or a		; E3.cls 6435
+            sbc hl, de		; E3.cls 6436
+            add hl, hl		; E3.cls 6437
+            ld a, h		; E3.cls 6438
+            ld (fn_e3_lib_pa_e), a		; E3.cls 6439
+            ld a, (fn_e3_lib_pa_w)		; E3.cls 6440
+            ld d, a		; E3.cls 6441
+            ld a, (fn_e3_lib_od_sa)		; E3.cls 6442
+            ld e, a		; E3.cls 6443
+            call fn_e3_lib_mul8s		; E3.cls 6444
+            push de		; E3.cls 6445
+            ld a, (fn_e3_lib_pa_w + 4)		; E3.cls 6446
+            ld d, a		; E3.cls 6447
+            ld a, (fn_e3_lib_od_ca)		; E3.cls 6448
+            ld e, a		; E3.cls 6449
+            call fn_e3_lib_mul8s		; E3.cls 6450
+            pop hl		; E3.cls 6451
+            add hl, de		; E3.cls 6452
+            add hl, hl		; E3.cls 6453
+            ld a, h		; E3.cls 6454
+            ld (fn_e3_lib_pa_z1), a		; E3.cls 6455
+            ld a, (fn_e3_lib_pa_w + 2)        ; Rx^T: y = cb y1 + sb z1, z = cb z1 - sb y1 [6456]
+            ld d, a		; E3.cls 6457
+            ld a, (fn_e3_lib_od_cb)		; E3.cls 6458
+            ld e, a		; E3.cls 6459
+            call fn_e3_lib_mul8s		; E3.cls 6460
+            push de		; E3.cls 6461
+            ld a, (fn_e3_lib_pa_z1)		; E3.cls 6462
+            ld d, a		; E3.cls 6463
+            ld a, (fn_e3_lib_od_sb)		; E3.cls 6464
+            ld e, a		; E3.cls 6465
+            call fn_e3_lib_mul8s		; E3.cls 6466
+            pop hl		; E3.cls 6467
+            add hl, de		; E3.cls 6468
+            add hl, hl		; E3.cls 6469
+            ld a, h		; E3.cls 6470
+            ld (fn_e3_lib_pa_e + 1), a		; E3.cls 6471
+            ld a, (fn_e3_lib_pa_z1)		; E3.cls 6472
+            ld d, a		; E3.cls 6473
+            ld a, (fn_e3_lib_od_cb)		; E3.cls 6474
+            ld e, a		; E3.cls 6475
+            call fn_e3_lib_mul8s		; E3.cls 6476
+            push de		; E3.cls 6477
+            ld a, (fn_e3_lib_pa_w + 2)		; E3.cls 6478
+            ld d, a		; E3.cls 6479
+            ld a, (fn_e3_lib_od_sb)		; E3.cls 6480
+            ld e, a		; E3.cls 6481
+            call fn_e3_lib_mul8s		; E3.cls 6482
+            pop hl		; E3.cls 6483
+            or a		; E3.cls 6484
+            sbc hl, de		; E3.cls 6485
+            add hl, hl		; E3.cls 6486
+            ld a, h		; E3.cls 6487
+            ld (fn_e3_lib_pa_e + 2), a		; E3.cls 6488
+            ld a, (fn_e3_lib_pa_k)            ; m = k - osc [6489]
+            ld hl, var_e3_osc		; E3.cls 6490
+            sub (hl)		; E3.cls 6491
+            ld (fn_e3_lib_pa_m), a		; E3.cls 6492
+            ld hl, (var_e3_omod)         ; no points marked (as many as the model has) [6493]
+            ld b, (hl)		; E3.cls 6494
+            ld hl, fn_e3_lib_vmark		; E3.cls 6495
+fn_e3_lib_pa_cl:		; E3.cls 6496
+            ld (hl), 0		; E3.cls 6497
+            inc hl		; E3.cls 6498
+            djnz fn_e3_lib_pa_cl		; E3.cls 6499
+            ld hl, fn_e3_lib_fvis		; E3.cls 6500
+            ld (fn_e3_lib_pa_lp), hl		; E3.cls 6501
+            xor a		; E3.cls 6502
+            ld (fn_e3_lib_fv_n), a		; E3.cls 6503
+            ld hl, (var_e3_omod)         ; the faces: after the points [6504]
+            ld a, (hl)		; E3.cls 6505
+            ld e, a		; E3.cls 6506
+            add a, a		; E3.cls 6507
+            add a, e		; E3.cls 6508
+            add a, 3		; E3.cls 6509
+            ld e, a		; E3.cls 6510
+            ld d, 0		; E3.cls 6511
+            jr nc, fn_e3_lib_pa_f0		; E3.cls 6512
+            inc d		; E3.cls 6513
+fn_e3_lib_pa_f0:		; E3.cls 6514
+            inc hl		; E3.cls 6515
+            ld a, (hl)		; E3.cls 6516
+            ld (fn_e3_lib_pa_nf), a		; E3.cls 6517
+            dec hl		; E3.cls 6518
+            add hl, de		; E3.cls 6519
+            push hl		; E3.cls 6520
+            pop iy		; E3.cls 6521
+fn_e3_lib_pa_lp0:		; E3.cls 6522
+            ld d, (iy + 2)          ; n . e8 [6523]
+            ld a, (fn_e3_lib_pa_e)		; E3.cls 6524
+            ld e, a		; E3.cls 6525
+            call fn_e3_lib_mul8s		; E3.cls 6526
+            push de		; E3.cls 6527
+            ld d, (iy + 3)		; E3.cls 6528
+            ld a, (fn_e3_lib_pa_e + 1)		; E3.cls 6529
+            ld e, a		; E3.cls 6530
+            call fn_e3_lib_mul8s		; E3.cls 6531
+            pop hl		; E3.cls 6532
+            add hl, de		; E3.cls 6533
+            push hl		; E3.cls 6534
+            ld d, (iy + 4)		; E3.cls 6535
+            ld a, (fn_e3_lib_pa_e + 2)		; E3.cls 6536
+            ld e, a		; E3.cls 6537
+            call fn_e3_lib_mul8s		; E3.cls 6538
+            pop hl		; E3.cls 6539
+            add hl, de		; E3.cls 6540
+            push hl		; E3.cls 6541
+            ld l, (iy + 5)          ; d >> m (m < 0: << -m) [6542]
+            ld h, (iy + 6)		; E3.cls 6543
+            ld a, (fn_e3_lib_pa_m)		; E3.cls 6544
+            or a		; E3.cls 6545
+            jr z, fn_e3_lib_pa_d0		; E3.cls 6546
+            jp m, fn_e3_lib_pa_dl		; E3.cls 6547
+            ld b, a		; E3.cls 6548
+fn_e3_lib_pa_dr:		; E3.cls 6549
+            sra h		; E3.cls 6550
+            rr l		; E3.cls 6551
+            djnz fn_e3_lib_pa_dr		; E3.cls 6552
+            jr fn_e3_lib_pa_d0		; E3.cls 6553
+fn_e3_lib_pa_dl:		; E3.cls 6554
+            neg		; E3.cls 6555
+            ld b, a		; E3.cls 6556
+fn_e3_lib_pa_dls:		; E3.cls 6557
+            add hl, hl		; E3.cls 6558
+            djnz fn_e3_lib_pa_dls		; E3.cls 6559
+fn_e3_lib_pa_d0:		; E3.cls 6560
+            ex de, hl		; E3.cls 6561
+            pop hl		; E3.cls 6562
+            or a		; E3.cls 6563
+            sbc hl, de              ; n . e8 - d': seen when > 0 [6564]
+            jp m, fn_e3_lib_pa_nx		; E3.cls 6565
+            jr z, fn_e3_lib_pa_nx		; E3.cls 6566
+            ld hl, (fn_e3_lib_pa_lp)          ; listed [6567]
+            push iy		; E3.cls 6568
+            pop de		; E3.cls 6569
+            ld (hl), e		; E3.cls 6570
+            inc hl		; E3.cls 6571
+            ld (hl), d		; E3.cls 6572
+            inc hl		; E3.cls 6573
+            ld (fn_e3_lib_pa_lp), hl		; E3.cls 6574
+            ld hl, fn_e3_lib_fv_n		; E3.cls 6575
+            inc (hl)		; E3.cls 6576
+            ld b, (iy + 0)          ; its points marked [6577]
+            push iy		; E3.cls 6578
+            pop hl		; E3.cls 6579
+            ld de, 7		; E3.cls 6580
+            add hl, de		; E3.cls 6581
+fn_e3_lib_pa_mk:		; E3.cls 6582
+            ld a, (hl)		; E3.cls 6583
+            inc hl		; E3.cls 6584
+            push hl		; E3.cls 6585
+            ld e, a		; E3.cls 6586
+            ld d, 0		; E3.cls 6587
+            ld hl, fn_e3_lib_vmark		; E3.cls 6588
+            add hl, de		; E3.cls 6589
+            ld (hl), 1		; E3.cls 6590
+            pop hl		; E3.cls 6591
+            djnz fn_e3_lib_pa_mk		; E3.cls 6592
+fn_e3_lib_pa_nx:		; E3.cls 6593
+            ld a, (iy + 0)		; E3.cls 6594
+            add a, 7		; E3.cls 6595
+            ld e, a		; E3.cls 6596
+            ld d, 0		; E3.cls 6597
+            add iy, de		; E3.cls 6598
+            ld hl, fn_e3_lib_pa_nf		; E3.cls 6599
+            dec (hl)		; E3.cls 6600
+            jp nz, fn_e3_lib_pa_lp0		; E3.cls 6601
+            ret		; E3.cls 6602
+fn_e3_lib_pa_w:       ds 6		; E3.cls 6603
+fn_e3_lib_pa_k:       db 0		; E3.cls 6604
+fn_e3_lib_pa_m:       db 0		; E3.cls 6605
+fn_e3_lib_pa_e:       ds 3		; E3.cls 6606
+fn_e3_lib_pa_z1:      db 0		; E3.cls 6607
+fn_e3_lib_pa_nf:      db 0		; E3.cls 6608
+fn_e3_lib_pa_lp:      dw 0		; E3.cls 6609
+fn_e3_lib_fv_n:       db 0		; E3.cls 6610
+fn_e3_lib_fv_i:       dw 0		; E3.cls 6611
+fn_e3_lib_fvis:       ds 128		; E3.cls 6612
+fn_e3_lib_vmark:      ds 64		; E3.cls 6613
 ; ---- the vertices
-fn_e3_lib_ov_go:		; E3.cls 6614
-            ld a, (fn_e3_lib_od_far)		; E3.cls 6615
-            or a		; E3.cls 6616
-            jr z, fn_e3_lib_ov_g1		; E3.cls 6617
-            call fn_e3_lib_od_pa		; E3.cls 6618
-            ld a, (fn_e3_lib_fv_n)		; E3.cls 6619
-            or a		; E3.cls 6620
-            ret z		; E3.cls 6621
-fn_e3_lib_ov_g1:		; E3.cls 6622
-            ld hl, (var_e3_omod)		; E3.cls 6623
-            ld a, (hl)		; E3.cls 6624
-            ld (fn_e3_lib_xv_k), a		; E3.cls 6625
-            inc hl		; E3.cls 6626
-            ld a, (hl)		; E3.cls 6627
-            ld (fn_e3_lib_of_k), a		; E3.cls 6628
-            inc hl		; E3.cls 6629
+fn_e3_lib_ov_go:		; E3.cls 6615
+            ld a, (fn_e3_lib_od_far)		; E3.cls 6616
+            or a		; E3.cls 6617
+            jr z, fn_e3_lib_ov_g1		; E3.cls 6618
+            call fn_e3_lib_od_pa		; E3.cls 6619
+            ld a, (fn_e3_lib_fv_n)		; E3.cls 6620
+            or a		; E3.cls 6621
+            ret z		; E3.cls 6622
+fn_e3_lib_ov_g1:		; E3.cls 6623
+            ld hl, (var_e3_omod)		; E3.cls 6624
+            ld a, (hl)		; E3.cls 6625
+            ld (fn_e3_lib_xv_k), a		; E3.cls 6626
+            inc hl		; E3.cls 6627
+            ld a, (hl)		; E3.cls 6628
+            ld (fn_e3_lib_of_k), a		; E3.cls 6629
             inc hl		; E3.cls 6630
-            ld (fn_e3_lib_xv_p), hl		; E3.cls 6631
-            ld hl, arr_e3_ov		; E3.cls 6632
-            ld (fn_e3_lib_xv_o), hl		; E3.cls 6633
-            ld hl, arr_e3_osx		; E3.cls 6634
-            ld (fn_e3_lib_xv_sx), hl		; E3.cls 6635
-            ld hl, arr_e3_osy		; E3.cls 6636
-            ld (fn_e3_lib_xv_sy), hl		; E3.cls 6637
-            xor a		; E3.cls 6638
-            ld (fn_e3_lib_xv_i), a		; E3.cls 6639
-            ld (fn_e3_lib_xv_or), a		; E3.cls 6640
-fn_e3_lib_xv_lp:		; E3.cls 6641
-            ld a, (fn_e3_lib_od_far)          ; (the far way: only the points of faces seen) [6642]
-            or a		; E3.cls 6643
-            jr z, fn_e3_lib_xv_go		; E3.cls 6644
-            ld a, (fn_e3_lib_xv_i)		; E3.cls 6645
-            ld e, a		; E3.cls 6646
-            ld d, 0		; E3.cls 6647
-            ld hl, fn_e3_lib_vmark		; E3.cls 6648
-            add hl, de		; E3.cls 6649
-            ld a, (hl)		; E3.cls 6650
-            or a		; E3.cls 6651
-            jr nz, fn_e3_lib_xv_go		; E3.cls 6652
-            ld hl, (fn_e3_lib_xv_p)		; E3.cls 6653
-            inc hl		; E3.cls 6654
+            inc hl		; E3.cls 6631
+            ld (fn_e3_lib_xv_p), hl		; E3.cls 6632
+            ld hl, arr_e3_ov		; E3.cls 6633
+            ld (fn_e3_lib_xv_o), hl		; E3.cls 6634
+            ld hl, arr_e3_osx		; E3.cls 6635
+            ld (fn_e3_lib_xv_sx), hl		; E3.cls 6636
+            ld hl, arr_e3_osy		; E3.cls 6637
+            ld (fn_e3_lib_xv_sy), hl		; E3.cls 6638
+            xor a		; E3.cls 6639
+            ld (fn_e3_lib_xv_i), a		; E3.cls 6640
+            ld (fn_e3_lib_xv_or), a		; E3.cls 6641
+fn_e3_lib_xv_lp:		; E3.cls 6642
+            ld a, (fn_e3_lib_od_far)          ; (the far way: only the points of faces seen) [6643]
+            or a		; E3.cls 6644
+            jr z, fn_e3_lib_xv_go		; E3.cls 6645
+            ld a, (fn_e3_lib_xv_i)		; E3.cls 6646
+            ld e, a		; E3.cls 6647
+            ld d, 0		; E3.cls 6648
+            ld hl, fn_e3_lib_vmark		; E3.cls 6649
+            add hl, de		; E3.cls 6650
+            ld a, (hl)		; E3.cls 6651
+            or a		; E3.cls 6652
+            jr nz, fn_e3_lib_xv_go		; E3.cls 6653
+            ld hl, (fn_e3_lib_xv_p)		; E3.cls 6654
             inc hl		; E3.cls 6655
             inc hl		; E3.cls 6656
-            ld (fn_e3_lib_xv_p), hl		; E3.cls 6657
-            ld a, (var_e3_ovis)		; E3.cls 6658
-            cp 2		; E3.cls 6659
-            jp nz, fn_e3_lib_xv_nx		; E3.cls 6660
-            ld hl, (fn_e3_lib_xv_o)		; E3.cls 6661
-            ld de, 6		; E3.cls 6662
-            add hl, de		; E3.cls 6663
-            ld (fn_e3_lib_xv_o), hl		; E3.cls 6664
-            jp fn_e3_lib_xv_nx		; E3.cls 6665
-fn_e3_lib_xv_go:		; E3.cls 6666
-            ld hl, (fn_e3_lib_xv_p)		; E3.cls 6667
-            ld a, (hl)		; E3.cls 6668
-            xor #80		; E3.cls 6669
-            ld b, a		; E3.cls 6670
-            inc hl		; E3.cls 6671
-            ld a, (hl)		; E3.cls 6672
-            xor #80		; E3.cls 6673
-            ld c, a		; E3.cls 6674
-            inc hl		; E3.cls 6675
-            ld a, (hl)		; E3.cls 6676
-            xor #80		; E3.cls 6677
-            ld iyl, a		; E3.cls 6678
-            inc hl		; E3.cls 6679
-            ld (fn_e3_lib_xv_p), hl		; E3.cls 6680
+            inc hl		; E3.cls 6657
+            ld (fn_e3_lib_xv_p), hl		; E3.cls 6658
+            ld a, (var_e3_ovis)		; E3.cls 6659
+            cp 2		; E3.cls 6660
+            jp nz, fn_e3_lib_xv_nx		; E3.cls 6661
+            ld hl, (fn_e3_lib_xv_o)		; E3.cls 6662
+            ld de, 6		; E3.cls 6663
+            add hl, de		; E3.cls 6664
+            ld (fn_e3_lib_xv_o), hl		; E3.cls 6665
+            jp fn_e3_lib_xv_nx		; E3.cls 6666
+fn_e3_lib_xv_go:		; E3.cls 6667
+            ld hl, (fn_e3_lib_xv_p)		; E3.cls 6668
+            ld a, (hl)		; E3.cls 6669
+            xor #80		; E3.cls 6670
+            ld b, a		; E3.cls 6671
+            inc hl		; E3.cls 6672
+            ld a, (hl)		; E3.cls 6673
+            xor #80		; E3.cls 6674
+            ld c, a		; E3.cls 6675
+            inc hl		; E3.cls 6676
+            ld a, (hl)		; E3.cls 6677
+            xor #80		; E3.cls 6678
+            ld iyl, a		; E3.cls 6679
+            inc hl		; E3.cls 6680
+            ld (fn_e3_lib_xv_p), hl		; E3.cls 6681
 ;@@XFORM (tools/gen_xform.py)
-fn_e3_lib_xr0c:      ld hl, 0		; E3.cls 6682
-            ld e, b		; E3.cls 6683
-fn_e3_lib_xt00h:      ld d, 0		; E3.cls 6684
-            mul d, e		; E3.cls 6685
-fn_e3_lib_xt00a:      nop		; E3.cls 6686
-            nop		; E3.cls 6687
-            add hl, de		; E3.cls 6688
-            ld e, b		; E3.cls 6689
-fn_e3_lib_xt00l:      ld d, 0		; E3.cls 6690
-            mul d, e		; E3.cls 6691
-            ld e, d		; E3.cls 6692
-            ld d, 0		; E3.cls 6693
-fn_e3_lib_xt00b:      nop		; E3.cls 6694
-            nop		; E3.cls 6695
-            add hl, de		; E3.cls 6696
-            ld e, c		; E3.cls 6697
-fn_e3_lib_xt01h:      ld d, 0		; E3.cls 6698
-            mul d, e		; E3.cls 6699
-fn_e3_lib_xt01a:      nop		; E3.cls 6700
-            nop		; E3.cls 6701
-            add hl, de		; E3.cls 6702
-            ld e, c		; E3.cls 6703
-fn_e3_lib_xt01l:      ld d, 0		; E3.cls 6704
-            mul d, e		; E3.cls 6705
-            ld e, d		; E3.cls 6706
-            ld d, 0		; E3.cls 6707
-fn_e3_lib_xt01b:      nop		; E3.cls 6708
-            nop		; E3.cls 6709
-            add hl, de		; E3.cls 6710
-            ld e, iyl		; E3.cls 6711
-fn_e3_lib_xt02h:      ld d, 0		; E3.cls 6712
-            mul d, e		; E3.cls 6713
-fn_e3_lib_xt02a:      nop		; E3.cls 6714
-            nop		; E3.cls 6715
-            add hl, de		; E3.cls 6716
-            ld e, iyl		; E3.cls 6717
-fn_e3_lib_xt02l:      ld d, 0		; E3.cls 6718
-            mul d, e		; E3.cls 6719
-            ld e, d		; E3.cls 6720
-            ld d, 0		; E3.cls 6721
-fn_e3_lib_xt02b:      nop		; E3.cls 6722
-            nop		; E3.cls 6723
-            add hl, de		; E3.cls 6724
-            ld (fn_e3_lib_xv_o0), hl		; E3.cls 6725
-fn_e3_lib_xr1c:      ld hl, 0		; E3.cls 6726
-            ld e, b		; E3.cls 6727
-fn_e3_lib_xt10h:      ld d, 0		; E3.cls 6728
-            mul d, e		; E3.cls 6729
-fn_e3_lib_xt10a:      nop		; E3.cls 6730
-            nop		; E3.cls 6731
-            add hl, de		; E3.cls 6732
-            ld e, b		; E3.cls 6733
-fn_e3_lib_xt10l:      ld d, 0		; E3.cls 6734
-            mul d, e		; E3.cls 6735
-            ld e, d		; E3.cls 6736
-            ld d, 0		; E3.cls 6737
-fn_e3_lib_xt10b:      nop		; E3.cls 6738
-            nop		; E3.cls 6739
-            add hl, de		; E3.cls 6740
-            ld e, c		; E3.cls 6741
-fn_e3_lib_xt11h:      ld d, 0		; E3.cls 6742
-            mul d, e		; E3.cls 6743
-fn_e3_lib_xt11a:      nop		; E3.cls 6744
-            nop		; E3.cls 6745
-            add hl, de		; E3.cls 6746
-            ld e, c		; E3.cls 6747
-fn_e3_lib_xt11l:      ld d, 0		; E3.cls 6748
-            mul d, e		; E3.cls 6749
-            ld e, d		; E3.cls 6750
-            ld d, 0		; E3.cls 6751
-fn_e3_lib_xt11b:      nop		; E3.cls 6752
-            nop		; E3.cls 6753
-            add hl, de		; E3.cls 6754
-            ld e, iyl		; E3.cls 6755
-fn_e3_lib_xt12h:      ld d, 0		; E3.cls 6756
-            mul d, e		; E3.cls 6757
-fn_e3_lib_xt12a:      nop		; E3.cls 6758
-            nop		; E3.cls 6759
-            add hl, de		; E3.cls 6760
-            ld e, iyl		; E3.cls 6761
-fn_e3_lib_xt12l:      ld d, 0		; E3.cls 6762
-            mul d, e		; E3.cls 6763
-            ld e, d		; E3.cls 6764
-            ld d, 0		; E3.cls 6765
-fn_e3_lib_xt12b:      nop		; E3.cls 6766
-            nop		; E3.cls 6767
-            add hl, de		; E3.cls 6768
-            ld (fn_e3_lib_xv_o1), hl		; E3.cls 6769
-fn_e3_lib_xr2c:      ld hl, 0		; E3.cls 6770
-            ld e, b		; E3.cls 6771
-fn_e3_lib_xt20h:      ld d, 0		; E3.cls 6772
-            mul d, e		; E3.cls 6773
-fn_e3_lib_xt20a:      nop		; E3.cls 6774
-            nop		; E3.cls 6775
-            add hl, de		; E3.cls 6776
-            ld e, b		; E3.cls 6777
-fn_e3_lib_xt20l:      ld d, 0		; E3.cls 6778
-            mul d, e		; E3.cls 6779
-            ld e, d		; E3.cls 6780
-            ld d, 0		; E3.cls 6781
-fn_e3_lib_xt20b:      nop		; E3.cls 6782
-            nop		; E3.cls 6783
-            add hl, de		; E3.cls 6784
-            ld e, c		; E3.cls 6785
-fn_e3_lib_xt21h:      ld d, 0		; E3.cls 6786
-            mul d, e		; E3.cls 6787
-fn_e3_lib_xt21a:      nop		; E3.cls 6788
-            nop		; E3.cls 6789
-            add hl, de		; E3.cls 6790
-            ld e, c		; E3.cls 6791
-fn_e3_lib_xt21l:      ld d, 0		; E3.cls 6792
-            mul d, e		; E3.cls 6793
-            ld e, d		; E3.cls 6794
-            ld d, 0		; E3.cls 6795
-fn_e3_lib_xt21b:      nop		; E3.cls 6796
-            nop		; E3.cls 6797
-            add hl, de		; E3.cls 6798
-            ld e, iyl		; E3.cls 6799
-fn_e3_lib_xt22h:      ld d, 0		; E3.cls 6800
-            mul d, e		; E3.cls 6801
-fn_e3_lib_xt22a:      nop		; E3.cls 6802
-            nop		; E3.cls 6803
-            add hl, de		; E3.cls 6804
-            ld e, iyl		; E3.cls 6805
-fn_e3_lib_xt22l:      ld d, 0		; E3.cls 6806
-            mul d, e		; E3.cls 6807
-            ld e, d		; E3.cls 6808
-            ld d, 0		; E3.cls 6809
-fn_e3_lib_xt22b:      nop		; E3.cls 6810
-            nop		; E3.cls 6811
-            add hl, de		; E3.cls 6812
-            ld (fn_e3_lib_xv_o2), hl		; E3.cls 6813
+fn_e3_lib_xr0c:      ld hl, 0		; E3.cls 6683
+            ld e, b		; E3.cls 6684
+fn_e3_lib_xt00h:      ld d, 0		; E3.cls 6685
+            mul d, e		; E3.cls 6686
+fn_e3_lib_xt00a:      nop		; E3.cls 6687
+            nop		; E3.cls 6688
+            add hl, de		; E3.cls 6689
+            ld e, b		; E3.cls 6690
+fn_e3_lib_xt00l:      ld d, 0		; E3.cls 6691
+            mul d, e		; E3.cls 6692
+            ld e, d		; E3.cls 6693
+            ld d, 0		; E3.cls 6694
+fn_e3_lib_xt00b:      nop		; E3.cls 6695
+            nop		; E3.cls 6696
+            add hl, de		; E3.cls 6697
+            ld e, c		; E3.cls 6698
+fn_e3_lib_xt01h:      ld d, 0		; E3.cls 6699
+            mul d, e		; E3.cls 6700
+fn_e3_lib_xt01a:      nop		; E3.cls 6701
+            nop		; E3.cls 6702
+            add hl, de		; E3.cls 6703
+            ld e, c		; E3.cls 6704
+fn_e3_lib_xt01l:      ld d, 0		; E3.cls 6705
+            mul d, e		; E3.cls 6706
+            ld e, d		; E3.cls 6707
+            ld d, 0		; E3.cls 6708
+fn_e3_lib_xt01b:      nop		; E3.cls 6709
+            nop		; E3.cls 6710
+            add hl, de		; E3.cls 6711
+            ld e, iyl		; E3.cls 6712
+fn_e3_lib_xt02h:      ld d, 0		; E3.cls 6713
+            mul d, e		; E3.cls 6714
+fn_e3_lib_xt02a:      nop		; E3.cls 6715
+            nop		; E3.cls 6716
+            add hl, de		; E3.cls 6717
+            ld e, iyl		; E3.cls 6718
+fn_e3_lib_xt02l:      ld d, 0		; E3.cls 6719
+            mul d, e		; E3.cls 6720
+            ld e, d		; E3.cls 6721
+            ld d, 0		; E3.cls 6722
+fn_e3_lib_xt02b:      nop		; E3.cls 6723
+            nop		; E3.cls 6724
+            add hl, de		; E3.cls 6725
+            ld (fn_e3_lib_xv_o0), hl		; E3.cls 6726
+fn_e3_lib_xr1c:      ld hl, 0		; E3.cls 6727
+            ld e, b		; E3.cls 6728
+fn_e3_lib_xt10h:      ld d, 0		; E3.cls 6729
+            mul d, e		; E3.cls 6730
+fn_e3_lib_xt10a:      nop		; E3.cls 6731
+            nop		; E3.cls 6732
+            add hl, de		; E3.cls 6733
+            ld e, b		; E3.cls 6734
+fn_e3_lib_xt10l:      ld d, 0		; E3.cls 6735
+            mul d, e		; E3.cls 6736
+            ld e, d		; E3.cls 6737
+            ld d, 0		; E3.cls 6738
+fn_e3_lib_xt10b:      nop		; E3.cls 6739
+            nop		; E3.cls 6740
+            add hl, de		; E3.cls 6741
+            ld e, c		; E3.cls 6742
+fn_e3_lib_xt11h:      ld d, 0		; E3.cls 6743
+            mul d, e		; E3.cls 6744
+fn_e3_lib_xt11a:      nop		; E3.cls 6745
+            nop		; E3.cls 6746
+            add hl, de		; E3.cls 6747
+            ld e, c		; E3.cls 6748
+fn_e3_lib_xt11l:      ld d, 0		; E3.cls 6749
+            mul d, e		; E3.cls 6750
+            ld e, d		; E3.cls 6751
+            ld d, 0		; E3.cls 6752
+fn_e3_lib_xt11b:      nop		; E3.cls 6753
+            nop		; E3.cls 6754
+            add hl, de		; E3.cls 6755
+            ld e, iyl		; E3.cls 6756
+fn_e3_lib_xt12h:      ld d, 0		; E3.cls 6757
+            mul d, e		; E3.cls 6758
+fn_e3_lib_xt12a:      nop		; E3.cls 6759
+            nop		; E3.cls 6760
+            add hl, de		; E3.cls 6761
+            ld e, iyl		; E3.cls 6762
+fn_e3_lib_xt12l:      ld d, 0		; E3.cls 6763
+            mul d, e		; E3.cls 6764
+            ld e, d		; E3.cls 6765
+            ld d, 0		; E3.cls 6766
+fn_e3_lib_xt12b:      nop		; E3.cls 6767
+            nop		; E3.cls 6768
+            add hl, de		; E3.cls 6769
+            ld (fn_e3_lib_xv_o1), hl		; E3.cls 6770
+fn_e3_lib_xr2c:      ld hl, 0		; E3.cls 6771
+            ld e, b		; E3.cls 6772
+fn_e3_lib_xt20h:      ld d, 0		; E3.cls 6773
+            mul d, e		; E3.cls 6774
+fn_e3_lib_xt20a:      nop		; E3.cls 6775
+            nop		; E3.cls 6776
+            add hl, de		; E3.cls 6777
+            ld e, b		; E3.cls 6778
+fn_e3_lib_xt20l:      ld d, 0		; E3.cls 6779
+            mul d, e		; E3.cls 6780
+            ld e, d		; E3.cls 6781
+            ld d, 0		; E3.cls 6782
+fn_e3_lib_xt20b:      nop		; E3.cls 6783
+            nop		; E3.cls 6784
+            add hl, de		; E3.cls 6785
+            ld e, c		; E3.cls 6786
+fn_e3_lib_xt21h:      ld d, 0		; E3.cls 6787
+            mul d, e		; E3.cls 6788
+fn_e3_lib_xt21a:      nop		; E3.cls 6789
+            nop		; E3.cls 6790
+            add hl, de		; E3.cls 6791
+            ld e, c		; E3.cls 6792
+fn_e3_lib_xt21l:      ld d, 0		; E3.cls 6793
+            mul d, e		; E3.cls 6794
+            ld e, d		; E3.cls 6795
+            ld d, 0		; E3.cls 6796
+fn_e3_lib_xt21b:      nop		; E3.cls 6797
+            nop		; E3.cls 6798
+            add hl, de		; E3.cls 6799
+            ld e, iyl		; E3.cls 6800
+fn_e3_lib_xt22h:      ld d, 0		; E3.cls 6801
+            mul d, e		; E3.cls 6802
+fn_e3_lib_xt22a:      nop		; E3.cls 6803
+            nop		; E3.cls 6804
+            add hl, de		; E3.cls 6805
+            ld e, iyl		; E3.cls 6806
+fn_e3_lib_xt22l:      ld d, 0		; E3.cls 6807
+            mul d, e		; E3.cls 6808
+            ld e, d		; E3.cls 6809
+            ld d, 0		; E3.cls 6810
+fn_e3_lib_xt22b:      nop		; E3.cls 6811
+            nop		; E3.cls 6812
+            add hl, de		; E3.cls 6813
+            ld (fn_e3_lib_xv_o2), hl		; E3.cls 6814
 ;@@XFORM-END
-            ld a, (var_e3_ovis)		; E3.cls 6815
-            cp 2		; E3.cls 6816
-            jr nz, fn_e3_lib_xv_in		; E3.cls 6817
-            ld hl, (fn_e3_lib_xv_o)           ; crossing the view's edges: the vertex in the view kept (the [6818]
-            ld de, (fn_e3_lib_xv_o0)          ; clipper's), and its code [6819]
-            ld (hl), e		; E3.cls 6820
-            inc hl		; E3.cls 6821
-            ld (hl), d		; E3.cls 6822
-            inc hl		; E3.cls 6823
-            ld de, (fn_e3_lib_xv_o1)		; E3.cls 6824
-            ld (hl), e		; E3.cls 6825
-            inc hl		; E3.cls 6826
-            ld (hl), d		; E3.cls 6827
-            inc hl		; E3.cls 6828
-            ld de, (fn_e3_lib_xv_o2)		; E3.cls 6829
-            ld (hl), e		; E3.cls 6830
-            inc hl		; E3.cls 6831
-            ld (hl), d		; E3.cls 6832
-            inc hl		; E3.cls 6833
-            ld (fn_e3_lib_xv_o), hl		; E3.cls 6834
-            ld hl, (fn_e3_lib_xv_o0)		; E3.cls 6835
-            ld de, (fn_e3_lib_xv_o1)		; E3.cls 6836
-            ld bc, (fn_e3_lib_xv_o2)		; E3.cls 6837
-            call fn_e3_lib_vcode		; E3.cls 6838
-            or a		; E3.cls 6839
-            jr z, fn_e3_lib_xv_in		; E3.cls 6840
-            or #80		; E3.cls 6841
-            jr fn_e3_lib_xv_cd		; E3.cls 6842
-fn_e3_lib_xv_in:		; E3.cls 6843
-            ld hl, (fn_e3_lib_xv_o0)          ; on the screen: 16 bits (osx, osy), and bytes in vpage when in [6844]
-            ld de, (fn_e3_lib_xv_o1)          ; the fast range (x 1..255, y 0..192: code 0; else bit 7) [6845]
-            ld bc, (fn_e3_lib_xv_o2)		; E3.cls 6846
-            call fn_e3_lib_proj		; E3.cls 6847
-            ld b, h		; E3.cls 6848
-            ld c, l		; E3.cls 6849
-            ld hl, (fn_e3_lib_xv_sx)		; E3.cls 6850
-            ld (hl), c		; E3.cls 6851
-            inc hl		; E3.cls 6852
-            ld (hl), b		; E3.cls 6853
-            ld hl, (fn_e3_lib_xv_sy)		; E3.cls 6854
-            ld (hl), e		; E3.cls 6855
-            inc hl		; E3.cls 6856
-            ld (hl), d		; E3.cls 6857
-            ld a, b		; E3.cls 6858
-            or d		; E3.cls 6859
-            jr nz, fn_e3_lib_xv_far		; E3.cls 6860
-            ld a, c		; E3.cls 6861
-            or a		; E3.cls 6862
-            jr z, fn_e3_lib_xv_far		; E3.cls 6863
-            ld a, e		; E3.cls 6864
-            cp 193		; E3.cls 6865
-            jr nc, fn_e3_lib_xv_far		; E3.cls 6866
-            ld a, (fn_e3_lib_xv_i)		; E3.cls 6867
-            ld l, a		; E3.cls 6868
-            ld h, fn_e3_lib_vpage >> 8		; E3.cls 6869
-            ld (hl), 0		; E3.cls 6870
-            set 6, l		; E3.cls 6871
-            ld (hl), c		; E3.cls 6872
-            ld a, l		; E3.cls 6873
-            xor #C0		; E3.cls 6874
-            ld l, a		; E3.cls 6875
-            ld (hl), e		; E3.cls 6876
-            jr fn_e3_lib_xv_nx		; E3.cls 6877
-fn_e3_lib_xv_far:		; E3.cls 6878
-            ld a, #80		; E3.cls 6879
-fn_e3_lib_xv_cd:		; E3.cls 6880
-            ld e, a		; E3.cls 6881
-            ld hl, fn_e3_lib_xv_or		; E3.cls 6882
-            or (hl)		; E3.cls 6883
-            ld (hl), a		; E3.cls 6884
-            ld a, (fn_e3_lib_xv_i)		; E3.cls 6885
-            ld l, a		; E3.cls 6886
-            ld h, fn_e3_lib_vpage >> 8		; E3.cls 6887
-            ld (hl), e		; E3.cls 6888
-fn_e3_lib_xv_nx:		; E3.cls 6889
-            ld hl, fn_e3_lib_xv_i		; E3.cls 6890
-            inc (hl)		; E3.cls 6891
-            ld hl, (fn_e3_lib_xv_sx)		; E3.cls 6892
-            inc hl		; E3.cls 6893
+            ld a, (var_e3_ovis)		; E3.cls 6816
+            cp 2		; E3.cls 6817
+            jr nz, fn_e3_lib_xv_in		; E3.cls 6818
+            ld hl, (fn_e3_lib_xv_o)           ; crossing the view's edges: the vertex in the view kept (the [6819]
+            ld de, (fn_e3_lib_xv_o0)          ; clipper's), and its code [6820]
+            ld (hl), e		; E3.cls 6821
+            inc hl		; E3.cls 6822
+            ld (hl), d		; E3.cls 6823
+            inc hl		; E3.cls 6824
+            ld de, (fn_e3_lib_xv_o1)		; E3.cls 6825
+            ld (hl), e		; E3.cls 6826
+            inc hl		; E3.cls 6827
+            ld (hl), d		; E3.cls 6828
+            inc hl		; E3.cls 6829
+            ld de, (fn_e3_lib_xv_o2)		; E3.cls 6830
+            ld (hl), e		; E3.cls 6831
+            inc hl		; E3.cls 6832
+            ld (hl), d		; E3.cls 6833
+            inc hl		; E3.cls 6834
+            ld (fn_e3_lib_xv_o), hl		; E3.cls 6835
+            ld hl, (fn_e3_lib_xv_o0)		; E3.cls 6836
+            ld de, (fn_e3_lib_xv_o1)		; E3.cls 6837
+            ld bc, (fn_e3_lib_xv_o2)		; E3.cls 6838
+            call fn_e3_lib_vcode		; E3.cls 6839
+            or a		; E3.cls 6840
+            jr z, fn_e3_lib_xv_in		; E3.cls 6841
+            or #80		; E3.cls 6842
+            jr fn_e3_lib_xv_cd		; E3.cls 6843
+fn_e3_lib_xv_in:		; E3.cls 6844
+            ld hl, (fn_e3_lib_xv_o0)          ; on the screen: 16 bits (osx, osy), and bytes in vpage when in [6845]
+            ld de, (fn_e3_lib_xv_o1)          ; the fast range (x 1..255, y 0..192: code 0; else bit 7) [6846]
+            ld bc, (fn_e3_lib_xv_o2)		; E3.cls 6847
+            call fn_e3_lib_proj		; E3.cls 6848
+            ld b, h		; E3.cls 6849
+            ld c, l		; E3.cls 6850
+            ld hl, (fn_e3_lib_xv_sx)		; E3.cls 6851
+            ld (hl), c		; E3.cls 6852
+            inc hl		; E3.cls 6853
+            ld (hl), b		; E3.cls 6854
+            ld hl, (fn_e3_lib_xv_sy)		; E3.cls 6855
+            ld (hl), e		; E3.cls 6856
+            inc hl		; E3.cls 6857
+            ld (hl), d		; E3.cls 6858
+            ld a, b		; E3.cls 6859
+            or d		; E3.cls 6860
+            jr nz, fn_e3_lib_xv_far		; E3.cls 6861
+            ld a, c		; E3.cls 6862
+            or a		; E3.cls 6863
+            jr z, fn_e3_lib_xv_far		; E3.cls 6864
+            ld a, e		; E3.cls 6865
+            cp 193		; E3.cls 6866
+            jr nc, fn_e3_lib_xv_far		; E3.cls 6867
+            ld a, (fn_e3_lib_xv_i)		; E3.cls 6868
+            ld l, a		; E3.cls 6869
+            ld h, fn_e3_lib_vpage >> 8		; E3.cls 6870
+            ld (hl), 0		; E3.cls 6871
+            set 6, l		; E3.cls 6872
+            ld (hl), c		; E3.cls 6873
+            ld a, l		; E3.cls 6874
+            xor #C0		; E3.cls 6875
+            ld l, a		; E3.cls 6876
+            ld (hl), e		; E3.cls 6877
+            jr fn_e3_lib_xv_nx		; E3.cls 6878
+fn_e3_lib_xv_far:		; E3.cls 6879
+            ld a, #80		; E3.cls 6880
+fn_e3_lib_xv_cd:		; E3.cls 6881
+            ld e, a		; E3.cls 6882
+            ld hl, fn_e3_lib_xv_or		; E3.cls 6883
+            or (hl)		; E3.cls 6884
+            ld (hl), a		; E3.cls 6885
+            ld a, (fn_e3_lib_xv_i)		; E3.cls 6886
+            ld l, a		; E3.cls 6887
+            ld h, fn_e3_lib_vpage >> 8		; E3.cls 6888
+            ld (hl), e		; E3.cls 6889
+fn_e3_lib_xv_nx:		; E3.cls 6890
+            ld hl, fn_e3_lib_xv_i		; E3.cls 6891
+            inc (hl)		; E3.cls 6892
+            ld hl, (fn_e3_lib_xv_sx)		; E3.cls 6893
             inc hl		; E3.cls 6894
-            ld (fn_e3_lib_xv_sx), hl		; E3.cls 6895
-            ld hl, (fn_e3_lib_xv_sy)		; E3.cls 6896
-            inc hl		; E3.cls 6897
+            inc hl		; E3.cls 6895
+            ld (fn_e3_lib_xv_sx), hl		; E3.cls 6896
+            ld hl, (fn_e3_lib_xv_sy)		; E3.cls 6897
             inc hl		; E3.cls 6898
-            ld (fn_e3_lib_xv_sy), hl		; E3.cls 6899
-            ld a, (fn_e3_lib_xv_k)		; E3.cls 6900
-            dec a		; E3.cls 6901
-            ld (fn_e3_lib_xv_k), a		; E3.cls 6902
-            jp nz, fn_e3_lib_xv_lp		; E3.cls 6903
+            inc hl		; E3.cls 6899
+            ld (fn_e3_lib_xv_sy), hl		; E3.cls 6900
+            ld a, (fn_e3_lib_xv_k)		; E3.cls 6901
+            dec a		; E3.cls 6902
+            ld (fn_e3_lib_xv_k), a		; E3.cls 6903
+            jp nz, fn_e3_lib_xv_lp		; E3.cls 6904
             ; ---- the faces
-            ld iy, (fn_e3_lib_xv_p)		; E3.cls 6905
-            ld a, (fn_e3_lib_od_far)		; E3.cls 6906
-            or a		; E3.cls 6907
-            jr z, fn_e3_lib_of_lp		; E3.cls 6908
-            ld hl, fn_e3_lib_fvis		; E3.cls 6909
-            ld (fn_e3_lib_fv_i), hl		; E3.cls 6910
-            ld a, (fn_e3_lib_fv_n)		; E3.cls 6911
-            ld (fn_e3_lib_of_k), a		; E3.cls 6912
-fn_e3_lib_of_fv:		; E3.cls 6913
-            ld hl, (fn_e3_lib_fv_i)		; E3.cls 6914
-            ld e, (hl)		; E3.cls 6915
-            inc hl		; E3.cls 6916
-            ld d, (hl)		; E3.cls 6917
-            inc hl		; E3.cls 6918
-            ld (fn_e3_lib_fv_i), hl		; E3.cls 6919
-            push de		; E3.cls 6920
-            pop iy		; E3.cls 6921
-fn_e3_lib_of_lp:		; E3.cls 6922
-            ld a, (iy + 0)		; E3.cls 6923
-            ld (fn_e3_lib_of_n), a		; E3.cls 6924
-            ld b, a		; E3.cls 6925
-            push iy		; E3.cls 6926
-            pop de		; E3.cls 6927
-            ld hl, 7		; E3.cls 6928
-            add hl, de		; E3.cls 6929
-            ld (fn_e3_lib_of_ix), hl		; E3.cls 6930
-            ld a, (fn_e3_lib_xv_or)           ; (all the object's points in the fast range: no codes to see) [6931]
-            or a		; E3.cls 6932
-            jr nz, fn_e3_lib_of_cds		; E3.cls 6933
-            ld (var_e3_cmask), a		; E3.cls 6934
-            jp fn_e3_lib_of_fw		; E3.cls 6935
-fn_e3_lib_of_cds:		; E3.cls 6936
-            ex de, hl               ; DE: the points [6937]
-            ld h, fn_e3_lib_vpage >> 8        ; their codes: all outside one plane: not seen; OR in C [6938]
-            ld c, 0		; E3.cls 6939
-            ld a, #FF		; E3.cls 6940
-            db #08                  ; (A': the AND) [6941]
-fn_e3_lib_of_cd:		; E3.cls 6942
-            ld a, (de)		; E3.cls 6943
-            inc de		; E3.cls 6944
-            ld l, a		; E3.cls 6945
-            ld a, (hl)		; E3.cls 6946
-            or c		; E3.cls 6947
-            ld c, a		; E3.cls 6948
-            db #08		; E3.cls 6949
-            and (hl)		; E3.cls 6950
-            db #08		; E3.cls 6951
-            djnz fn_e3_lib_of_cd		; E3.cls 6952
-            db #08		; E3.cls 6953
-            and #1F		; E3.cls 6954
-            jp nz, fn_e3_lib_of_skip		; E3.cls 6955
-            ld a, c		; E3.cls 6956
-            ld (var_e3_cmask), a		; E3.cls 6957
-            or a		; E3.cls 6958
-            jp nz, fn_e3_lib_of_3d		; E3.cls 6959
+            ld iy, (fn_e3_lib_xv_p)		; E3.cls 6906
+            ld a, (fn_e3_lib_od_far)		; E3.cls 6907
+            or a		; E3.cls 6908
+            jr z, fn_e3_lib_of_lp		; E3.cls 6909
+            ld hl, fn_e3_lib_fvis		; E3.cls 6910
+            ld (fn_e3_lib_fv_i), hl		; E3.cls 6911
+            ld a, (fn_e3_lib_fv_n)		; E3.cls 6912
+            ld (fn_e3_lib_of_k), a		; E3.cls 6913
+fn_e3_lib_of_fv:		; E3.cls 6914
+            ld hl, (fn_e3_lib_fv_i)		; E3.cls 6915
+            ld e, (hl)		; E3.cls 6916
+            inc hl		; E3.cls 6917
+            ld d, (hl)		; E3.cls 6918
+            inc hl		; E3.cls 6919
+            ld (fn_e3_lib_fv_i), hl		; E3.cls 6920
+            push de		; E3.cls 6921
+            pop iy		; E3.cls 6922
+fn_e3_lib_of_lp:		; E3.cls 6923
+            ld a, (iy + 0)		; E3.cls 6924
+            ld (fn_e3_lib_of_n), a		; E3.cls 6925
+            ld b, a		; E3.cls 6926
+            push iy		; E3.cls 6927
+            pop de		; E3.cls 6928
+            ld hl, 7		; E3.cls 6929
+            add hl, de		; E3.cls 6930
+            ld (fn_e3_lib_of_ix), hl		; E3.cls 6931
+            ld a, (fn_e3_lib_xv_or)           ; (all the object's points in the fast range: no codes to see) [6932]
+            or a		; E3.cls 6933
+            jr nz, fn_e3_lib_of_cds		; E3.cls 6934
+            ld (var_e3_cmask), a		; E3.cls 6935
+            jp fn_e3_lib_of_fw		; E3.cls 6936
+fn_e3_lib_of_cds:		; E3.cls 6937
+            ex de, hl               ; DE: the points [6938]
+            ld h, fn_e3_lib_vpage >> 8        ; their codes: all outside one plane: not seen; OR in C [6939]
+            ld c, 0		; E3.cls 6940
+            ld a, #FF		; E3.cls 6941
+            db #08                  ; (A': the AND) [6942]
+fn_e3_lib_of_cd:		; E3.cls 6943
+            ld a, (de)		; E3.cls 6944
+            inc de		; E3.cls 6945
+            ld l, a		; E3.cls 6946
+            ld a, (hl)		; E3.cls 6947
+            or c		; E3.cls 6948
+            ld c, a		; E3.cls 6949
+            db #08		; E3.cls 6950
+            and (hl)		; E3.cls 6951
+            db #08		; E3.cls 6952
+            djnz fn_e3_lib_of_cd		; E3.cls 6953
+            db #08		; E3.cls 6954
+            and #1F		; E3.cls 6955
+            jp nz, fn_e3_lib_of_skip		; E3.cls 6956
+            ld a, c		; E3.cls 6957
+            ld (var_e3_cmask), a		; E3.cls 6958
+            or a		; E3.cls 6959
+            jp nz, fn_e3_lib_of_3d		; E3.cls 6960
             ; all in the fast range: seen if clockwise on the screen (the first three points' bytes)
-fn_e3_lib_of_fw:		; E3.cls 6961
-            ld a, (fn_e3_lib_od_far)		; E3.cls 6962
-            or a		; E3.cls 6963
-            jp nz, fn_e3_lib_of_lit		; E3.cls 6964
-            ld de, (fn_e3_lib_of_ix)		; E3.cls 6965
-            ld h, fn_e3_lib_vpage >> 8		; E3.cls 6966
-            ld a, (de)		; E3.cls 6967
-            inc de		; E3.cls 6968
-            or #40		; E3.cls 6969
-            ld l, a		; E3.cls 6970
-            ld b, (hl)              ; x0 [6971]
-            xor #C0		; E3.cls 6972
-            ld l, a		; E3.cls 6973
-            ld c, (hl)              ; y0 [6974]
-            ld a, (de)		; E3.cls 6975
-            inc de		; E3.cls 6976
-            or #40		; E3.cls 6977
-            ld l, a		; E3.cls 6978
-            ld a, (hl)		; E3.cls 6979
-            sub b		; E3.cls 6980
-            ld (fn_e3_lib_of_a), a            ; x1 - x0 (and its sign) [6981]
-            sbc a, a		; E3.cls 6982
-            ld (fn_e3_lib_of_as), a		; E3.cls 6983
-            ld a, l		; E3.cls 6984
-            xor #C0		; E3.cls 6985
-            ld l, a		; E3.cls 6986
-            ld a, (hl)		; E3.cls 6987
-            sub c		; E3.cls 6988
-            ld (fn_e3_lib_of_c), a            ; y1 - y0 [6989]
-            sbc a, a		; E3.cls 6990
-            ld (fn_e3_lib_of_cs), a		; E3.cls 6991
-            ld a, (de)		; E3.cls 6992
-            or #40		; E3.cls 6993
-            ld l, a		; E3.cls 6994
-            ld a, (hl)		; E3.cls 6995
-            sub b		; E3.cls 6996
-            ld (fn_e3_lib_of_d), a            ; x2 - x0 [6997]
-            sbc a, a		; E3.cls 6998
-            ld (fn_e3_lib_of_ds), a		; E3.cls 6999
-            ld a, l		; E3.cls 7000
-            xor #C0		; E3.cls 7001
-            ld l, a		; E3.cls 7002
-            ld a, (hl)		; E3.cls 7003
-            sub c		; E3.cls 7004
-            ld (fn_e3_lib_of_b), a            ; y2 - y0 [7005]
-            sbc a, a		; E3.cls 7006
-            ld (fn_e3_lib_of_bs), a		; E3.cls 7007
+fn_e3_lib_of_fw:		; E3.cls 6962
+            ld a, (fn_e3_lib_od_far)		; E3.cls 6963
+            or a		; E3.cls 6964
+            jp nz, fn_e3_lib_of_lit		; E3.cls 6965
+            ld de, (fn_e3_lib_of_ix)		; E3.cls 6966
+            ld h, fn_e3_lib_vpage >> 8		; E3.cls 6967
+            ld a, (de)		; E3.cls 6968
+            inc de		; E3.cls 6969
+            or #40		; E3.cls 6970
+            ld l, a		; E3.cls 6971
+            ld b, (hl)              ; x0 [6972]
+            xor #C0		; E3.cls 6973
+            ld l, a		; E3.cls 6974
+            ld c, (hl)              ; y0 [6975]
+            ld a, (de)		; E3.cls 6976
+            inc de		; E3.cls 6977
+            or #40		; E3.cls 6978
+            ld l, a		; E3.cls 6979
+            ld a, (hl)		; E3.cls 6980
+            sub b		; E3.cls 6981
+            ld (fn_e3_lib_of_a), a            ; x1 - x0 (and its sign) [6982]
+            sbc a, a		; E3.cls 6983
+            ld (fn_e3_lib_of_as), a		; E3.cls 6984
+            ld a, l		; E3.cls 6985
+            xor #C0		; E3.cls 6986
+            ld l, a		; E3.cls 6987
+            ld a, (hl)		; E3.cls 6988
+            sub c		; E3.cls 6989
+            ld (fn_e3_lib_of_c), a            ; y1 - y0 [6990]
+            sbc a, a		; E3.cls 6991
+            ld (fn_e3_lib_of_cs), a		; E3.cls 6992
+            ld a, (de)		; E3.cls 6993
+            or #40		; E3.cls 6994
+            ld l, a		; E3.cls 6995
+            ld a, (hl)		; E3.cls 6996
+            sub b		; E3.cls 6997
+            ld (fn_e3_lib_of_d), a            ; x2 - x0 [6998]
+            sbc a, a		; E3.cls 6999
+            ld (fn_e3_lib_of_ds), a		; E3.cls 7000
+            ld a, l		; E3.cls 7001
+            xor #C0		; E3.cls 7002
+            ld l, a		; E3.cls 7003
+            ld a, (hl)		; E3.cls 7004
+            sub c		; E3.cls 7005
+            ld (fn_e3_lib_of_b), a            ; y2 - y0 [7006]
+            sbc a, a		; E3.cls 7007
+            ld (fn_e3_lib_of_bs), a		; E3.cls 7008
             ; (x1 - x0)(y2 - y0) - (y1 - y0)(x2 - x0) > 0: the sizes multiplied, the signs apart
-            ld a, (fn_e3_lib_of_as)		; E3.cls 7009
-            or a		; E3.cls 7010
-            ld a, (fn_e3_lib_of_a)		; E3.cls 7011
-            jr z, fn_e3_lib_ow_1		; E3.cls 7012
-            neg		; E3.cls 7013
-fn_e3_lib_ow_1:		; E3.cls 7014
-            ld d, a		; E3.cls 7015
-            ld a, (fn_e3_lib_of_bs)		; E3.cls 7016
-            or a		; E3.cls 7017
-            ld a, (fn_e3_lib_of_b)		; E3.cls 7018
-            jr z, fn_e3_lib_ow_2		; E3.cls 7019
-            neg		; E3.cls 7020
-fn_e3_lib_ow_2:		; E3.cls 7021
-            ld e, a		; E3.cls 7022
-            mul d, e		; E3.cls 7023
-            push de                 ; |p1| [7024]
-            ld a, (fn_e3_lib_of_cs)		; E3.cls 7025
-            or a		; E3.cls 7026
-            ld a, (fn_e3_lib_of_c)		; E3.cls 7027
-            jr z, fn_e3_lib_ow_3		; E3.cls 7028
-            neg		; E3.cls 7029
-fn_e3_lib_ow_3:		; E3.cls 7030
-            ld d, a		; E3.cls 7031
-            ld a, (fn_e3_lib_of_ds)		; E3.cls 7032
-            or a		; E3.cls 7033
-            ld a, (fn_e3_lib_of_d)		; E3.cls 7034
-            jr z, fn_e3_lib_ow_4		; E3.cls 7035
-            neg		; E3.cls 7036
-fn_e3_lib_ow_4:		; E3.cls 7037
-            ld e, a		; E3.cls 7038
-            mul d, e                ; |p2| [7039]
-            pop hl                  ; |p1| [7040]
-            ld a, (fn_e3_lib_of_as)		; E3.cls 7041
-            ld b, a		; E3.cls 7042
-            ld a, (fn_e3_lib_of_bs)		; E3.cls 7043
-            xor b		; E3.cls 7044
-            ld b, a                 ; p1's sign [7045]
-            ld a, (fn_e3_lib_of_cs)		; E3.cls 7046
-            ld c, a		; E3.cls 7047
-            ld a, (fn_e3_lib_of_ds)		; E3.cls 7048
-            xor c                   ; p2's sign [7049]
-            jr nz, fn_e3_lib_ow_n2		; E3.cls 7050
-            ld a, b                 ; p2 >= 0 [7051]
-            or a		; E3.cls 7052
-            jp nz, fn_e3_lib_of_skip          ; p1 < 0: p1 - p2 < 0 [7053]
-            or a                    ; both >= 0: |p1| > |p2| [7054]
-            sbc hl, de		; E3.cls 7055
-            jp z, fn_e3_lib_of_skip		; E3.cls 7056
-            jp c, fn_e3_lib_of_skip		; E3.cls 7057
-            jp fn_e3_lib_of_lit		; E3.cls 7058
-fn_e3_lib_ow_n2:		; E3.cls 7059
-            ld a, b                 ; p2 < 0 [7060]
-            or a		; E3.cls 7061
-            jr nz, fn_e3_lib_ow_nn		; E3.cls 7062
-            ld a, h                 ; p1 >= 0: seen unless both 0 [7063]
-            or l		; E3.cls 7064
-            or d		; E3.cls 7065
-            or e		; E3.cls 7066
-            jp z, fn_e3_lib_of_skip		; E3.cls 7067
-            jp fn_e3_lib_of_lit		; E3.cls 7068
-fn_e3_lib_ow_nn:		; E3.cls 7069
-            ex de, hl               ; both < 0: |p2| > |p1| [7070]
-            or a		; E3.cls 7071
-            sbc hl, de		; E3.cls 7072
-            jp z, fn_e3_lib_of_skip		; E3.cls 7073
-            jp c, fn_e3_lib_of_skip		; E3.cls 7074
-            jp fn_e3_lib_of_lit		; E3.cls 7075
-fn_e3_lib_of_3d:		; E3.cls 7076
-            ld a, (fn_e3_lib_od_far)		; E3.cls 7077
-            or a		; E3.cls 7078
-            jp nz, fn_e3_lib_of_lit		; E3.cls 7079
-            ld a, (var_e3_cmask)		; E3.cls 7080
-            and #1F		; E3.cls 7081
-            jp z, fn_e3_lib_of_w16		; E3.cls 7082
+            ld a, (fn_e3_lib_of_as)		; E3.cls 7010
+            or a		; E3.cls 7011
+            ld a, (fn_e3_lib_of_a)		; E3.cls 7012
+            jr z, fn_e3_lib_ow_1		; E3.cls 7013
+            neg		; E3.cls 7014
+fn_e3_lib_ow_1:		; E3.cls 7015
+            ld d, a		; E3.cls 7016
+            ld a, (fn_e3_lib_of_bs)		; E3.cls 7017
+            or a		; E3.cls 7018
+            ld a, (fn_e3_lib_of_b)		; E3.cls 7019
+            jr z, fn_e3_lib_ow_2		; E3.cls 7020
+            neg		; E3.cls 7021
+fn_e3_lib_ow_2:		; E3.cls 7022
+            ld e, a		; E3.cls 7023
+            mul d, e		; E3.cls 7024
+            push de                 ; |p1| [7025]
+            ld a, (fn_e3_lib_of_cs)		; E3.cls 7026
+            or a		; E3.cls 7027
+            ld a, (fn_e3_lib_of_c)		; E3.cls 7028
+            jr z, fn_e3_lib_ow_3		; E3.cls 7029
+            neg		; E3.cls 7030
+fn_e3_lib_ow_3:		; E3.cls 7031
+            ld d, a		; E3.cls 7032
+            ld a, (fn_e3_lib_of_ds)		; E3.cls 7033
+            or a		; E3.cls 7034
+            ld a, (fn_e3_lib_of_d)		; E3.cls 7035
+            jr z, fn_e3_lib_ow_4		; E3.cls 7036
+            neg		; E3.cls 7037
+fn_e3_lib_ow_4:		; E3.cls 7038
+            ld e, a		; E3.cls 7039
+            mul d, e                ; |p2| [7040]
+            pop hl                  ; |p1| [7041]
+            ld a, (fn_e3_lib_of_as)		; E3.cls 7042
+            ld b, a		; E3.cls 7043
+            ld a, (fn_e3_lib_of_bs)		; E3.cls 7044
+            xor b		; E3.cls 7045
+            ld b, a                 ; p1's sign [7046]
+            ld a, (fn_e3_lib_of_cs)		; E3.cls 7047
+            ld c, a		; E3.cls 7048
+            ld a, (fn_e3_lib_of_ds)		; E3.cls 7049
+            xor c                   ; p2's sign [7050]
+            jr nz, fn_e3_lib_ow_n2		; E3.cls 7051
+            ld a, b                 ; p2 >= 0 [7052]
+            or a		; E3.cls 7053
+            jp nz, fn_e3_lib_of_skip          ; p1 < 0: p1 - p2 < 0 [7054]
+            or a                    ; both >= 0: |p1| > |p2| [7055]
+            sbc hl, de		; E3.cls 7056
+            jp z, fn_e3_lib_of_skip		; E3.cls 7057
+            jp c, fn_e3_lib_of_skip		; E3.cls 7058
+            jp fn_e3_lib_of_lit		; E3.cls 7059
+fn_e3_lib_ow_n2:		; E3.cls 7060
+            ld a, b                 ; p2 < 0 [7061]
+            or a		; E3.cls 7062
+            jr nz, fn_e3_lib_ow_nn		; E3.cls 7063
+            ld a, h                 ; p1 >= 0: seen unless both 0 [7064]
+            or l		; E3.cls 7065
+            or d		; E3.cls 7066
+            or e		; E3.cls 7067
+            jp z, fn_e3_lib_of_skip		; E3.cls 7068
+            jp fn_e3_lib_of_lit		; E3.cls 7069
+fn_e3_lib_ow_nn:		; E3.cls 7070
+            ex de, hl               ; both < 0: |p2| > |p1| [7071]
+            or a		; E3.cls 7072
+            sbc hl, de		; E3.cls 7073
+            jp z, fn_e3_lib_of_skip		; E3.cls 7074
+            jp c, fn_e3_lib_of_skip		; E3.cls 7075
+            jp fn_e3_lib_of_lit		; E3.cls 7076
+fn_e3_lib_of_3d:		; E3.cls 7077
+            ld a, (fn_e3_lib_od_far)		; E3.cls 7078
+            or a		; E3.cls 7079
+            jp nz, fn_e3_lib_of_lit		; E3.cls 7080
+            ld a, (var_e3_cmask)		; E3.cls 7081
+            and #1F		; E3.cls 7082
+            jp z, fn_e3_lib_of_w16		; E3.cls 7083
             ; crossing the view's edges: seen if n . e > d (e: the camera in the model)
-            ld a, (fn_e3_lib_oe_ok)		; E3.cls 7084
-            or a		; E3.cls 7085
-            call z, fn_e3_lib_of_e		; E3.cls 7086
-            ld hl, arr_e3_oe		; E3.cls 7087
-            call fn_e3_lib_ndot		; E3.cls 7088
-            ld e, (iy + 5)		; E3.cls 7089
-            ld d, (iy + 6)		; E3.cls 7090
-            ld a, d		; E3.cls 7091
-            rla		; E3.cls 7092
-            sbc a, a		; E3.cls 7093
-            ld c, a		; E3.cls 7094
-            ld hl, (fn_e3_lib_nd_l)		; E3.cls 7095
-            or a		; E3.cls 7096
-            sbc hl, de		; E3.cls 7097
-            ld a, (fn_e3_lib_nd_h)		; E3.cls 7098
-            sbc a, c		; E3.cls 7099
-            jp m, fn_e3_lib_of_skip		; E3.cls 7100
-            or h		; E3.cls 7101
-            or l		; E3.cls 7102
-            jp z, fn_e3_lib_of_skip		; E3.cls 7103
-fn_e3_lib_of_lit:		; E3.cls 7104
+            ld a, (fn_e3_lib_oe_ok)		; E3.cls 7085
+            or a		; E3.cls 7086
+            call z, fn_e3_lib_of_e		; E3.cls 7087
+            ld hl, arr_e3_oe		; E3.cls 7088
+            call fn_e3_lib_ndot		; E3.cls 7089
+            ld e, (iy + 5)		; E3.cls 7090
+            ld d, (iy + 6)		; E3.cls 7091
+            ld a, d		; E3.cls 7092
+            rla		; E3.cls 7093
+            sbc a, a		; E3.cls 7094
+            ld c, a		; E3.cls 7095
+            ld hl, (fn_e3_lib_nd_l)		; E3.cls 7096
+            or a		; E3.cls 7097
+            sbc hl, de		; E3.cls 7098
+            ld a, (fn_e3_lib_nd_h)		; E3.cls 7099
+            sbc a, c		; E3.cls 7100
+            jp m, fn_e3_lib_of_skip		; E3.cls 7101
+            or h		; E3.cls 7102
+            or l		; E3.cls 7103
+            jp z, fn_e3_lib_of_skip		; E3.cls 7104
+fn_e3_lib_of_lit:		; E3.cls 7105
             ; the shade: 3 + n . sun (0..30: 16 shades and the steps between, dithered)
-            ld d, (iy + 2)		; E3.cls 7106
-            ld a, (fn_e3_lib_osn8)		; E3.cls 7107
-            ld e, a		; E3.cls 7108
-            call fn_e3_lib_mul8s		; E3.cls 7109
-            push de		; E3.cls 7110
-            ld d, (iy + 3)		; E3.cls 7111
-            ld a, (fn_e3_lib_osn8 + 1)		; E3.cls 7112
-            ld e, a		; E3.cls 7113
-            call fn_e3_lib_mul8s		; E3.cls 7114
-            pop hl		; E3.cls 7115
-            add hl, de		; E3.cls 7116
-            push hl		; E3.cls 7117
-            ld d, (iy + 4)		; E3.cls 7118
-            ld a, (fn_e3_lib_osn8 + 2)		; E3.cls 7119
-            ld e, a		; E3.cls 7120
-            call fn_e3_lib_mul8s		; E3.cls 7121
-            pop hl		; E3.cls 7122
-            add hl, de              ; n . sun (to +-15240) [7123]
-            add hl, hl		; E3.cls 7124
-            ld a, h                 ; >> 7 (to +-119), then / 4 [7125]
-            sra a		; E3.cls 7126
+            ld d, (iy + 2)		; E3.cls 7107
+            ld a, (fn_e3_lib_osn8)		; E3.cls 7108
+            ld e, a		; E3.cls 7109
+            call fn_e3_lib_mul8s		; E3.cls 7110
+            push de		; E3.cls 7111
+            ld d, (iy + 3)		; E3.cls 7112
+            ld a, (fn_e3_lib_osn8 + 1)		; E3.cls 7113
+            ld e, a		; E3.cls 7114
+            call fn_e3_lib_mul8s		; E3.cls 7115
+            pop hl		; E3.cls 7116
+            add hl, de		; E3.cls 7117
+            push hl		; E3.cls 7118
+            ld d, (iy + 4)		; E3.cls 7119
+            ld a, (fn_e3_lib_osn8 + 2)		; E3.cls 7120
+            ld e, a		; E3.cls 7121
+            call fn_e3_lib_mul8s		; E3.cls 7122
+            pop hl		; E3.cls 7123
+            add hl, de              ; n . sun (to +-15240) [7124]
+            add hl, hl		; E3.cls 7125
+            ld a, h                 ; >> 7 (to +-119), then / 4 [7126]
             sra a		; E3.cls 7127
-            bit 7, a		; E3.cls 7128
-            jr z, fn_e3_lib_of_lp1		; E3.cls 7129
-            sra a		; E3.cls 7130
+            sra a		; E3.cls 7128
+            bit 7, a		; E3.cls 7129
+            jr z, fn_e3_lib_of_lp1		; E3.cls 7130
             sra a		; E3.cls 7131
-            add a, 3		; E3.cls 7132
-            jp p, fn_e3_lib_of_lv		; E3.cls 7133
-            xor a		; E3.cls 7134
-            jr fn_e3_lib_of_lv		; E3.cls 7135
-fn_e3_lib_of_lp1:		; E3.cls 7136
-            add a, 3		; E3.cls 7137
-            cp 31		; E3.cls 7138
-            jr c, fn_e3_lib_of_lv		; E3.cls 7139
-            ld a, 30		; E3.cls 7140
-fn_e3_lib_of_lv:		; E3.cls 7141
-            ld c, a		; E3.cls 7142
-            srl a		; E3.cls 7143
-            ld b, a		; E3.cls 7144
-            ld a, (iy + 1)          ; ramp * 16 + level / 2 [7145]
-            add a, a		; E3.cls 7146
+            sra a		; E3.cls 7132
+            add a, 3		; E3.cls 7133
+            jp p, fn_e3_lib_of_lv		; E3.cls 7134
+            xor a		; E3.cls 7135
+            jr fn_e3_lib_of_lv		; E3.cls 7136
+fn_e3_lib_of_lp1:		; E3.cls 7137
+            add a, 3		; E3.cls 7138
+            cp 31		; E3.cls 7139
+            jr c, fn_e3_lib_of_lv		; E3.cls 7140
+            ld a, 30		; E3.cls 7141
+fn_e3_lib_of_lv:		; E3.cls 7142
+            ld c, a		; E3.cls 7143
+            srl a		; E3.cls 7144
+            ld b, a		; E3.cls 7145
+            ld a, (iy + 1)          ; ramp * 16 + level / 2 [7146]
             add a, a		; E3.cls 7147
             add a, a		; E3.cls 7148
             add a, a		; E3.cls 7149
-            add a, b		; E3.cls 7150
-            ld l, a		; E3.cls 7151
-            bit 0, c		; E3.cls 7152
-            jr z, fn_e3_lib_of_d0		; E3.cls 7153
-            inc a		; E3.cls 7154
-fn_e3_lib_of_d0:		; E3.cls 7155
-            ld h, a		; E3.cls 7156
-            ld (var_e3_pc), hl		; E3.cls 7157
-            ld a, (var_e3_cmask)		; E3.cls 7158
-            or a		; E3.cls 7159
-            jr nz, fn_e3_lib_of_nf		; E3.cls 7160
-            ld hl, (fn_e3_lib_of_ix)          ; all in the fast range: filled from their bytes [7161]
-            ld a, (fn_e3_lib_of_n)		; E3.cls 7162
-            ld b, a		; E3.cls 7163
-            push iy		; E3.cls 7164
-            call fn_e3_lib_ffi		; E3.cls 7165
-            pop iy		; E3.cls 7166
-            jp fn_e3_lib_of_skip		; E3.cls 7167
-fn_e3_lib_of_nf:		; E3.cls 7168
-            and #1F		; E3.cls 7169
-            jr nz, fn_e3_lib_of_slow		; E3.cls 7170
+            add a, a		; E3.cls 7150
+            add a, b		; E3.cls 7151
+            ld l, a		; E3.cls 7152
+            bit 0, c		; E3.cls 7153
+            jr z, fn_e3_lib_of_d0		; E3.cls 7154
+            inc a		; E3.cls 7155
+fn_e3_lib_of_d0:		; E3.cls 7156
+            ld h, a		; E3.cls 7157
+            ld (var_e3_pc), hl		; E3.cls 7158
+            ld a, (var_e3_cmask)		; E3.cls 7159
+            or a		; E3.cls 7160
+            jr nz, fn_e3_lib_of_nf		; E3.cls 7161
+            ld hl, (fn_e3_lib_of_ix)          ; all in the fast range: filled from their bytes [7162]
+            ld a, (fn_e3_lib_of_n)		; E3.cls 7163
+            ld b, a		; E3.cls 7164
+            push iy		; E3.cls 7165
+            call fn_e3_lib_ffi		; E3.cls 7166
+            pop iy		; E3.cls 7167
+            jp fn_e3_lib_of_skip		; E3.cls 7168
+fn_e3_lib_of_nf:		; E3.cls 7169
+            and #1F		; E3.cls 7170
+            jr nz, fn_e3_lib_of_slow		; E3.cls 7171
             ; in the view (some off the screen): the screen points (16 bits) to pvx, pvy
-            ld a, (fn_e3_lib_of_n)		; E3.cls 7172
-            ld (var_e3_pn), a		; E3.cls 7173
-            ld b, a		; E3.cls 7174
-            ld hl, (fn_e3_lib_of_ix)		; E3.cls 7175
-            ld ix, arr_e3_pvx		; E3.cls 7176
-fn_e3_lib_of_fp:		; E3.cls 7177
-            push bc		; E3.cls 7178
-            ld a, (hl)		; E3.cls 7179
-            inc hl		; E3.cls 7180
-            push hl		; E3.cls 7181
-            add a, a		; E3.cls 7182
-            ld c, a		; E3.cls 7183
-            ld b, 0		; E3.cls 7184
-            ld hl, arr_e3_osx		; E3.cls 7185
-            add hl, bc		; E3.cls 7186
-            ld a, (hl)		; E3.cls 7187
-            ld (ix + 0), a		; E3.cls 7188
-            inc hl		; E3.cls 7189
-            ld a, (hl)		; E3.cls 7190
-            ld (ix + 1), a		; E3.cls 7191
-            ld hl, arr_e3_osy		; E3.cls 7192
-            add hl, bc		; E3.cls 7193
-            ld a, (hl)		; E3.cls 7194
-            ld (ix + 96), a		; E3.cls 7195
-            inc hl		; E3.cls 7196
-            ld a, (hl)		; E3.cls 7197
-            ld (ix + 97), a		; E3.cls 7198
-            inc ix		; E3.cls 7199
+            ld a, (fn_e3_lib_of_n)		; E3.cls 7173
+            ld (var_e3_pn), a		; E3.cls 7174
+            ld b, a		; E3.cls 7175
+            ld hl, (fn_e3_lib_of_ix)		; E3.cls 7176
+            ld ix, arr_e3_pvx		; E3.cls 7177
+fn_e3_lib_of_fp:		; E3.cls 7178
+            push bc		; E3.cls 7179
+            ld a, (hl)		; E3.cls 7180
+            inc hl		; E3.cls 7181
+            push hl		; E3.cls 7182
+            add a, a		; E3.cls 7183
+            ld c, a		; E3.cls 7184
+            ld b, 0		; E3.cls 7185
+            ld hl, arr_e3_osx		; E3.cls 7186
+            add hl, bc		; E3.cls 7187
+            ld a, (hl)		; E3.cls 7188
+            ld (ix + 0), a		; E3.cls 7189
+            inc hl		; E3.cls 7190
+            ld a, (hl)		; E3.cls 7191
+            ld (ix + 1), a		; E3.cls 7192
+            ld hl, arr_e3_osy		; E3.cls 7193
+            add hl, bc		; E3.cls 7194
+            ld a, (hl)		; E3.cls 7195
+            ld (ix + 96), a		; E3.cls 7196
+            inc hl		; E3.cls 7197
+            ld a, (hl)		; E3.cls 7198
+            ld (ix + 97), a		; E3.cls 7199
             inc ix		; E3.cls 7200
-            pop hl		; E3.cls 7201
-            pop bc		; E3.cls 7202
-            djnz fn_e3_lib_of_fp		; E3.cls 7203
-            push iy		; E3.cls 7204
-            call fn_e3_lib_fill		; E3.cls 7205
-            pop iy		; E3.cls 7206
-            jr fn_e3_lib_of_skip		; E3.cls 7207
-fn_e3_lib_of_slow:		; E3.cls 7208
+            inc ix		; E3.cls 7201
+            pop hl		; E3.cls 7202
+            pop bc		; E3.cls 7203
+            djnz fn_e3_lib_of_fp		; E3.cls 7204
+            push iy		; E3.cls 7205
+            call fn_e3_lib_fill		; E3.cls 7206
+            pop iy		; E3.cls 7207
+            jr fn_e3_lib_of_skip		; E3.cls 7208
+fn_e3_lib_of_slow:		; E3.cls 7209
             ; crossing the view's edges: the points in the view to the clipper
-            ld a, (fn_e3_lib_of_n)		; E3.cls 7210
-            ld (var_e3_cn), a		; E3.cls 7211
-            ld b, a		; E3.cls 7212
-            ld hl, (fn_e3_lib_of_ix)		; E3.cls 7213
-            ld de, arr_e3_cla		; E3.cls 7214
-fn_e3_lib_of_sp:		; E3.cls 7215
-            push bc		; E3.cls 7216
-            ld a, (hl)		; E3.cls 7217
-            inc hl		; E3.cls 7218
-            push hl		; E3.cls 7219
-            ld l, a		; E3.cls 7220
-            ld h, 0		; E3.cls 7221
-            add hl, hl		; E3.cls 7222
-            ld b, h		; E3.cls 7223
-            ld c, l		; E3.cls 7224
-            add hl, hl		; E3.cls 7225
-            add hl, bc		; E3.cls 7226
-            ld bc, arr_e3_ov		; E3.cls 7227
-            add hl, bc		; E3.cls 7228
-            ld bc, 6		; E3.cls 7229
-            ldir		; E3.cls 7230
-            pop hl		; E3.cls 7231
-            pop bc		; E3.cls 7232
-            djnz fn_e3_lib_of_sp		; E3.cls 7233
-            push iy		; E3.cls 7234
-            call fn_e3_lib_poly3		; E3.cls 7235
-            pop iy		; E3.cls 7236
-fn_e3_lib_of_skip:		; E3.cls 7237
-            ld a, (fn_e3_lib_od_far)		; E3.cls 7238
-            or a		; E3.cls 7239
-            jr z, fn_e3_lib_of_sq		; E3.cls 7240
-            ld hl, fn_e3_lib_of_k		; E3.cls 7241
-            dec (hl)		; E3.cls 7242
-            jp nz, fn_e3_lib_of_fv		; E3.cls 7243
-            ret		; E3.cls 7244
-fn_e3_lib_of_sq:		; E3.cls 7245
-            ld a, (iy + 0)		; E3.cls 7246
-            add a, 7		; E3.cls 7247
-            ld e, a		; E3.cls 7248
-            ld d, 0		; E3.cls 7249
-            add iy, de		; E3.cls 7250
-            ld a, (fn_e3_lib_of_k)		; E3.cls 7251
-            dec a		; E3.cls 7252
-            ld (fn_e3_lib_of_k), a		; E3.cls 7253
-            jp nz, fn_e3_lib_of_lp		; E3.cls 7254
-            ret		; E3.cls 7255
+            ld a, (fn_e3_lib_of_n)		; E3.cls 7211
+            ld (var_e3_cn), a		; E3.cls 7212
+            ld b, a		; E3.cls 7213
+            ld hl, (fn_e3_lib_of_ix)		; E3.cls 7214
+            ld de, arr_e3_cla		; E3.cls 7215
+fn_e3_lib_of_sp:		; E3.cls 7216
+            push bc		; E3.cls 7217
+            ld a, (hl)		; E3.cls 7218
+            inc hl		; E3.cls 7219
+            push hl		; E3.cls 7220
+            ld l, a		; E3.cls 7221
+            ld h, 0		; E3.cls 7222
+            add hl, hl		; E3.cls 7223
+            ld b, h		; E3.cls 7224
+            ld c, l		; E3.cls 7225
+            add hl, hl		; E3.cls 7226
+            add hl, bc		; E3.cls 7227
+            ld bc, arr_e3_ov		; E3.cls 7228
+            add hl, bc		; E3.cls 7229
+            ld bc, 6		; E3.cls 7230
+            ldir		; E3.cls 7231
+            pop hl		; E3.cls 7232
+            pop bc		; E3.cls 7233
+            djnz fn_e3_lib_of_sp		; E3.cls 7234
+            push iy		; E3.cls 7235
+            call fn_e3_lib_poly3		; E3.cls 7236
+            pop iy		; E3.cls 7237
+fn_e3_lib_of_skip:		; E3.cls 7238
+            ld a, (fn_e3_lib_od_far)		; E3.cls 7239
+            or a		; E3.cls 7240
+            jr z, fn_e3_lib_of_sq		; E3.cls 7241
+            ld hl, fn_e3_lib_of_k		; E3.cls 7242
+            dec (hl)		; E3.cls 7243
+            jp nz, fn_e3_lib_of_fv		; E3.cls 7244
+            ret		; E3.cls 7245
+fn_e3_lib_of_sq:		; E3.cls 7246
+            ld a, (iy + 0)		; E3.cls 7247
+            add a, 7		; E3.cls 7248
+            ld e, a		; E3.cls 7249
+            ld d, 0		; E3.cls 7250
+            add iy, de		; E3.cls 7251
+            ld a, (fn_e3_lib_of_k)		; E3.cls 7252
+            dec a		; E3.cls 7253
+            ld (fn_e3_lib_of_k), a		; E3.cls 7254
+            jp nz, fn_e3_lib_of_lp		; E3.cls 7255
+            ret		; E3.cls 7256
 ; of_w16: in the view, not all in the fast range: seen if clockwise on the screen (16 bit points,
 ; halved together till the differences fit 8 bits)
-fn_e3_lib_of_w16:		; E3.cls 7258
-            ld hl, (fn_e3_lib_of_ix)		; E3.cls 7259
-            ld a, (hl)		; E3.cls 7260
-            call fn_e3_lib_ow_pt		; E3.cls 7261
-            ld (fn_e3_lib_ow_x0), bc		; E3.cls 7262
-            ld (fn_e3_lib_ow_y0), de		; E3.cls 7263
-            ld hl, (fn_e3_lib_of_ix)		; E3.cls 7264
-            inc hl		; E3.cls 7265
-            ld a, (hl)		; E3.cls 7266
-            call fn_e3_lib_ow_pt		; E3.cls 7267
-            ld hl, (fn_e3_lib_ow_x0)		; E3.cls 7268
-            call fn_e3_lib_ow_sub		; E3.cls 7269
-            ld (fn_e3_lib_ow_a), bc		; E3.cls 7270
-            ld b, d		; E3.cls 7271
-            ld c, e		; E3.cls 7272
-            ld hl, (fn_e3_lib_ow_y0)		; E3.cls 7273
-            call fn_e3_lib_ow_sub		; E3.cls 7274
-            ld (fn_e3_lib_ow_c), bc		; E3.cls 7275
-            ld hl, (fn_e3_lib_of_ix)		; E3.cls 7276
-            inc hl		; E3.cls 7277
+fn_e3_lib_of_w16:		; E3.cls 7259
+            ld hl, (fn_e3_lib_of_ix)		; E3.cls 7260
+            ld a, (hl)		; E3.cls 7261
+            call fn_e3_lib_ow_pt		; E3.cls 7262
+            ld (fn_e3_lib_ow_x0), bc		; E3.cls 7263
+            ld (fn_e3_lib_ow_y0), de		; E3.cls 7264
+            ld hl, (fn_e3_lib_of_ix)		; E3.cls 7265
+            inc hl		; E3.cls 7266
+            ld a, (hl)		; E3.cls 7267
+            call fn_e3_lib_ow_pt		; E3.cls 7268
+            ld hl, (fn_e3_lib_ow_x0)		; E3.cls 7269
+            call fn_e3_lib_ow_sub		; E3.cls 7270
+            ld (fn_e3_lib_ow_a), bc		; E3.cls 7271
+            ld b, d		; E3.cls 7272
+            ld c, e		; E3.cls 7273
+            ld hl, (fn_e3_lib_ow_y0)		; E3.cls 7274
+            call fn_e3_lib_ow_sub		; E3.cls 7275
+            ld (fn_e3_lib_ow_c), bc		; E3.cls 7276
+            ld hl, (fn_e3_lib_of_ix)		; E3.cls 7277
             inc hl		; E3.cls 7278
-            ld a, (hl)		; E3.cls 7279
-            call fn_e3_lib_ow_pt		; E3.cls 7280
-            ld hl, (fn_e3_lib_ow_x0)		; E3.cls 7281
-            call fn_e3_lib_ow_sub		; E3.cls 7282
-            ld (fn_e3_lib_ow_d), bc		; E3.cls 7283
-            ld b, d		; E3.cls 7284
-            ld c, e		; E3.cls 7285
-            ld hl, (fn_e3_lib_ow_y0)		; E3.cls 7286
-            call fn_e3_lib_ow_sub		; E3.cls 7287
-            ld (fn_e3_lib_ow_b), bc		; E3.cls 7288
-fn_e3_lib_ow_sc:		; E3.cls 7289
-            ld hl, fn_e3_lib_ow_a		; E3.cls 7290
-            ld b, 4		; E3.cls 7291
-fn_e3_lib_ow_ck:		; E3.cls 7292
-            ld e, (hl)		; E3.cls 7293
-            inc hl		; E3.cls 7294
-            ld d, (hl)		; E3.cls 7295
-            inc hl		; E3.cls 7296
-            ld a, e		; E3.cls 7297
-            rla		; E3.cls 7298
-            ld a, d		; E3.cls 7299
-            adc a, 0                ; 0 when -128..127 [7300]
-            jr nz, fn_e3_lib_ow_half		; E3.cls 7301
-            djnz fn_e3_lib_ow_ck		; E3.cls 7302
-            jr fn_e3_lib_ow_x		; E3.cls 7303
-fn_e3_lib_ow_half:		; E3.cls 7304
-            ld hl, fn_e3_lib_ow_a		; E3.cls 7305
-            ld b, 4		; E3.cls 7306
-fn_e3_lib_ow_hl:		; E3.cls 7307
-            inc hl		; E3.cls 7308
-            sra (hl)		; E3.cls 7309
-            dec hl		; E3.cls 7310
-            rr (hl)		; E3.cls 7311
-            inc hl		; E3.cls 7312
+            inc hl		; E3.cls 7279
+            ld a, (hl)		; E3.cls 7280
+            call fn_e3_lib_ow_pt		; E3.cls 7281
+            ld hl, (fn_e3_lib_ow_x0)		; E3.cls 7282
+            call fn_e3_lib_ow_sub		; E3.cls 7283
+            ld (fn_e3_lib_ow_d), bc		; E3.cls 7284
+            ld b, d		; E3.cls 7285
+            ld c, e		; E3.cls 7286
+            ld hl, (fn_e3_lib_ow_y0)		; E3.cls 7287
+            call fn_e3_lib_ow_sub		; E3.cls 7288
+            ld (fn_e3_lib_ow_b), bc		; E3.cls 7289
+fn_e3_lib_ow_sc:		; E3.cls 7290
+            ld hl, fn_e3_lib_ow_a		; E3.cls 7291
+            ld b, 4		; E3.cls 7292
+fn_e3_lib_ow_ck:		; E3.cls 7293
+            ld e, (hl)		; E3.cls 7294
+            inc hl		; E3.cls 7295
+            ld d, (hl)		; E3.cls 7296
+            inc hl		; E3.cls 7297
+            ld a, e		; E3.cls 7298
+            rla		; E3.cls 7299
+            ld a, d		; E3.cls 7300
+            adc a, 0                ; 0 when -128..127 [7301]
+            jr nz, fn_e3_lib_ow_half		; E3.cls 7302
+            djnz fn_e3_lib_ow_ck		; E3.cls 7303
+            jr fn_e3_lib_ow_x		; E3.cls 7304
+fn_e3_lib_ow_half:		; E3.cls 7305
+            ld hl, fn_e3_lib_ow_a		; E3.cls 7306
+            ld b, 4		; E3.cls 7307
+fn_e3_lib_ow_hl:		; E3.cls 7308
+            inc hl		; E3.cls 7309
+            sra (hl)		; E3.cls 7310
+            dec hl		; E3.cls 7311
+            rr (hl)		; E3.cls 7312
             inc hl		; E3.cls 7313
-            djnz fn_e3_lib_ow_hl		; E3.cls 7314
-            jr fn_e3_lib_ow_sc		; E3.cls 7315
-fn_e3_lib_ow_x:		; E3.cls 7316
-            ld a, (fn_e3_lib_ow_a)            ; (x1 - x0)(y2 - y0) - (y1 - y0)(x2 - x0) > 0 [7317]
-            ld d, a		; E3.cls 7318
-            ld a, (fn_e3_lib_ow_b)		; E3.cls 7319
-            ld e, a		; E3.cls 7320
-            call fn_e3_lib_mul8s		; E3.cls 7321
-            push de		; E3.cls 7322
-            ld a, (fn_e3_lib_ow_c)		; E3.cls 7323
-            ld d, a		; E3.cls 7324
-            ld a, (fn_e3_lib_ow_d)		; E3.cls 7325
-            ld e, a		; E3.cls 7326
-            call fn_e3_lib_mul8s		; E3.cls 7327
-            pop hl		; E3.cls 7328
-            or a		; E3.cls 7329
-            sbc hl, de		; E3.cls 7330
-            jp m, fn_e3_lib_of_skip		; E3.cls 7331
-            jp z, fn_e3_lib_of_skip		; E3.cls 7332
-            jp fn_e3_lib_of_lit		; E3.cls 7333
-fn_e3_lib_ow_pt:                              ; point A -> BC = x, DE = y (16 bits) [7334]
-            add a, a		; E3.cls 7335
-            ld e, a		; E3.cls 7336
-            ld d, 0		; E3.cls 7337
-            ld hl, arr_e3_osx		; E3.cls 7338
-            add hl, de		; E3.cls 7339
-            ld c, (hl)		; E3.cls 7340
-            inc hl		; E3.cls 7341
-            ld b, (hl)		; E3.cls 7342
-            ld hl, arr_e3_osy		; E3.cls 7343
-            add hl, de		; E3.cls 7344
-            ld e, (hl)		; E3.cls 7345
-            inc hl		; E3.cls 7346
-            ld d, (hl)		; E3.cls 7347
-            ret		; E3.cls 7348
-fn_e3_lib_ow_sub:                             ; BC = BC - HL [7349]
-            push de		; E3.cls 7350
-            ld d, h		; E3.cls 7351
-            ld e, l		; E3.cls 7352
-            ld h, b		; E3.cls 7353
-            ld l, c		; E3.cls 7354
-            or a		; E3.cls 7355
-            sbc hl, de		; E3.cls 7356
-            ld b, h		; E3.cls 7357
-            ld c, l		; E3.cls 7358
-            pop de		; E3.cls 7359
-            ret		; E3.cls 7360
-fn_e3_lib_ow_x0:      dw 0		; E3.cls 7361
-fn_e3_lib_ow_y0:      dw 0		; E3.cls 7362
-fn_e3_lib_ow_a:       dw 0		; E3.cls 7363
-fn_e3_lib_ow_b:       dw 0		; E3.cls 7364
-fn_e3_lib_ow_c:       dw 0		; E3.cls 7365
-fn_e3_lib_ow_d:       dw 0		; E3.cls 7366
+            inc hl		; E3.cls 7314
+            djnz fn_e3_lib_ow_hl		; E3.cls 7315
+            jr fn_e3_lib_ow_sc		; E3.cls 7316
+fn_e3_lib_ow_x:		; E3.cls 7317
+            ld a, (fn_e3_lib_ow_a)            ; (x1 - x0)(y2 - y0) - (y1 - y0)(x2 - x0) > 0 [7318]
+            ld d, a		; E3.cls 7319
+            ld a, (fn_e3_lib_ow_b)		; E3.cls 7320
+            ld e, a		; E3.cls 7321
+            call fn_e3_lib_mul8s		; E3.cls 7322
+            push de		; E3.cls 7323
+            ld a, (fn_e3_lib_ow_c)		; E3.cls 7324
+            ld d, a		; E3.cls 7325
+            ld a, (fn_e3_lib_ow_d)		; E3.cls 7326
+            ld e, a		; E3.cls 7327
+            call fn_e3_lib_mul8s		; E3.cls 7328
+            pop hl		; E3.cls 7329
+            or a		; E3.cls 7330
+            sbc hl, de		; E3.cls 7331
+            jp m, fn_e3_lib_of_skip		; E3.cls 7332
+            jp z, fn_e3_lib_of_skip		; E3.cls 7333
+            jp fn_e3_lib_of_lit		; E3.cls 7334
+fn_e3_lib_ow_pt:                              ; point A -> BC = x, DE = y (16 bits) [7335]
+            add a, a		; E3.cls 7336
+            ld e, a		; E3.cls 7337
+            ld d, 0		; E3.cls 7338
+            ld hl, arr_e3_osx		; E3.cls 7339
+            add hl, de		; E3.cls 7340
+            ld c, (hl)		; E3.cls 7341
+            inc hl		; E3.cls 7342
+            ld b, (hl)		; E3.cls 7343
+            ld hl, arr_e3_osy		; E3.cls 7344
+            add hl, de		; E3.cls 7345
+            ld e, (hl)		; E3.cls 7346
+            inc hl		; E3.cls 7347
+            ld d, (hl)		; E3.cls 7348
+            ret		; E3.cls 7349
+fn_e3_lib_ow_sub:                             ; BC = BC - HL [7350]
+            push de		; E3.cls 7351
+            ld d, h		; E3.cls 7352
+            ld e, l		; E3.cls 7353
+            ld h, b		; E3.cls 7354
+            ld l, c		; E3.cls 7355
+            or a		; E3.cls 7356
+            sbc hl, de		; E3.cls 7357
+            ld b, h		; E3.cls 7358
+            ld c, l		; E3.cls 7359
+            pop de		; E3.cls 7360
+            ret		; E3.cls 7361
+fn_e3_lib_ow_x0:      dw 0		; E3.cls 7362
+fn_e3_lib_ow_y0:      dw 0		; E3.cls 7363
+fn_e3_lib_ow_a:       dw 0		; E3.cls 7364
+fn_e3_lib_ow_b:       dw 0		; E3.cls 7365
+fn_e3_lib_ow_c:       dw 0		; E3.cls 7366
+fn_e3_lib_ow_d:       dw 0		; E3.cls 7367
 ; of_e: oe = O^T (-od) >> osc (the camera in the model: by the object's turn, to about 1%)
-fn_e3_lib_of_e:		; E3.cls 7368
-            ld hl, (arr_e3_od)           ; Ry^T: x1 = ca x - sa z, z1 = sa x + ca z (x, z = -od) [7369]
-            call fn_e3_lib_oe_neg		; E3.cls 7370
-            ld a, (fn_e3_lib_od_ca)		; E3.cls 7371
-            call fn_e3_lib_mt		; E3.cls 7372
-            ld (fn_e3_lib_oe_t), hl		; E3.cls 7373
-            ld hl, (arr_e3_od + 4)		; E3.cls 7374
-            call fn_e3_lib_oe_neg		; E3.cls 7375
-            ld a, (fn_e3_lib_od_sa)		; E3.cls 7376
-            call fn_e3_lib_mt		; E3.cls 7377
-            ex de, hl		; E3.cls 7378
-            ld hl, (fn_e3_lib_oe_t)		; E3.cls 7379
-            or a		; E3.cls 7380
-            sbc hl, de		; E3.cls 7381
-            call fn_e3_lib_oe_sh		; E3.cls 7382
-            ld (arr_e3_oe), hl		; E3.cls 7383
-            ld hl, (arr_e3_od)		; E3.cls 7384
-            call fn_e3_lib_oe_neg		; E3.cls 7385
-            ld a, (fn_e3_lib_od_sa)		; E3.cls 7386
-            call fn_e3_lib_mt		; E3.cls 7387
-            ld (fn_e3_lib_oe_t), hl		; E3.cls 7388
-            ld hl, (arr_e3_od + 4)		; E3.cls 7389
-            call fn_e3_lib_oe_neg		; E3.cls 7390
-            ld a, (fn_e3_lib_od_ca)		; E3.cls 7391
-            call fn_e3_lib_mt		; E3.cls 7392
-            ld de, (fn_e3_lib_oe_t)		; E3.cls 7393
-            add hl, de		; E3.cls 7394
-            ld (fn_e3_lib_oe_z1), hl		; E3.cls 7395
-            ld hl, (arr_e3_od + 2)       ; Rx^T: y = cb y1 + sb z1, z = cb z1 - sb y1 (y1 = -od y) [7396]
-            call fn_e3_lib_oe_neg		; E3.cls 7397
-            ld a, (fn_e3_lib_od_cb)		; E3.cls 7398
-            call fn_e3_lib_mt		; E3.cls 7399
-            ld (fn_e3_lib_oe_t), hl		; E3.cls 7400
-            ld de, (fn_e3_lib_oe_z1)		; E3.cls 7401
-            ld a, (fn_e3_lib_od_sb)		; E3.cls 7402
-            call fn_e3_lib_mt		; E3.cls 7403
-            ld de, (fn_e3_lib_oe_t)		; E3.cls 7404
-            add hl, de		; E3.cls 7405
-            call fn_e3_lib_oe_sh		; E3.cls 7406
-            ld (arr_e3_oe + 2), hl		; E3.cls 7407
-            ld de, (fn_e3_lib_oe_z1)		; E3.cls 7408
-            ld a, (fn_e3_lib_od_cb)		; E3.cls 7409
-            call fn_e3_lib_mt		; E3.cls 7410
-            ld (fn_e3_lib_oe_t), hl		; E3.cls 7411
-            ld hl, (arr_e3_od + 2)		; E3.cls 7412
-            call fn_e3_lib_oe_neg		; E3.cls 7413
-            ld a, (fn_e3_lib_od_sb)		; E3.cls 7414
-            call fn_e3_lib_mt		; E3.cls 7415
-            ex de, hl		; E3.cls 7416
-            ld hl, (fn_e3_lib_oe_t)		; E3.cls 7417
-            or a		; E3.cls 7418
-            sbc hl, de		; E3.cls 7419
-            call fn_e3_lib_oe_sh		; E3.cls 7420
-            ld (arr_e3_oe + 4), hl		; E3.cls 7421
-            ld a, 1		; E3.cls 7422
-            ld (fn_e3_lib_oe_ok), a		; E3.cls 7423
-            ret		; E3.cls 7424
-fn_e3_lib_oe_neg:                             ; DE = -HL [7425]
-            ex de, hl		; E3.cls 7426
-            ld hl, 0		; E3.cls 7427
-            or a		; E3.cls 7428
-            sbc hl, de		; E3.cls 7429
-            ex de, hl		; E3.cls 7430
-            ret		; E3.cls 7431
-fn_e3_lib_oe_sh:                              ; HL >> osc [7432]
-            ld a, (var_e3_osc)		; E3.cls 7433
-            or a		; E3.cls 7434
-            ret z		; E3.cls 7435
-            ld b, a		; E3.cls 7436
-fn_e3_lib_oe_s:		; E3.cls 7437
-            sra h		; E3.cls 7438
-            rr l		; E3.cls 7439
-            djnz fn_e3_lib_oe_s		; E3.cls 7440
-            ret		; E3.cls 7441
-fn_e3_lib_oe_t:       dw 0		; E3.cls 7442
-fn_e3_lib_oe_z1:      dw 0		; E3.cls 7443
-fn_e3_lib_of_a:       db 0		; E3.cls 7444
-fn_e3_lib_of_b:       db 0		; E3.cls 7445
-fn_e3_lib_of_c:       db 0		; E3.cls 7446
-fn_e3_lib_of_d:       db 0		; E3.cls 7447
-fn_e3_lib_of_as:      db 0		; E3.cls 7448
-fn_e3_lib_of_bs:      db 0		; E3.cls 7449
-fn_e3_lib_of_cs:      db 0		; E3.cls 7450
-fn_e3_lib_of_ds:      db 0		; E3.cls 7451
-fn_e3_lib_xv_i:       db 0		; E3.cls 7452
-fn_e3_lib_xv_or:      db 0		; E3.cls 7453
+fn_e3_lib_of_e:		; E3.cls 7369
+            ld hl, (arr_e3_od)           ; Ry^T: x1 = ca x - sa z, z1 = sa x + ca z (x, z = -od) [7370]
+            call fn_e3_lib_oe_neg		; E3.cls 7371
+            ld a, (fn_e3_lib_od_ca)		; E3.cls 7372
+            call fn_e3_lib_mt		; E3.cls 7373
+            ld (fn_e3_lib_oe_t), hl		; E3.cls 7374
+            ld hl, (arr_e3_od + 4)		; E3.cls 7375
+            call fn_e3_lib_oe_neg		; E3.cls 7376
+            ld a, (fn_e3_lib_od_sa)		; E3.cls 7377
+            call fn_e3_lib_mt		; E3.cls 7378
+            ex de, hl		; E3.cls 7379
+            ld hl, (fn_e3_lib_oe_t)		; E3.cls 7380
+            or a		; E3.cls 7381
+            sbc hl, de		; E3.cls 7382
+            call fn_e3_lib_oe_sh		; E3.cls 7383
+            ld (arr_e3_oe), hl		; E3.cls 7384
+            ld hl, (arr_e3_od)		; E3.cls 7385
+            call fn_e3_lib_oe_neg		; E3.cls 7386
+            ld a, (fn_e3_lib_od_sa)		; E3.cls 7387
+            call fn_e3_lib_mt		; E3.cls 7388
+            ld (fn_e3_lib_oe_t), hl		; E3.cls 7389
+            ld hl, (arr_e3_od + 4)		; E3.cls 7390
+            call fn_e3_lib_oe_neg		; E3.cls 7391
+            ld a, (fn_e3_lib_od_ca)		; E3.cls 7392
+            call fn_e3_lib_mt		; E3.cls 7393
+            ld de, (fn_e3_lib_oe_t)		; E3.cls 7394
+            add hl, de		; E3.cls 7395
+            ld (fn_e3_lib_oe_z1), hl		; E3.cls 7396
+            ld hl, (arr_e3_od + 2)       ; Rx^T: y = cb y1 + sb z1, z = cb z1 - sb y1 (y1 = -od y) [7397]
+            call fn_e3_lib_oe_neg		; E3.cls 7398
+            ld a, (fn_e3_lib_od_cb)		; E3.cls 7399
+            call fn_e3_lib_mt		; E3.cls 7400
+            ld (fn_e3_lib_oe_t), hl		; E3.cls 7401
+            ld de, (fn_e3_lib_oe_z1)		; E3.cls 7402
+            ld a, (fn_e3_lib_od_sb)		; E3.cls 7403
+            call fn_e3_lib_mt		; E3.cls 7404
+            ld de, (fn_e3_lib_oe_t)		; E3.cls 7405
+            add hl, de		; E3.cls 7406
+            call fn_e3_lib_oe_sh		; E3.cls 7407
+            ld (arr_e3_oe + 2), hl		; E3.cls 7408
+            ld de, (fn_e3_lib_oe_z1)		; E3.cls 7409
+            ld a, (fn_e3_lib_od_cb)		; E3.cls 7410
+            call fn_e3_lib_mt		; E3.cls 7411
+            ld (fn_e3_lib_oe_t), hl		; E3.cls 7412
+            ld hl, (arr_e3_od + 2)		; E3.cls 7413
+            call fn_e3_lib_oe_neg		; E3.cls 7414
+            ld a, (fn_e3_lib_od_sb)		; E3.cls 7415
+            call fn_e3_lib_mt		; E3.cls 7416
+            ex de, hl		; E3.cls 7417
+            ld hl, (fn_e3_lib_oe_t)		; E3.cls 7418
+            or a		; E3.cls 7419
+            sbc hl, de		; E3.cls 7420
+            call fn_e3_lib_oe_sh		; E3.cls 7421
+            ld (arr_e3_oe + 4), hl		; E3.cls 7422
+            ld a, 1		; E3.cls 7423
+            ld (fn_e3_lib_oe_ok), a		; E3.cls 7424
+            ret		; E3.cls 7425
+fn_e3_lib_oe_neg:                             ; DE = -HL [7426]
+            ex de, hl		; E3.cls 7427
+            ld hl, 0		; E3.cls 7428
+            or a		; E3.cls 7429
+            sbc hl, de		; E3.cls 7430
+            ex de, hl		; E3.cls 7431
+            ret		; E3.cls 7432
+fn_e3_lib_oe_sh:                              ; HL >> osc [7433]
+            ld a, (var_e3_osc)		; E3.cls 7434
+            or a		; E3.cls 7435
+            ret z		; E3.cls 7436
+            ld b, a		; E3.cls 7437
+fn_e3_lib_oe_s:		; E3.cls 7438
+            sra h		; E3.cls 7439
+            rr l		; E3.cls 7440
+            djnz fn_e3_lib_oe_s		; E3.cls 7441
+            ret		; E3.cls 7442
+fn_e3_lib_oe_t:       dw 0		; E3.cls 7443
+fn_e3_lib_oe_z1:      dw 0		; E3.cls 7444
+fn_e3_lib_of_a:       db 0		; E3.cls 7445
+fn_e3_lib_of_b:       db 0		; E3.cls 7446
+fn_e3_lib_of_c:       db 0		; E3.cls 7447
+fn_e3_lib_of_d:       db 0		; E3.cls 7448
+fn_e3_lib_of_as:      db 0		; E3.cls 7449
+fn_e3_lib_of_bs:      db 0		; E3.cls 7450
+fn_e3_lib_of_cs:      db 0		; E3.cls 7451
+fn_e3_lib_of_ds:      db 0		; E3.cls 7452
+fn_e3_lib_xv_i:       db 0		; E3.cls 7453
+fn_e3_lib_xv_or:      db 0		; E3.cls 7454
 ; ndot: the face's normal (IY + 2..4, int8) . the 3 words at HL -> nd_h:nd_l (24 bits)
-fn_e3_lib_ndot:		; E3.cls 7455
-            ld (fn_e3_lib_nd_v), hl		; E3.cls 7456
-            ld e, (hl)		; E3.cls 7457
-            inc hl		; E3.cls 7458
-            ld d, (hl)		; E3.cls 7459
-            ld a, (iy + 2)		; E3.cls 7460
-            call fn_e3_lib_m816		; E3.cls 7461
-            ld (fn_e3_lib_nd_l), hl		; E3.cls 7462
-            ld (fn_e3_lib_nd_h), a		; E3.cls 7463
-            ld hl, (fn_e3_lib_nd_v)		; E3.cls 7464
-            inc hl		; E3.cls 7465
+fn_e3_lib_ndot:		; E3.cls 7456
+            ld (fn_e3_lib_nd_v), hl		; E3.cls 7457
+            ld e, (hl)		; E3.cls 7458
+            inc hl		; E3.cls 7459
+            ld d, (hl)		; E3.cls 7460
+            ld a, (iy + 2)		; E3.cls 7461
+            call fn_e3_lib_m816		; E3.cls 7462
+            ld (fn_e3_lib_nd_l), hl		; E3.cls 7463
+            ld (fn_e3_lib_nd_h), a		; E3.cls 7464
+            ld hl, (fn_e3_lib_nd_v)		; E3.cls 7465
             inc hl		; E3.cls 7466
-            ld e, (hl)		; E3.cls 7467
-            inc hl		; E3.cls 7468
-            ld d, (hl)		; E3.cls 7469
-            ld a, (iy + 3)		; E3.cls 7470
-            call fn_e3_lib_m816		; E3.cls 7471
-            call fn_e3_lib_nd_add		; E3.cls 7472
-            ld hl, (fn_e3_lib_nd_v)		; E3.cls 7473
-            ld de, 4		; E3.cls 7474
-            add hl, de		; E3.cls 7475
-            ld e, (hl)		; E3.cls 7476
-            inc hl		; E3.cls 7477
-            ld d, (hl)		; E3.cls 7478
-            ld a, (iy + 4)		; E3.cls 7479
-            call fn_e3_lib_m816		; E3.cls 7480
-fn_e3_lib_nd_add:		; E3.cls 7481
-            ld c, a		; E3.cls 7482
-            ld de, (fn_e3_lib_nd_l)		; E3.cls 7483
-            add hl, de		; E3.cls 7484
-            ld (fn_e3_lib_nd_l), hl		; E3.cls 7485
-            ld a, (fn_e3_lib_nd_h)		; E3.cls 7486
-            adc a, c		; E3.cls 7487
-            ld (fn_e3_lib_nd_h), a		; E3.cls 7488
-            ret		; E3.cls 7489
-fn_e3_lib_nd_v:       dw 0		; E3.cls 7490
-fn_e3_lib_nd_l:       dw 0		; E3.cls 7491
-fn_e3_lib_nd_h:       db 0		; E3.cls 7492
-fn_e3_lib_xv_k:       db 0		; E3.cls 7493
-fn_e3_lib_of_k:       db 0		; E3.cls 7494
-fn_e3_lib_of_n:       db 0		; E3.cls 7495
-fn_e3_lib_of_ix:      dw 0		; E3.cls 7496
-fn_e3_lib_xv_p:       dw 0		; E3.cls 7497
-fn_e3_lib_xv_o:       dw 0		; E3.cls 7498
-fn_e3_lib_xv_sx:      dw 0		; E3.cls 7499
-fn_e3_lib_xv_sy:      dw 0		; E3.cls 7500
-fn_e3_lib_xv_o0:      dw 0		; E3.cls 7501
-fn_e3_lib_xv_o1:      dw 0		; E3.cls 7502
-fn_e3_lib_xv_o2:      dw 0		; E3.cls 7503
-fn_e3_lib_cm8:        ds 9		; E3.cls 7504
-fn_e3_lib_suc8:       ds 3		; E3.cls 7505
-fn_e3_lib_sunw8:      ds 3		; E3.cls 7506
-fn_e3_lib_cms:        ds 126                  ; the camera >> 0..6 (rounded): C' = cms(6 - osc) O [7507]
+            inc hl		; E3.cls 7467
+            ld e, (hl)		; E3.cls 7468
+            inc hl		; E3.cls 7469
+            ld d, (hl)		; E3.cls 7470
+            ld a, (iy + 3)		; E3.cls 7471
+            call fn_e3_lib_m816		; E3.cls 7472
+            call fn_e3_lib_nd_add		; E3.cls 7473
+            ld hl, (fn_e3_lib_nd_v)		; E3.cls 7474
+            ld de, 4		; E3.cls 7475
+            add hl, de		; E3.cls 7476
+            ld e, (hl)		; E3.cls 7477
+            inc hl		; E3.cls 7478
+            ld d, (hl)		; E3.cls 7479
+            ld a, (iy + 4)		; E3.cls 7480
+            call fn_e3_lib_m816		; E3.cls 7481
+fn_e3_lib_nd_add:		; E3.cls 7482
+            ld c, a		; E3.cls 7483
+            ld de, (fn_e3_lib_nd_l)		; E3.cls 7484
+            add hl, de		; E3.cls 7485
+            ld (fn_e3_lib_nd_l), hl		; E3.cls 7486
+            ld a, (fn_e3_lib_nd_h)		; E3.cls 7487
+            adc a, c		; E3.cls 7488
+            ld (fn_e3_lib_nd_h), a		; E3.cls 7489
+            ret		; E3.cls 7490
+fn_e3_lib_nd_v:       dw 0		; E3.cls 7491
+fn_e3_lib_nd_l:       dw 0		; E3.cls 7492
+fn_e3_lib_nd_h:       db 0		; E3.cls 7493
+fn_e3_lib_xv_k:       db 0		; E3.cls 7494
+fn_e3_lib_of_k:       db 0		; E3.cls 7495
+fn_e3_lib_of_n:       db 0		; E3.cls 7496
+fn_e3_lib_of_ix:      dw 0		; E3.cls 7497
+fn_e3_lib_xv_p:       dw 0		; E3.cls 7498
+fn_e3_lib_xv_o:       dw 0		; E3.cls 7499
+fn_e3_lib_xv_sx:      dw 0		; E3.cls 7500
+fn_e3_lib_xv_sy:      dw 0		; E3.cls 7501
+fn_e3_lib_xv_o0:      dw 0		; E3.cls 7502
+fn_e3_lib_xv_o1:      dw 0		; E3.cls 7503
+fn_e3_lib_xv_o2:      dw 0		; E3.cls 7504
+fn_e3_lib_cm8:        ds 9		; E3.cls 7505
+fn_e3_lib_suc8:       ds 3		; E3.cls 7506
+fn_e3_lib_sunw8:      ds 3		; E3.cls 7507
+fn_e3_lib_cms:        ds 126                  ; the camera >> 0..6 (rounded): C' = cms(6 - osc) O [7508]
 			ret			; end of #asm
 
 fn_nx_reg:		; sub reg (asm keyword), Nx.cls line 22
@@ -11925,8 +11930,8 @@ fn_e3w_lib_wvwr_up:		; E3W.cls 921
 
 
 ntc_rg52_e:
-			IF ($ < 65536) && (ntc_rg53_e - ntc_rg53 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg53_e - ntc_rg53 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg53:
@@ -11935,1479 +11940,1479 @@ ntc_rg53:
 ; ============================================================
 
 ntc_rg53_e:
-			IF ($ < 65536) && (ntc_rg54_e - ntc_rg54 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg54_e - ntc_rg54 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg54:
 var_e3_nstar:			dw 0
 ntc_rg54_e:
-			IF ($ < 65536) && (ntc_rg55_e - ntc_rg55 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg55_e - ntc_rg55 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg55:
 var_obj3d_blife:			dw 0
 ntc_rg55_e:
-			IF ($ < 65536) && (ntc_rg56_e - ntc_rg56 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg56_e - ntc_rg56 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg56:
 var_keys:			dw 0
 ntc_rg56_e:
-			IF ($ < 65536) && (ntc_rg57_e - ntc_rg57 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg57_e - ntc_rg57 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg57:
 var_readkeys_readkeys:			dw 0
 ntc_rg57_e:
-			IF ($ < 65536) && (ntc_rg58_e - ntc_rg58 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg58_e - ntc_rg58 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg58:
 var_r:			dw 0
 ntc_rg58_e:
-			IF ($ < 65536) && (ntc_rg59_e - ntc_rg59 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg59_e - ntc_rg59 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg59:
 var_dt:			dw 0
 ntc_rg59_e:
-			IF ($ < 65536) && (ntc_rg60_e - ntc_rg60 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg60_e - ntc_rg60 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg60:
 var_k:			dw 0
 ntc_rg60_e:
-			IF ($ < 65536) && (ntc_rg61_e - ntc_rg61 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg61_e - ntc_rg61 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg61:
 var_fly3d_rebase_rebase:			dw 0
 ntc_rg61_e:
-			IF ($ < 65536) && (ntc_rg62_e - ntc_rg62 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg62_e - ntc_rg62 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg62:
 var_cool:			dw 0
 ntc_rg62_e:
-			IF ($ < 65536) && (ntc_rg63_e - ntc_rg63 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg63_e - ntc_rg63 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg63:
 var_s:			dw 0
 ntc_rg63_e:
-			IF ($ < 65536) && (ntc_rg64_e - ntc_rg64 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg64_e - ntc_rg64 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg64:
 var_obj3d_fire_fire:			dw 0
 ntc_rg64_e:
-			IF ($ < 65536) && (ntc_rg65_e - ntc_rg65 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg65_e - ntc_rg65 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg65:
 var_shield:			dw 0
 ntc_rg65_e:
-			IF ($ < 65536) && (ntc_rg66_e - ntc_rg66 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg66_e - ntc_rg66 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg66:
 p_newgame_rs:			dw 0
 ntc_rg66_e:
-			IF ($ < 65536) && (ntc_rg67_e - ntc_rg67 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg67_e - ntc_rg67 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg67:
 var_fly3d_spd:			dw 0
 ntc_rg67_e:
-			IF ($ < 65536) && (ntc_rg68_e - ntc_rg68 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg68_e - ntc_rg68 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg68:
 var_fly3d_smax:			dw 0
 ntc_rg68_e:
-			IF ($ < 65536) && (ntc_rg69_e - ntc_rg69 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg69_e - ntc_rg69 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg69:
 var_score:			dw 0
 ntc_rg69_e:
-			IF ($ < 65536) && (ntc_rg70_e - ntc_rg70 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg70_e - ntc_rg70 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg70:
 var_shown:			dw 0
 ntc_rg70_e:
-			IF ($ < 65536) && (ntc_rg71_e - ntc_rg71 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg71_e - ntc_rg71 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg71:
 var_stm:			dw 0
 ntc_rg71_e:
-			IF ($ < 65536) && (ntc_rg72_e - ntc_rg72 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg72_e - ntc_rg72 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg72:
 var_obj3d_spawn_spawn:			dw 0
 ntc_rg72_e:
-			IF ($ < 65536) && (ntc_rg73_e - ntc_rg73 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg73_e - ntc_rg73 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg73:
 p_rock_rs:			dw 0
 ntc_rg73_e:
-			IF ($ < 65536) && (ntc_rg74_e - ntc_rg74 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg74_e - ntc_rg74 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg74:
 var_fly3d_cx:			dw 0
 ntc_rg74_e:
-			IF ($ < 65536) && (ntc_rg75_e - ntc_rg75 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg75_e - ntc_rg75 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg75:
 var_fly3d_cy:			dw 0
 ntc_rg75_e:
-			IF ($ < 65536) && (ntc_rg76_e - ntc_rg76 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg76_e - ntc_rg76 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg76:
 var_fly3d_cz:			dw 0
 ntc_rg76_e:
-			IF ($ < 65536) && (ntc_rg77_e - ntc_rg77 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg77_e - ntc_rg77 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg77:
 p_spawner_rs:			dw 0
 ntc_rg77_e:
-			IF ($ < 65536) && (ntc_rg78_e - ntc_rg78 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg78_e - ntc_rg78 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg78:
 var_obj3d_count_count:			dw 0
 ntc_rg78_e:
-			IF ($ < 65536) && (ntc_rg79_e - ntc_rg79 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg79_e - ntc_rg79 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg79:
 p_events_rs:			dw 0
 ntc_rg79_e:
-			IF ($ < 65536) && (ntc_rg80_e - ntc_rg80 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg80_e - ntc_rg80 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg80:
 var_e:			dw 0
 ntc_rg80_e:
-			IF ($ < 65536) && (ntc_rg81_e - ntc_rg81 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg81_e - ntc_rg81 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg81:
 var_obj3d_nextevent_nextevent:			dw 0
 ntc_rg81_e:
-			IF ($ < 65536) && (ntc_rg82_e - ntc_rg82 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg82_e - ntc_rg82 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg82:
 var_i:			dw 0
 ntc_rg82_e:
-			IF ($ < 65536) && (ntc_rg83_e - ntc_rg83 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg83_e - ntc_rg83 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg83:
 var_obj3d_ea:			dw 0
 ntc_rg83_e:
-			IF ($ < 65536) && (ntc_rg84_e - ntc_rg84 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg84_e - ntc_rg84 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg84:
 var_obj3d_eb:			dw 0
 ntc_rg84_e:
-			IF ($ < 65536) && (ntc_rg85_e - ntc_rg85 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg85_e - ntc_rg85 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg85:
 var_events___sel22:			dw 0
 ntc_rg85_e:
-			IF ($ < 65536) && (ntc_rg86_e - ntc_rg86 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg86_e - ntc_rg86 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg86:
 p_blast_rs:			dw 0
 ntc_rg86_e:
-			IF ($ < 65536) && (ntc_rg87_e - ntc_rg87 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg87_e - ntc_rg87 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg87:
 var_blast_i:			dw 0
 ntc_rg87_e:
-			IF ($ < 65536) && (ntc_rg88_e - ntc_rg88 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg88_e - ntc_rg88 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg88:
 var_obj3d_px:			dw 0
 ntc_rg88_e:
-			IF ($ < 65536) && (ntc_rg89_e - ntc_rg89 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg89_e - ntc_rg89 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg89:
 var_obj3d_py:			dw 0
 ntc_rg89_e:
-			IF ($ < 65536) && (ntc_rg90_e - ntc_rg90 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg90_e - ntc_rg90 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg90:
 var_obj3d_pz:			dw 0
 ntc_rg90_e:
-			IF ($ < 65536) && (ntc_rg91_e - ntc_rg91 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg91_e - ntc_rg91 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg91:
 p_hud_rs:			dw 0
 ntc_rg91_e:
-			IF ($ < 65536) && (ntc_rg92_e - ntc_rg92 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg92_e - ntc_rg92 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg92:
 p_gameover_rs:			dw 0
 ntc_rg92_e:
-			IF ($ < 65536) && (ntc_rg93_e - ntc_rg93 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg93_e - ntc_rg93 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg93:
 var_gameover_t:			dw 0
 ntc_rg93_e:
-			IF ($ < 65536) && (ntc_rg94_e - ntc_rg94 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg94_e - ntc_rg94 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg94:
 p_readkeys_rs:			dw 0
 ntc_rg94_e:
-			IF ($ < 65536) && (ntc_rg95_e - ntc_rg95 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg95_e - ntc_rg95 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg95:
 var_readkeys_r:			dw 0
 ntc_rg95_e:
-			IF ($ < 65536) && (ntc_rg96_e - ntc_rg96 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg96_e - ntc_rg96 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg96:
 p_sync_rs:			dw 0
 ntc_rg96_e:
-			IF ($ < 65536) && (ntc_rg97_e - ntc_rg97 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg97_e - ntc_rg97 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg97:
 var_e3_vbl:			dw 0
 ntc_rg97_e:
-			IF ($ < 65536) && (ntc_rg98_e - ntc_rg98 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg98_e - ntc_rg98 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg98:
 var_vflip:			dw 0
 ntc_rg98_e:
-			IF ($ < 65536) && (ntc_rg99_e - ntc_rg99 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg99_e - ntc_rg99 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg99:
 var_frames:			dw 0
 ntc_rg99_e:
-			IF ($ < 65536) && (ntc_rg100_e - ntc_rg100 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg100_e - ntc_rg100 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg100:
 p_e3_init_rs:			dw 0
 ntc_rg100_e:
-			IF ($ < 65536) && (ntc_rg101_e - ntc_rg101 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg101_e - ntc_rg101 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg101:
 var_e3_back:			dw 0
 ntc_rg101_e:
-			IF ($ < 65536) && (ntc_rg102_e - ntc_rg102 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg102_e - ntc_rg102 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg102:
 var_e3_front:			dw 0
 ntc_rg102_e:
-			IF ($ < 65536) && (ntc_rg103_e - ntc_rg103 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg103_e - ntc_rg103 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg103:
 var_e3_lodb:			dw 0
 ntc_rg103_e:
-			IF ($ < 65536) && (ntc_rg104_e - ntc_rg104 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg104_e - ntc_rg104 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg104:
 var_e3_ta:			dw 0
 ntc_rg104_e:
-			IF ($ < 65536) && (ntc_rg105_e - ntc_rg105 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg105_e - ntc_rg105 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg105:
 var_e3_txs:			dw 0
 ntc_rg105_e:
-			IF ($ < 65536) && (ntc_rg106_e - ntc_rg106 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg106_e - ntc_rg106 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg106:
 var_e3_stymax:			dw 0
 ntc_rg106_e:
-			IF ($ < 65536) && (ntc_rg107_e - ntc_rg107 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg107_e - ntc_rg107 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg107:
 p_e3_camreset_rs:			dw 0
 ntc_rg107_e:
-			IF ($ < 65536) && (ntc_rg108_e - ntc_rg108 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg108_e - ntc_rg108 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg108:
 var_e3_camreset_k:			dw 0
 ntc_rg108_e:
-			IF ($ < 65536) && (ntc_rg109_e - ntc_rg109 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg109_e - ntc_rg109 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg109:
 var_e3_sps:			dw 0
 ntc_rg109_e:
-			IF ($ < 65536) && (ntc_rg110_e - ntc_rg110 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg110_e - ntc_rg110 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg110:
 p_e3_flip_rs:			dw 0
 ntc_rg110_e:
-			IF ($ < 65536) && (ntc_rg111_e - ntc_rg111 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg111_e - ntc_rg111 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg111:
 var_e3_flip_t:			dw 0
 ntc_rg111_e:
-			IF ($ < 65536) && (ntc_rg112_e - ntc_rg112 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg112_e - ntc_rg112 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg112:
 var_e3_six:			dw 0
 ntc_rg112_e:
-			IF ($ < 65536) && (ntc_rg113_e - ntc_rg113 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg113_e - ntc_rg113 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg113:
 var_e3_uca:			dw 0
 ntc_rg113_e:
-			IF ($ < 65536) && (ntc_rg114_e - ntc_rg114 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg114_e - ntc_rg114 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg114:
 p_e3_uink_rs:			dw 0
 ntc_rg114_e:
-			IF ($ < 65536) && (ntc_rg115_e - ntc_rg115 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg115_e - ntc_rg115 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg115:
 var_e3_uink_i:			dw 0, 0		; parameters, one block
 ntc_rg115_e:
-			IF ($ < 65536) && (ntc_rg116_e - ntc_rg116 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg116_e - ntc_rg116 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg116:
 var_e3_rline:			dw 0
 ntc_rg116_e:
-			IF ($ < 65536) && (ntc_rg117_e - ntc_rg117 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg117_e - ntc_rg117 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg117:
 var_e3_scene0:			dw 0
 ntc_rg117_e:
-			IF ($ < 65536) && (ntc_rg118_e - ntc_rg118 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg118_e - ntc_rg118 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg118:
 var_e3_nobj:			dw 0
 ntc_rg118_e:
-			IF ($ < 65536) && (ntc_rg119_e - ntc_rg119 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg119_e - ntc_rg119 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg119:
 var_e3_pc:			dw 0
 ntc_rg119_e:
-			IF ($ < 65536) && (ntc_rg120_e - ntc_rg120 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg120_e - ntc_rg120 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg120:
 var_e3_pn:			dw 0
 ntc_rg120_e:
-			IF ($ < 65536) && (ntc_rg121_e - ntc_rg121 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg121_e - ntc_rg121 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg121:
 var_e3_cmask:			dw 0
 ntc_rg121_e:
-			IF ($ < 65536) && (ntc_rg122_e - ntc_rg122 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg122_e - ntc_rg122 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg122:
 var_e3_cn:			dw 0
 ntc_rg122_e:
-			IF ($ < 65536) && (ntc_rg123_e - ntc_rg123 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg123_e - ntc_rg123 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg123:
 var_e3_vhook:			dw 0
 ntc_rg123_e:
-			IF ($ < 65536) && (ntc_rg124_e - ntc_rg124 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg124_e - ntc_rg124 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg124:
 var_e3_uto:			dw 0
 ntc_rg124_e:
-			IF ($ < 65536) && (ntc_rg125_e - ntc_rg125 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg125_e - ntc_rg125 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg125:
 var_e3_aimk:			dw 0
 ntc_rg125_e:
-			IF ($ < 65536) && (ntc_rg126_e - ntc_rg126 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg126_e - ntc_rg126 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg126:
 var_e3_orad:			dw 0
 ntc_rg126_e:
-			IF ($ < 65536) && (ntc_rg127_e - ntc_rg127 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg127_e - ntc_rg127 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg127:
 var_e3_scache:			dw 0
 ntc_rg127_e:
-			IF ($ < 65536) && (ntc_rg128_e - ntc_rg128 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg128_e - ntc_rg128 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg128:
 var_e3_ovis:			dw 0
 ntc_rg128_e:
-			IF ($ < 65536) && (ntc_rg129_e - ntc_rg129 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg129_e - ntc_rg129 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg129:
 var_e3_oa:			dw 0
 ntc_rg129_e:
-			IF ($ < 65536) && (ntc_rg130_e - ntc_rg130 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg130_e - ntc_rg130 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg130:
 var_e3_ob:			dw 0
 ntc_rg130_e:
-			IF ($ < 65536) && (ntc_rg131_e - ntc_rg131 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg131_e - ntc_rg131 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg131:
 var_e3_osc:			dw 0
 ntc_rg131_e:
-			IF ($ < 65536) && (ntc_rg132_e - ntc_rg132 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg132_e - ntc_rg132 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg132:
 var_e3_omod:			dw 0
 ntc_rg132_e:
-			IF ($ < 65536) && (ntc_rg133_e - ntc_rg133 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg133_e - ntc_rg133 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg133:
 p_obj3d_init_rs:			dw 0
 ntc_rg133_e:
-			IF ($ < 65536) && (ntc_rg134_e - ntc_rg134 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg134_e - ntc_rg134 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg134:
 var_obj3d_pobj:			dw 0
 ntc_rg134_e:
-			IF ($ < 65536) && (ntc_rg135_e - ntc_rg135 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg135_e - ntc_rg135 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg135:
 var_obj3d_pcp:			dw 0
 ntc_rg135_e:
-			IF ($ < 65536) && (ntc_rg136_e - ntc_rg136 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg136_e - ntc_rg136 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg136:
 var_obj3d_pvwx:			dw 0
 ntc_rg136_e:
-			IF ($ < 65536) && (ntc_rg137_e - ntc_rg137 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg137_e - ntc_rg137 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg137:
 var_obj3d_pvwy:			dw 0
 ntc_rg137_e:
-			IF ($ < 65536) && (ntc_rg138_e - ntc_rg138 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg138_e - ntc_rg138 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg138:
 var_obj3d_pvwz:			dw 0
 ntc_rg138_e:
-			IF ($ < 65536) && (ntc_rg139_e - ntc_rg139 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg139_e - ntc_rg139 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg139:
 var_obj3d_hfx:			dw 0
 ntc_rg139_e:
-			IF ($ < 65536) && (ntc_rg140_e - ntc_rg140 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg140_e - ntc_rg140 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg140:
 var_obj3d_hfy:			dw 0
 ntc_rg140_e:
-			IF ($ < 65536) && (ntc_rg141_e - ntc_rg141 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg141_e - ntc_rg141 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg141:
 var_obj3d_hfz:			dw 0
 ntc_rg141_e:
-			IF ($ < 65536) && (ntc_rg142_e - ntc_rg142 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg142_e - ntc_rg142 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg142:
 var_obj3d_lo:			dw 0
 ntc_rg142_e:
-			IF ($ < 65536) && (ntc_rg143_e - ntc_rg143 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg143_e - ntc_rg143 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg143:
 var_obj3d_hi:			dw 0
 ntc_rg143_e:
-			IF ($ < 65536) && (ntc_rg144_e - ntc_rg144 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg144_e - ntc_rg144 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg144:
 var_obj3d_bkind:			dw 0
 ntc_rg144_e:
-			IF ($ < 65536) && (ntc_rg145_e - ntc_rg145 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg145_e - ntc_rg145 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg145:
 var_obj3d_dkind:			dw 0
 ntc_rg145_e:
-			IF ($ < 65536) && (ntc_rg146_e - ntc_rg146 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg146_e - ntc_rg146 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg146:
 var_obj3d_xkind:			dw 0
 ntc_rg146_e:
-			IF ($ < 65536) && (ntc_rg147_e - ntc_rg147 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg147_e - ntc_rg147 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg147:
 var_obj3d_pmask:			dw 0
 ntc_rg147_e:
-			IF ($ < 65536) && (ntc_rg148_e - ntc_rg148 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg148_e - ntc_rg148 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg148:
 p_obj3d_clear_rs:			dw 0
 ntc_rg148_e:
-			IF ($ < 65536) && (ntc_rg149_e - ntc_rg149 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg149_e - ntc_rg149 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg149:
 var_obj3d_t:			dw 0
 ntc_rg149_e:
-			IF ($ < 65536) && (ntc_rg150_e - ntc_rg150 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg150_e - ntc_rg150 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg150:
 var_obj3d_nev:			dw 0
 ntc_rg150_e:
-			IF ($ < 65536) && (ntc_rg151_e - ntc_rg151 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg151_e - ntc_rg151 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg151:
 var_obj3d_rdq:			dw 0
 ntc_rg151_e:
-			IF ($ < 65536) && (ntc_rg152_e - ntc_rg152 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg152_e - ntc_rg152 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg152:
 p_obj3d_kill_rs:			dw 0
 ntc_rg152_e:
-			IF ($ < 65536) && (ntc_rg153_e - ntc_rg153 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg153_e - ntc_rg153 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg153:
 var_obj3d_kill_i:			dw 0
 ntc_rg153_e:
-			IF ($ < 65536) && (ntc_rg154_e - ntc_rg154 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg154_e - ntc_rg154 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg154:
 p_obj3d_spawn_rs:			dw 0
 ntc_rg154_e:
-			IF ($ < 65536) && (ntc_rg155_e - ntc_rg155 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg155_e - ntc_rg155 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg155:
 var_obj3d_spawn_kind:			dw 0, 0, 0, 0, 0, 0, 0		; parameters, one block
 ntc_rg155_e:
-			IF ($ < 65536) && (ntc_rg156_e - ntc_rg156 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg156_e - ntc_rg156 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg156:
 var_obj3d_sps:			dw 0
 ntc_rg156_e:
-			IF ($ < 65536) && (ntc_rg157_e - ntc_rg157 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg157_e - ntc_rg157 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg157:
 p_obj3d_setvel_rs:			dw 0
 ntc_rg157_e:
-			IF ($ < 65536) && (ntc_rg158_e - ntc_rg158 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg158_e - ntc_rg158 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg158:
 var_obj3d_setvel_i:			dw 0, 0, 0, 0		; parameters, one block
 ntc_rg158_e:
-			IF ($ < 65536) && (ntc_rg159_e - ntc_rg159 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg159_e - ntc_rg159 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg159:
 p_obj3d_setmover_rs:			dw 0
 ntc_rg159_e:
-			IF ($ < 65536) && (ntc_rg160_e - ntc_rg160 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg160_e - ntc_rg160 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg160:
 var_obj3d_setmover_i:			dw 0, 0, 0		; parameters, one block
 ntc_rg160_e:
-			IF ($ < 65536) && (ntc_rg161_e - ntc_rg161 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg161_e - ntc_rg161 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg161:
 p_obj3d_spin_rs:			dw 0
 ntc_rg161_e:
-			IF ($ < 65536) && (ntc_rg162_e - ntc_rg162 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg162_e - ntc_rg162 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg162:
 var_obj3d_spin_i:			dw 0, 0, 0		; parameters, one block
 ntc_rg162_e:
-			IF ($ < 65536) && (ntc_rg163_e - ntc_rg163 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg163_e - ntc_rg163 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg163:
 p_obj3d_mark_rs:			dw 0
 ntc_rg163_e:
-			IF ($ < 65536) && (ntc_rg164_e - ntc_rg164 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg164_e - ntc_rg164 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg164:
 var_obj3d_mark_i:			dw 0, 0		; parameters, one block
 ntc_rg164_e:
-			IF ($ < 65536) && (ntc_rg165_e - ntc_rg165 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg165_e - ntc_rg165 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg165:
 p_obj3d_pos_rs:			dw 0
 ntc_rg165_e:
-			IF ($ < 65536) && (ntc_rg166_e - ntc_rg166 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg166_e - ntc_rg166 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg166:
 var_obj3d_pos_i:			dw 0
 ntc_rg166_e:
-			IF ($ < 65536) && (ntc_rg167_e - ntc_rg167 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg167_e - ntc_rg167 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg167:
 p_obj3d_aimat_rs:			dw 0
 ntc_rg167_e:
-			IF ($ < 65536) && (ntc_rg168_e - ntc_rg168 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg168_e - ntc_rg168 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg168:
 var_obj3d_aimat_x:			dw 0, 0, 0, 0		; parameters, one block
 ntc_rg168_e:
-			IF ($ < 65536) && (ntc_rg169_e - ntc_rg169 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg169_e - ntc_rg169 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg169:
 var_obj3d_aimat_m:			dw 0
 ntc_rg169_e:
-			IF ($ < 65536) && (ntc_rg170_e - ntc_rg170 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg170_e - ntc_rg170 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg170:
 var_obj3d_aimat_q:			dw 0
 ntc_rg170_e:
-			IF ($ < 65536) && (ntc_rg171_e - ntc_rg171 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg171_e - ntc_rg171 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg171:
 var_obj3d_avx:			dw 0
 ntc_rg171_e:
-			IF ($ < 65536) && (ntc_rg172_e - ntc_rg172 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg172_e - ntc_rg172 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg172:
 var_obj3d_avy:			dw 0
 ntc_rg172_e:
-			IF ($ < 65536) && (ntc_rg173_e - ntc_rg173 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg173_e - ntc_rg173 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg173:
 var_obj3d_avz:			dw 0
 ntc_rg173_e:
-			IF ($ < 65536) && (ntc_rg174_e - ntc_rg174 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg174_e - ntc_rg174 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg174:
 p_obj3d_boltmodel_rs:			dw 0
 ntc_rg174_e:
-			IF ($ < 65536) && (ntc_rg175_e - ntc_rg175 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg175_e - ntc_rg175 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg175:
 var_obj3d_boltmodel_kind:			dw 0, 0, 0		; parameters, one block
 ntc_rg175_e:
-			IF ($ < 65536) && (ntc_rg176_e - ntc_rg176 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg176_e - ntc_rg176 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg176:
 var_obj3d_bsc:			dw 0
 ntc_rg176_e:
-			IF ($ < 65536) && (ntc_rg177_e - ntc_rg177 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg177_e - ntc_rg177 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg177:
 var_obj3d_bdot:			dw 0
 ntc_rg177_e:
-			IF ($ < 65536) && (ntc_rg178_e - ntc_rg178 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg178_e - ntc_rg178 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg178:
 p_obj3d_debrismodel_rs:			dw 0
 ntc_rg178_e:
-			IF ($ < 65536) && (ntc_rg179_e - ntc_rg179 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg179_e - ntc_rg179 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg179:
 var_obj3d_debrismodel_kind:			dw 0, 0, 0, 0		; parameters, one block
 ntc_rg179_e:
-			IF ($ < 65536) && (ntc_rg180_e - ntc_rg180 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg180_e - ntc_rg180 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg180:
 var_obj3d_dsc:			dw 0
 ntc_rg180_e:
-			IF ($ < 65536) && (ntc_rg181_e - ntc_rg181 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg181_e - ntc_rg181 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg181:
 var_obj3d_ddot:			dw 0
 ntc_rg181_e:
-			IF ($ < 65536) && (ntc_rg182_e - ntc_rg182 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg182_e - ntc_rg182 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg182:
 var_obj3d_dgrav:			dw 0
 ntc_rg182_e:
-			IF ($ < 65536) && (ntc_rg183_e - ntc_rg183 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg183_e - ntc_rg183 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg183:
 p_obj3d_blastmodel_rs:			dw 0
 ntc_rg183_e:
-			IF ($ < 65536) && (ntc_rg184_e - ntc_rg184 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg184_e - ntc_rg184 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg184:
 var_obj3d_blastmodel_kind:			dw 0, 0		; parameters, one block
 ntc_rg184_e:
-			IF ($ < 65536) && (ntc_rg185_e - ntc_rg185 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg185_e - ntc_rg185 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg185:
 var_obj3d_xdot:			dw 0
 ntc_rg185_e:
-			IF ($ < 65536) && (ntc_rg186_e - ntc_rg186 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg186_e - ntc_rg186 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg186:
 p_obj3d_fireat_rs:			dw 0
 ntc_rg186_e:
-			IF ($ < 65536) && (ntc_rg187_e - ntc_rg187 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg187_e - ntc_rg187 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg187:
 var_obj3d_fireat_from:			dw 0, 0, 0, 0, 0		; parameters, one block
 ntc_rg187_e:
-			IF ($ < 65536) && (ntc_rg188_e - ntc_rg188 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg188_e - ntc_rg188 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg188:
 var_obj3d_fireat_fireat:			dw 0
 ntc_rg188_e:
-			IF ($ < 65536) && (ntc_rg189_e - ntc_rg189 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg189_e - ntc_rg189 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg189:
 p_obj3d_fire_rs:			dw 0
 ntc_rg189_e:
-			IF ($ < 65536) && (ntc_rg190_e - ntc_rg190 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg190_e - ntc_rg190 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg190:
 var_obj3d_fire_from:			dw 0, 0		; parameters, one block
 ntc_rg190_e:
-			IF ($ < 65536) && (ntc_rg191_e - ntc_rg191 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg191_e - ntc_rg191 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg191:
 var_e3_camget_camget:			dw 0
 ntc_rg191_e:
-			IF ($ < 65536) && (ntc_rg192_e - ntc_rg192 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg192_e - ntc_rg192 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg192:
 p_obj3d_burst_rs:			dw 0
 ntc_rg192_e:
-			IF ($ < 65536) && (ntc_rg193_e - ntc_rg193 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg193_e - ntc_rg193 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg193:
 var_obj3d_burst_x:			dw 0, 0, 0, 0, 0, 0, 0		; parameters, one block
 ntc_rg193_e:
-			IF ($ < 65536) && (ntc_rg194_e - ntc_rg194 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg194_e - ntc_rg194 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg194:
 var_obj3d_burst_k:			dw 0
 ntc_rg194_e:
-			IF ($ < 65536) && (ntc_rg195_e - ntc_rg195 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg195_e - ntc_rg195 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg195:
 for48_l:			dw 0
 ntc_rg195_e:
-			IF ($ < 65536) && (ntc_rg196_e - ntc_rg196 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg196_e - ntc_rg196 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg196:
 var_obj3d_dflg:			dw 0
 ntc_rg196_e:
-			IF ($ < 65536) && (ntc_rg197_e - ntc_rg197 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg197_e - ntc_rg197 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg197:
 p_obj3d_boom_rs:			dw 0
 ntc_rg197_e:
-			IF ($ < 65536) && (ntc_rg198_e - ntc_rg198 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg198_e - ntc_rg198 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg198:
 var_obj3d_boom_i:			dw 0, 0		; parameters, one block
 ntc_rg198_e:
-			IF ($ < 65536) && (ntc_rg199_e - ntc_rg199 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg199_e - ntc_rg199 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg199:
 p_obj3d_count_rs:			dw 0
 ntc_rg199_e:
-			IF ($ < 65536) && (ntc_rg200_e - ntc_rg200 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg200_e - ntc_rg200 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg200:
 var_obj3d_count_cls:			dw 0
 ntc_rg200_e:
-			IF ($ < 65536) && (ntc_rg201_e - ntc_rg201 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg201_e - ntc_rg201 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg201:
 var_obj3d_count_n:			dw 0
 ntc_rg201_e:
-			IF ($ < 65536) && (ntc_rg202_e - ntc_rg202 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg202_e - ntc_rg202 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg202:
 p_obj3d_nextevent_rs:			dw 0
 ntc_rg202_e:
-			IF ($ < 65536) && (ntc_rg203_e - ntc_rg203 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg203_e - ntc_rg203 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg203:
 p_obj3d_update_rs:			dw 0
 ntc_rg203_e:
-			IF ($ < 65536) && (ntc_rg204_e - ntc_rg204 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg204_e - ntc_rg204 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg204:
 var_obj3d_update_dt:			dw 0
 ntc_rg204_e:
-			IF ($ < 65536) && (ntc_rg205_e - ntc_rg205 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg205_e - ntc_rg205 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg205:
 var_obj3d_six:			dw 0
 ntc_rg205_e:
-			IF ($ < 65536) && (ntc_rg206_e - ntc_rg206 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg206_e - ntc_rg206 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg206:
 p_obj3d_draw_rs:			dw 0
 ntc_rg206_e:
-			IF ($ < 65536) && (ntc_rg207_e - ntc_rg207 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg207_e - ntc_rg207 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg207:
 var_obj3d_pvx:			dw 0
 ntc_rg207_e:
-			IF ($ < 65536) && (ntc_rg208_e - ntc_rg208 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg208_e - ntc_rg208 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg208:
 var_obj3d_pvy:			dw 0
 ntc_rg208_e:
-			IF ($ < 65536) && (ntc_rg209_e - ntc_rg209 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg209_e - ntc_rg209 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg209:
 var_obj3d_pvz:			dw 0
 ntc_rg209_e:
-			IF ($ < 65536) && (ntc_rg210_e - ntc_rg210 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg210_e - ntc_rg210 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg210:
 p_fly3d_init_rs:			dw 0
 ntc_rg210_e:
-			IF ($ < 65536) && (ntc_rg211_e - ntc_rg211 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg211_e - ntc_rg211 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg211:
 var_fly3d_rmax:			dw 0
 ntc_rg211_e:
-			IF ($ < 65536) && (ntc_rg212_e - ntc_rg212 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg212_e - ntc_rg212 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg212:
 var_fly3d_pmax:			dw 0
 ntc_rg212_e:
-			IF ($ < 65536) && (ntc_rg213_e - ntc_rg213 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg213_e - ntc_rg213 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg213:
 var_fly3d_ease:			dw 0
 ntc_rg213_e:
-			IF ($ < 65536) && (ntc_rg214_e - ntc_rg214 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg214_e - ntc_rg214 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg214:
 var_fly3d_acc:			dw 0
 ntc_rg214_e:
-			IF ($ < 65536) && (ntc_rg215_e - ntc_rg215 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg215_e - ntc_rg215 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg215:
 var_fly3d_smin:			dw 0
 ntc_rg215_e:
-			IF ($ < 65536) && (ntc_rg216_e - ntc_rg216 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg216_e - ntc_rg216 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg216:
 var_fly3d_assist:			dw 0
 ntc_rg216_e:
-			IF ($ < 65536) && (ntc_rg217_e - ntc_rg217 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg217_e - ntc_rg217 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg217:
 var_fly3d_rlim:			dw 0
 ntc_rg217_e:
-			IF ($ < 65536) && (ntc_rg218_e - ntc_rg218 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg218_e - ntc_rg218 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg218:
 var_fly3d_rbx:			dw 0
 ntc_rg218_e:
-			IF ($ < 65536) && (ntc_rg219_e - ntc_rg219 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg219_e - ntc_rg219 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg219:
 var_fly3d_rby:			dw 0
 ntc_rg219_e:
-			IF ($ < 65536) && (ntc_rg220_e - ntc_rg220 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg220_e - ntc_rg220 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg220:
 var_fly3d_rbz:			dw 0
 ntc_rg220_e:
-			IF ($ < 65536) && (ntc_rg221_e - ntc_rg221 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg221_e - ntc_rg221 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg221:
 var_fly3d_tmax:			dw 0
 ntc_rg221_e:
-			IF ($ < 65536) && (ntc_rg222_e - ntc_rg222 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg222_e - ntc_rg222 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg222:
 p_fly3d_reset_rs:			dw 0
 ntc_rg222_e:
-			IF ($ < 65536) && (ntc_rg223_e - ntc_rg223 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg223_e - ntc_rg223 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg223:
 var_fly3d_rr:			dw 0
 ntc_rg223_e:
-			IF ($ < 65536) && (ntc_rg224_e - ntc_rg224 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg224_e - ntc_rg224 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg224:
 var_fly3d_pr:			dw 0
 ntc_rg224_e:
-			IF ($ < 65536) && (ntc_rg225_e - ntc_rg225 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg225_e - ntc_rg225 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg225:
 p_fly3d_getcam_rs:			dw 0
 ntc_rg225_e:
-			IF ($ < 65536) && (ntc_rg226_e - ntc_rg226 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg226_e - ntc_rg226 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg226:
 p_fly3d_steer_rs:			dw 0
 ntc_rg226_e:
-			IF ($ < 65536) && (ntc_rg227_e - ntc_rg227 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg227_e - ntc_rg227 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg227:
 var_fly3d_steer_keys:			dw 0, 0		; parameters, one block
 ntc_rg227_e:
-			IF ($ < 65536) && (ntc_rg228_e - ntc_rg228 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg228_e - ntc_rg228 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg228:
 var_fly3d_steer_tr:			dw 0
 ntc_rg228_e:
-			IF ($ < 65536) && (ntc_rg229_e - ntc_rg229 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg229_e - ntc_rg229 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg229:
 var_fly3d_steer_tp:			dw 0
 ntc_rg229_e:
-			IF ($ < 65536) && (ntc_rg230_e - ntc_rg230 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg230_e - ntc_rg230 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg230:
 var_fly3d_steer_rl:			dw 0
 ntc_rg230_e:
-			IF ($ < 65536) && (ntc_rg231_e - ntc_rg231 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg231_e - ntc_rg231 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg231:
 var_fly3d_steer_pt:			dw 0
 ntc_rg231_e:
-			IF ($ < 65536) && (ntc_rg232_e - ntc_rg232 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg232_e - ntc_rg232 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg232:
 var_fly3d_steer_yw:			dw 0
 ntc_rg232_e:
-			IF ($ < 65536) && (ntc_rg233_e - ntc_rg233 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg233_e - ntc_rg233 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg233:
 p_fly3d_track_rs:			dw 0
 ntc_rg233_e:
-			IF ($ < 65536) && (ntc_rg234_e - ntc_rg234 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg234_e - ntc_rg234 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg234:
 var_fly3d_track_dt:			dw 0
 ntc_rg234_e:
-			IF ($ < 65536) && (ntc_rg235_e - ntc_rg235 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg235_e - ntc_rg235 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg235:
 p_fly3d_rebase_rs:			dw 0
 ntc_rg235_e:
-			IF ($ < 65536) && (ntc_rg236_e - ntc_rg236 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg236_e - ntc_rg236 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg236:
 var_fly3d_dx:			dw 0
 ntc_rg236_e:
-			IF ($ < 65536) && (ntc_rg237_e - ntc_rg237 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg237_e - ntc_rg237 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg237:
 var_fly3d_dy:			dw 0
 ntc_rg237_e:
-			IF ($ < 65536) && (ntc_rg238_e - ntc_rg238 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg238_e - ntc_rg238 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg238:
 var_fly3d_dz:			dw 0
 ntc_rg238_e:
-			IF ($ < 65536) && (ntc_rg239_e - ntc_rg239 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg239_e - ntc_rg239 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg239:
 p_hud3d_ink_rs:			dw 0
 ntc_rg239_e:
-			IF ($ < 65536) && (ntc_rg240_e - ntc_rg240 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg240_e - ntc_rg240 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg240:
 var_hud3d_ink_n:			dw 0, 0		; parameters, one block
 ntc_rg240_e:
-			IF ($ < 65536) && (ntc_rg241_e - ntc_rg241 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg241_e - ntc_rg241 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg241:
 p_hud3d_wipe_rs:			dw 0
 ntc_rg241_e:
-			IF ($ < 65536) && (ntc_rg242_e - ntc_rg242 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg242_e - ntc_rg242 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg242:
 p_hud3d_text_rs:			dw 0
 ntc_rg242_e:
-			IF ($ < 65536) && (ntc_rg243_e - ntc_rg243 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg243_e - ntc_rg243 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg243:
 var_hud3d_text_x:			dw 0, 0		; parameters, one block
 ntc_rg243_e:
-			IF ($ < 65536) && (ntc_rg244_e - ntc_rg244 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg244_e - ntc_rg244 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg244:
 var_hud3d_text_ink:			dw 0
 ntc_rg244_e:
-			IF ($ < 65536) && (ntc_rg245_e - ntc_rg245 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg245_e - ntc_rg245 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg245:
 			db 40			; capacity
 var_hud3d_text_s:			ds 41
 ntc_rg245_e:
-			IF ($ < 65536) && (ntc_rg246_e - ntc_rg246 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg246_e - ntc_rg246 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg246:
 p_hud3d_num_rs:			dw 0
 ntc_rg246_e:
-			IF ($ < 65536) && (ntc_rg247_e - ntc_rg247 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg247_e - ntc_rg247 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg247:
 var_hud3d_num_x:			dw 0, 0, 0, 0, 0		; parameters, one block
 ntc_rg247_e:
-			IF ($ < 65536) && (ntc_rg248_e - ntc_rg248 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg248_e - ntc_rg248 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg248:
 p_hud3d_cross_rs:			dw 0
 ntc_rg248_e:
-			IF ($ < 65536) && (ntc_rg249_e - ntc_rg249 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg249_e - ntc_rg249 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg249:
 var_hud3d_cross_x:			dw 0, 0, 0		; parameters, one block
 ntc_rg249_e:
-			IF ($ < 65536) && (ntc_rg250_e - ntc_rg250 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg250_e - ntc_rg250 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg250:
 p_hud3d_bar_rs:			dw 0
 ntc_rg250_e:
-			IF ($ < 65536) && (ntc_rg251_e - ntc_rg251 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg251_e - ntc_rg251 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg251:
 var_hud3d_bar_x:			dw 0, 0, 0, 0, 0, 0, 0, 0		; parameters, one block
 ntc_rg251_e:
-			IF ($ < 65536) && (ntc_rg252_e - ntc_rg252 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg252_e - ntc_rg252 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg252:
 var_hud3d_t:			dw 0
 ntc_rg252_e:
-			IF ($ < 65536) && (ntc_rg253_e - ntc_rg253 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg253_e - ntc_rg253 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg253:
 p_hud3d_scanner_rs:			dw 0
 ntc_rg253_e:
-			IF ($ < 65536) && (ntc_rg254_e - ntc_rg254 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg254_e - ntc_rg254 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg254:
 var_hud3d_scanner_x:			dw 0, 0, 0, 0, 0, 0		; parameters, one block
 ntc_rg254_e:
-			IF ($ < 65536) && (ntc_rg255_e - ntc_rg255 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg255_e - ntc_rg255 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg255:
 p_e3w_on_rs:			dw 0
 ntc_rg255_e:
-			IF ($ < 65536) && (ntc_rg256_e - ntc_rg256 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg256_e - ntc_rg256 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg256:
 var_e3w_won:			dw 0
 ntc_rg256_e:
-			IF ($ < 65536) && (ntc_rg257_e - ntc_rg257 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg257_e - ntc_rg257 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg257:
 p_e3w_off_rs:			dw 0
 ntc_rg257_e:
-			IF ($ < 65536) && (ntc_rg258_e - ntc_rg258 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg258_e - ntc_rg258 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg258:
 tmp0:			dw 0
 ntc_rg258_e:
-			IF ($ < 65536) && (ntc_rg259_e - ntc_rg259 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg259_e - ntc_rg259 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg259:
 tmp1:			dw 0
 ntc_rg259_e:
-			IF ($ < 65536) && (ntc_rg260_e - ntc_rg260 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg260_e - ntc_rg260 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg260:
 tmp2:			dw 0
 ntc_rg260_e:
-			IF ($ < 65536) && (ntc_rg261_e - ntc_rg261 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg261_e - ntc_rg261 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg261:
 tmp3:			dw 0
 ntc_rg261_e:
-			IF ($ < 65536) && (ntc_rg262_e - ntc_rg262 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg262_e - ntc_rg262 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg262:
 tmp4:			dw 0
 ntc_rg262_e:
-			IF ($ < 65536) && (ntc_rg263_e - ntc_rg263 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg263_e - ntc_rg263 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg263:
 tmp5:			dw 0
 ntc_rg263_e:
-			IF ($ < 65536) && (ntc_rg264_e - ntc_rg264 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg264_e - ntc_rg264 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg264:
@@ -13415,520 +13420,520 @@ tmp6:			dw 0
 
 ; numbers passed by address (read only)
 ntc_rg264_e:
-			IF ($ < 65536) && (ntc_rg265_e - ntc_rg265 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg265_e - ntc_rg265 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg265:
 lit_2:			dw 2
 ntc_rg265_e:
-			IF ($ < 65536) && (ntc_rg266_e - ntc_rg266 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg266_e - ntc_rg266 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg266:
 lit_1:			dw 1
 ntc_rg266_e:
-			IF ($ < 65536) && (ntc_rg267_e - ntc_rg267 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg267_e - ntc_rg267 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg267:
 lit_206:			dw 206
 ntc_rg267_e:
-			IF ($ < 65536) && (ntc_rg268_e - ntc_rg268 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg268_e - ntc_rg268 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg268:
 lit_3:			dw 3
 ntc_rg268_e:
-			IF ($ < 65536) && (ntc_rg269_e - ntc_rg269 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg269_e - ntc_rg269 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg269:
 lit_58:			dw 58
 ntc_rg269_e:
-			IF ($ < 65536) && (ntc_rg270_e - ntc_rg270 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg270_e - ntc_rg270 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg270:
 lit_4:			dw 4
 ntc_rg270_e:
-			IF ($ < 65536) && (ntc_rg271_e - ntc_rg271 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg271_e - ntc_rg271 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg271:
 lit_62:			dw 62
 ntc_rg271_e:
-			IF ($ < 65536) && (ntc_rg272_e - ntc_rg272 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg272_e - ntc_rg272 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg272:
 lit_215:			dw 215
 ntc_rg272_e:
-			IF ($ < 65536) && (ntc_rg273_e - ntc_rg273 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg273_e - ntc_rg273 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg273:
 lit_221:			dw 221
 ntc_rg273_e:
-			IF ($ < 65536) && (ntc_rg274_e - ntc_rg274 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg274_e - ntc_rg274 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg274:
 lit_110:			dw 110
 ntc_rg274_e:
-			IF ($ < 65536) && (ntc_rg275_e - ntc_rg275 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg275_e - ntc_rg275 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg275:
 lit_43:			dw 43
 ntc_rg275_e:
-			IF ($ < 65536) && (ntc_rg276_e - ntc_rg276 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg276_e - ntc_rg276 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg276:
 lit_m2050:			dw -2050
 ntc_rg276_e:
-			IF ($ < 65536) && (ntc_rg277_e - ntc_rg277 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg277_e - ntc_rg277 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg277:
 lit_m1:			dw -1
 ntc_rg277_e:
-			IF ($ < 65536) && (ntc_rg278_e - ntc_rg278 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg278_e - ntc_rg278 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg278:
 lit_220:			dw 220
 ntc_rg278_e:
-			IF ($ < 65536) && (ntc_rg279_e - ntc_rg279 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg279_e - ntc_rg279 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg279:
 lit_0:			dw 0
 ntc_rg279_e:
-			IF ($ < 65536) && (ntc_rg280_e - ntc_rg280 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg280_e - ntc_rg280 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg280:
 lit_5:			dw 5
 ntc_rg280_e:
-			IF ($ < 65536) && (ntc_rg281_e - ntc_rg281 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg281_e - ntc_rg281 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg281:
 lit_6000:			dw 6000
 ntc_rg281_e:
-			IF ($ < 65536) && (ntc_rg282_e - ntc_rg282 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg282_e - ntc_rg282 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg282:
 lit_800:			dw 800
 ntc_rg282_e:
-			IF ($ < 65536) && (ntc_rg283_e - ntc_rg283 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg283_e - ntc_rg283 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg283:
 lit_10:			dw 10
 ntc_rg283_e:
-			IF ($ < 65536) && (ntc_rg284_e - ntc_rg284 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg284_e - ntc_rg284 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg284:
 lit_6:			dw 6
 ntc_rg284_e:
-			IF ($ < 65536) && (ntc_rg285_e - ntc_rg285 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg285_e - ntc_rg285 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg285:
 lit_184:			dw 184
 ntc_rg285_e:
-			IF ($ < 65536) && (ntc_rg286_e - ntc_rg286 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg286_e - ntc_rg286 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg286:
 lit_128:			dw 128
 ntc_rg286_e:
-			IF ($ < 65536) && (ntc_rg287_e - ntc_rg287 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg287_e - ntc_rg287 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg287:
 lit_96:			dw 96
 ntc_rg287_e:
-			IF ($ < 65536) && (ntc_rg288_e - ntc_rg288 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg288_e - ntc_rg288 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg288:
 lit_74:			dw 74
 ntc_rg288_e:
-			IF ($ < 65536) && (ntc_rg289_e - ntc_rg289 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg289_e - ntc_rg289 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg289:
 lit_9:			dw 9
 ntc_rg289_e:
-			IF ($ < 65536) && (ntc_rg290_e - ntc_rg290 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg290_e - ntc_rg290 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg290:
 lit_50:			dw 50
 ntc_rg290_e:
-			IF ($ < 65536) && (ntc_rg291_e - ntc_rg291 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg291_e - ntc_rg291 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg291:
 lit_7:			dw 7
 ntc_rg291_e:
-			IF ($ < 65536) && (ntc_rg292_e - ntc_rg292 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg292_e - ntc_rg292 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg292:
 lit_42:			dw 42
 ntc_rg292_e:
-			IF ($ < 65536) && (ntc_rg293_e - ntc_rg293 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg293_e - ntc_rg293 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg293:
 lit_8:			dw 8
 ntc_rg293_e:
-			IF ($ < 65536) && (ntc_rg294_e - ntc_rg294 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg294_e - ntc_rg294 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg294:
 lit_140:			dw 140
 ntc_rg294_e:
-			IF ($ < 65536) && (ntc_rg295_e - ntc_rg295 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg295_e - ntc_rg295 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg295:
 lit_40:			dw 40
 ntc_rg295_e:
-			IF ($ < 65536) && (ntc_rg296_e - ntc_rg296 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg296_e - ntc_rg296 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg296:
 lit_44:			dw 44
 ntc_rg296_e:
-			IF ($ < 65536) && (ntc_rg297_e - ntc_rg297 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg297_e - ntc_rg297 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg297:
 lit_182:			dw 182
 ntc_rg297_e:
-			IF ($ < 65536) && (ntc_rg298_e - ntc_rg298 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg298_e - ntc_rg298 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg298:
 lit_100:			dw 100
 ntc_rg298_e:
-			IF ($ < 65536) && (ntc_rg299_e - ntc_rg299 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg299_e - ntc_rg299 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg299:
 lit_210:			dw 210
 ntc_rg299_e:
-			IF ($ < 65536) && (ntc_rg300_e - ntc_rg300 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg300_e - ntc_rg300 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg300:
 lit_109:			dw 109
 ntc_rg300_e:
-			IF ($ < 65536) && (ntc_rg301_e - ntc_rg301 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg301_e - ntc_rg301 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg301:
 lit_165:			dw 165
 ntc_rg301_e:
-			IF ($ < 65536) && (ntc_rg302_e - ntc_rg302 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg302_e - ntc_rg302 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg302:
 lit_38:			dw 38
 ntc_rg302_e:
-			IF ($ < 65536) && (ntc_rg303_e - ntc_rg303 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg303_e - ntc_rg303 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg303:
 lit_26:			dw 26
 ntc_rg303_e:
-			IF ($ < 65536) && (ntc_rg304_e - ntc_rg304 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg304_e - ntc_rg304 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg304:
 lit_212:			dw 212
 ntc_rg304_e:
-			IF ($ < 65536) && (ntc_rg305_e - ntc_rg305 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg305_e - ntc_rg305 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg305:
 lit_101:			dw 101
 ntc_rg305_e:
-			IF ($ < 65536) && (ntc_rg306_e - ntc_rg306 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg306_e - ntc_rg306 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg306:
 lit_92:			dw 92
 ntc_rg306_e:
-			IF ($ < 65536) && (ntc_rg307_e - ntc_rg307 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg307_e - ntc_rg307 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg307:
 lit_m514:			dw -514
 ntc_rg307_e:
-			IF ($ < 65536) && (ntc_rg308_e - ntc_rg308 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg308_e - ntc_rg308 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg308:
 lit_m258:			dw -258
 ntc_rg308_e:
-			IF ($ < 65536) && (ntc_rg309_e - ntc_rg309 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg309_e - ntc_rg309 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg309:
 lit_32766:			dw 32766
 ntc_rg309_e:
-			IF ($ < 65536) && (ntc_rg310_e - ntc_rg310 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg310_e - ntc_rg310 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg310:
 lit_m16386:			dw -16386
 ntc_rg310_e:
-			IF ($ < 65536) && (ntc_rg311_e - ntc_rg311 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg311_e - ntc_rg311 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg311:
 lit_18:			dw 18
 ntc_rg311_e:
-			IF ($ < 65536) && (ntc_rg312_e - ntc_rg312 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg312_e - ntc_rg312 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg312:
 lit_112:			dw 112
 ntc_rg312_e:
-			IF ($ < 65536) && (ntc_rg313_e - ntc_rg313 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg313_e - ntc_rg313 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg313:
 lit_28:			dw 28
 ntc_rg313_e:
-			IF ($ < 65536) && (ntc_rg314_e - ntc_rg314 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg314_e - ntc_rg314 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg314:
 lit_24:			dw 24
 ntc_rg314_e:
-			IF ($ < 65536) && (ntc_rg315_e - ntc_rg315 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg315_e - ntc_rg315 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg315:
 lit_254:			dw 254
 ntc_rg315_e:
-			IF ($ < 65536) && (ntc_rg316_e - ntc_rg316 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg316_e - ntc_rg316 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg316:
 lit_191:			dw 191
 ntc_rg316_e:
-			IF ($ < 65536) && (ntc_rg317_e - ntc_rg317 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg317_e - ntc_rg317 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg317:
 lit_20:			dw 20
 ntc_rg317_e:
-			IF ($ < 65536) && (ntc_rg318_e - ntc_rg318 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg318_e - ntc_rg318 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg318:
 lit_227:			dw 227
 ntc_rg318_e:
-			IF ($ < 65536) && (ntc_rg319_e - ntc_rg319 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg319_e - ntc_rg319 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg319:
 lit_21:			dw 21
 ntc_rg319_e:
-			IF ($ < 65536) && (ntc_rg320_e - ntc_rg320 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg320_e - ntc_rg320 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg320:
 lit_4667:			dw 4667
 ntc_rg320_e:
-			IF ($ < 65536) && (ntc_rg321_e - ntc_rg321 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg321_e - ntc_rg321 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg321:
 lit_104:			dw 104
 ntc_rg321_e:
-			IF ($ < 65536) && (ntc_rg322_e - ntc_rg322 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg322_e - ntc_rg322 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg322:
 lit_107:			dw 107
 ntc_rg322_e:
-			IF ($ < 65536) && (ntc_rg323_e - ntc_rg323 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg323_e - ntc_rg323 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg323:
 lit_98:			dw 98
 ntc_rg323_e:
-			IF ($ < 65536) && (ntc_rg324_e - ntc_rg324 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg324_e - ntc_rg324 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg324:
 lit_105:			dw 105
 ntc_rg324_e:
-			IF ($ < 65536) && (ntc_rg325_e - ntc_rg325 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg325_e - ntc_rg325 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg325:
 lit_39:			dw 39
 ntc_rg325_e:
-			IF ($ < 65536) && (ntc_rg326_e - ntc_rg326 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg326_e - ntc_rg326 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg326:
 lit_22:			dw 22
 ntc_rg326_e:
-			IF ($ < 65536) && (ntc_rg327_e - ntc_rg327 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg327_e - ntc_rg327 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg327:
 lit_23:			dw 23
 ntc_rg327_e:
-			IF ($ < 65536) && (ntc_rg328_e - ntc_rg328 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg328_e - ntc_rg328 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg328:
 lit_113:			dw 113
 ntc_rg328_e:
-			IF ($ < 65536) && (ntc_rg329_e - ntc_rg329 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg329_e - ntc_rg329 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg329:
 lit_m8704:			dw -8704
 ntc_rg329_e:
-			IF ($ < 65536) && (ntc_rg330_e - ntc_rg330 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg330_e - ntc_rg330 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg330:
 vp_arr_e3_obj:			dw arr_e3_obj
 ntc_rg330_e:
-			IF ($ < 65536) && (ntc_rg331_e - ntc_rg331 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg331_e - ntc_rg331 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg331:
 vp_arr_e3_cp:			dw arr_e3_cp
 ntc_rg331_e:
-			IF ($ < 65536) && (ntc_rg332_e - ntc_rg332 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg332_e - ntc_rg332 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg332:
 vp_arr_e3_vwx:			dw arr_e3_vwx
 ntc_rg332_e:
-			IF ($ < 65536) && (ntc_rg333_e - ntc_rg333 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg333_e - ntc_rg333 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg333:
 vp_arr_e3_vwy:			dw arr_e3_vwy
 ntc_rg333_e:
-			IF ($ < 65536) && (ntc_rg334_e - ntc_rg334 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg334_e - ntc_rg334 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg334:
 vp_arr_e3_vwz:			dw arr_e3_vwz
 ntc_rg334_e:
-			IF ($ < 65536) && (ntc_rg335_e - ntc_rg335 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg335_e - ntc_rg335 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg335:
 lit_13:			dw 13
 ntc_rg335_e:
-			IF ($ < 65536) && (ntc_rg336_e - ntc_rg336 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg336_e - ntc_rg336 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg336:
 lit_11:			dw 11
 ntc_rg336_e:
-			IF ($ < 65536) && (ntc_rg337_e - ntc_rg337 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg337_e - ntc_rg337 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg337:
 lit_15:			dw 15
 
 ntc_rg337_e:
-			IF ($ < 65536) && (ntc_rg338_e - ntc_rg338 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg338_e - ntc_rg338 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg338:
@@ -13937,30 +13942,30 @@ ntc_rg338:
 ; ============================================================
 
 ntc_rg338_e:
-			IF ($ < 65536) && (ntc_rg339_e - ntc_rg339 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg339_e - ntc_rg339 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg339:
 str0:			db "SCORE", 0
 ntc_rg339_e:
-			IF ($ < 65536) && (ntc_rg340_e - ntc_rg340 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg340_e - ntc_rg340 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg340:
 str1:			db "SHIELD", 0
 ntc_rg340_e:
-			IF ($ < 65536) && (ntc_rg341_e - ntc_rg341 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg341_e - ntc_rg341 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg341:
 str2:			db "GAME OVER", 0
 
 ntc_rg341_e:
-			IF ($ < 65536) && (ntc_rg342_e - ntc_rg342 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg342_e - ntc_rg342 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg342:
@@ -13969,8 +13974,8 @@ ntc_rg342:
 ; ============================================================
 
 ntc_rg342_e:
-			IF ($ < 65536) && (ntc_rg343_e - ntc_rg343 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg343_e - ntc_rg343 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg343:
@@ -13987,8 +13992,8 @@ ntc_csp:		dw 0			; caller SP, for kw_stop (and the normal mode stack)
 ntc_ip:			dw 0			; normal mode: thread position while out of the thread
 
 ntc_rg343_e:
-			IF ($ < 65536) && (ntc_rg344_e - ntc_rg344 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg344_e - ntc_rg344 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg344:
@@ -13996,8 +14001,8 @@ ntc_rg344:
 ntc_nmode:		db 0			; 1 = running in normal mode (waits let interrupts in)
 
 ntc_rg344_e:
-			IF ($ < 65536) && (ntc_rg345_e - ntc_rg345 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg345_e - ntc_rg345 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg345:
@@ -14007,8 +14012,8 @@ ntc_sgnq:		db 0			; quotient sign (bit 7)
 ntc_sgnr:		db 0			; remainder sign (bit 7)
 
 ntc_rg345_e:
-			IF ($ < 65536) && (ntc_rg346_e - ntc_rg346 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg346_e - ntc_rg346 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg346:
@@ -14022,8 +14027,8 @@ ntc_stop_back:
 			ret
 
 ntc_rg346_e:
-			IF ($ < 65536) && (ntc_rg347_e - ntc_rg347 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg347_e - ntc_rg347 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg347:
@@ -14036,8 +14041,8 @@ kw_goto_iffalse:
 			ret
 
 ntc_rg347_e:
-			IF ($ < 65536) && (ntc_rg348_e - ntc_rg348 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg348_e - ntc_rg348 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg348:
@@ -14050,8 +14055,8 @@ kw_goto_iftrue:
 			ret
 
 ntc_rg348_e:
-			IF ($ < 65536) && (ntc_rg349_e - ntc_rg349 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg349_e - ntc_rg349 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg349:
@@ -14068,8 +14073,8 @@ kw_goto_ifzero:
 			ret
 
 ntc_rg349_e:
-			IF ($ < 65536) && (ntc_rg350_e - ntc_rg350 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg350_e - ntc_rg350 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg350:
@@ -14144,8 +14149,8 @@ ntc_for_end:
 			ret
 
 ntc_rg350_e:
-			IF ($ < 65536) && (ntc_rg351_e - ntc_rg351 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg351_e - ntc_rg351 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg351:
@@ -14164,8 +14169,8 @@ kw_forupv:
 			jp ntc_for_gt
 
 ntc_rg351_e:
-			IF ($ < 65536) && (ntc_rg352_e - ntc_rg352 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg352_e - ntc_rg352 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg352:
@@ -14190,8 +14195,8 @@ ntc_n1l_nc:
 			jp ntc_for_le
 
 ntc_rg352_e:
-			IF ($ < 65536) && (ntc_rg353_e - ntc_rg353 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg353_e - ntc_rg353 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg353:
@@ -14219,8 +14224,8 @@ ntc_n1v_nc:
 			jp ntc_for_le
 
 ntc_rg353_e:
-			IF ($ < 65536) && (ntc_rg354_e - ntc_rg354 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg354_e - ntc_rg354 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg354:
@@ -14235,8 +14240,8 @@ kw_ltov:
 			ret
 
 ntc_rg354_e:
-			IF ($ < 65536) && (ntc_rg355_e - ntc_rg355 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg355_e - ntc_rg355 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg355:
@@ -14254,8 +14259,8 @@ kw_vtov:
 			ret
 
 ntc_rg355_e:
-			IF ($ < 65536) && (ntc_rg356_e - ntc_rg356 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg356_e - ntc_rg356 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg356:
@@ -14270,8 +14275,8 @@ kw_ztov:
 			ret
 
 ntc_rg356_e:
-			IF ($ < 65536) && (ntc_rg357_e - ntc_rg357 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg357_e - ntc_rg357 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg357:
@@ -14295,8 +14300,8 @@ ntc_ftov_t:
 ; ============================================================
 
 ntc_rg357_e:
-			IF ($ < 65536) && (ntc_rg358_e - ntc_rg358 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg358_e - ntc_rg358 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg358:
@@ -14311,8 +14316,8 @@ kw_inc:
 			ret
 
 ntc_rg358_e:
-			IF ($ < 65536) && (ntc_rg359_e - ntc_rg359 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg359_e - ntc_rg359 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg359:
@@ -14329,8 +14334,8 @@ kw_dec:
 			ret
 
 ntc_rg359_e:
-			IF ($ < 65536) && (ntc_rg360_e - ntc_rg360 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg360_e - ntc_rg360 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg360:
@@ -14355,8 +14360,8 @@ kw_add:
 			ret
 
 ntc_rg360_e:
-			IF ($ < 65536) && (ntc_rg361_e - ntc_rg361 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg361_e - ntc_rg361 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg361:
@@ -14377,8 +14382,8 @@ kw_addl:
 			ret
 
 ntc_rg361_e:
-			IF ($ < 65536) && (ntc_rg362_e - ntc_rg362 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg362_e - ntc_rg362 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg362:
@@ -14405,8 +14410,8 @@ kw_subvv:
 			ret
 
 ntc_rg362_e:
-			IF ($ < 65536) && (ntc_rg363_e - ntc_rg363 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg363_e - ntc_rg363 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg363:
@@ -14427,8 +14432,8 @@ kw_2x:
 			ret
 
 ntc_rg363_e:
-			IF ($ < 65536) && (ntc_rg364_e - ntc_rg364 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg364_e - ntc_rg364 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg364:
@@ -14454,8 +14459,8 @@ ntc_mul_skip:
 			ret
 
 ntc_rg364_e:
-			IF ($ < 65536) && (ntc_rg365_e - ntc_rg365 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg365_e - ntc_rg365 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg365:
@@ -14473,8 +14478,8 @@ kw_mulvv:
 			jp ntc_mul
 
 ntc_rg365_e:
-			IF ($ < 65536) && (ntc_rg366_e - ntc_rg366 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg366_e - ntc_rg366 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg366:
@@ -14489,8 +14494,8 @@ kw_mulvl:
 			jp ntc_mul
 
 ntc_rg366_e:
-			IF ($ < 65536) && (ntc_rg367_e - ntc_rg367 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg367_e - ntc_rg367 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg367:
@@ -14575,8 +14580,8 @@ ntc_div_store:
 			ret
 
 ntc_rg367_e:
-			IF ($ < 65536) && (ntc_rg368_e - ntc_rg368 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg368_e - ntc_rg368 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg368:
@@ -14599,8 +14604,8 @@ ntc_divvv:
 			jp ntc_div
 
 ntc_rg368_e:
-			IF ($ < 65536) && (ntc_rg369_e - ntc_rg369 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg369_e - ntc_rg369 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg369:
@@ -14619,8 +14624,8 @@ ntc_divvl:
 			jp ntc_div
 
 ntc_rg369_e:
-			IF ($ < 65536) && (ntc_rg370_e - ntc_rg370 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg370_e - ntc_rg370 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg370:
@@ -14642,8 +14647,8 @@ kw_negv:
 			ret
 
 ntc_rg370_e:
-			IF ($ < 65536) && (ntc_rg371_e - ntc_rg371 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg371_e - ntc_rg371 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg371:
@@ -14670,8 +14675,8 @@ ntc_abs_store:
 			ret
 
 ntc_rg371_e:
-			IF ($ < 65536) && (ntc_rg372_e - ntc_rg372 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg372_e - ntc_rg372 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg372:
@@ -14697,8 +14702,8 @@ kw_andvv:
 			ret
 
 ntc_rg372_e:
-			IF ($ < 65536) && (ntc_rg373_e - ntc_rg373 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg373_e - ntc_rg373 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg373:
@@ -14721,8 +14726,8 @@ kw_andvl:
 			ret
 
 ntc_rg373_e:
-			IF ($ < 65536) && (ntc_rg374_e - ntc_rg374 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg374_e - ntc_rg374 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg374:
@@ -14748,8 +14753,8 @@ kw_orvv:
 			ret
 
 ntc_rg374_e:
-			IF ($ < 65536) && (ntc_rg375_e - ntc_rg375 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg375_e - ntc_rg375 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg375:
@@ -14772,8 +14777,8 @@ kw_orvl:
 			ret
 
 ntc_rg375_e:
-			IF ($ < 65536) && (ntc_rg376_e - ntc_rg376 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg376_e - ntc_rg376 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg376:
@@ -14845,8 +14850,8 @@ ntc_cmp_ne_f:
 			ret
 
 ntc_rg376_e:
-			IF ($ < 65536) && (ntc_rg377_e - ntc_rg377 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg377_e - ntc_rg377 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg377:
@@ -14865,8 +14870,8 @@ kw_scpltvv:
 			jp ntc_cmp_slt
 
 ntc_rg377_e:
-			IF ($ < 65536) && (ntc_rg378_e - ntc_rg378 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg378_e - ntc_rg378 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg378:
@@ -14881,8 +14886,8 @@ kw_scpltvl:
 			jp ntc_cmp_slt
 
 ntc_rg378_e:
-			IF ($ < 65536) && (ntc_rg379_e - ntc_rg379 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg379_e - ntc_rg379 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg379:
@@ -14896,8 +14901,8 @@ kw_scplevl:
 			jp ntc_cmp_sle
 
 ntc_rg379_e:
-			IF ($ < 65536) && (ntc_rg380_e - ntc_rg380 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg380_e - ntc_rg380 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg380:
@@ -14915,8 +14920,8 @@ kw_scpgtvv:
 			jp ntc_cmp_sgt
 
 ntc_rg380_e:
-			IF ($ < 65536) && (ntc_rg381_e - ntc_rg381 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg381_e - ntc_rg381 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg381:
@@ -14930,8 +14935,8 @@ kw_scpgtvl:
 			jp ntc_cmp_sgt
 
 ntc_rg381_e:
-			IF ($ < 65536) && (ntc_rg382_e - ntc_rg382 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg382_e - ntc_rg382 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg382:
@@ -14949,8 +14954,8 @@ kw_scpgevv:
 			jp ntc_cmp_sge
 
 ntc_rg382_e:
-			IF ($ < 65536) && (ntc_rg383_e - ntc_rg383 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg383_e - ntc_rg383 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg383:
@@ -14964,8 +14969,8 @@ kw_scpgevl:
 			jp ntc_cmp_sge
 
 ntc_rg383_e:
-			IF ($ < 65536) && (ntc_rg384_e - ntc_rg384 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg384_e - ntc_rg384 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg384:
@@ -14984,8 +14989,8 @@ kw_cpeqvv:
 			jp ntc_cmp_eq
 
 ntc_rg384_e:
-			IF ($ < 65536) && (ntc_rg385_e - ntc_rg385 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg385_e - ntc_rg385 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg385:
@@ -14999,8 +15004,8 @@ kw_cpeqvl:
 			jp ntc_cmp_eq
 
 ntc_rg385_e:
-			IF ($ < 65536) && (ntc_rg386_e - ntc_rg386 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg386_e - ntc_rg386 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg386:
@@ -15018,8 +15023,8 @@ kw_cpnevv:
 			jp ntc_cmp_ne
 
 ntc_rg386_e:
-			IF ($ < 65536) && (ntc_rg387_e - ntc_rg387 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg387_e - ntc_rg387 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg387:
@@ -15038,8 +15043,8 @@ kw_vptrtov8:
 			ret
 
 ntc_rg387_e:
-			IF ($ < 65536) && (ntc_rg388_e - ntc_rg388 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg388_e - ntc_rg388 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg388:
@@ -15064,8 +15069,8 @@ kw_aget:
 			ret
 
 ntc_rg388_e:
-			IF ($ < 65536) && (ntc_rg389_e - ntc_rg389 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg389_e - ntc_rg389 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg389:
@@ -15092,8 +15097,8 @@ kw_aset:
 			ret
 
 ntc_rg389_e:
-			IF ($ < 65536) && (ntc_rg390_e - ntc_rg390 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg390_e - ntc_rg390 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg390:
@@ -15119,8 +15124,8 @@ kw_asetl:
 ; ============================================================
 
 ntc_rg390_e:
-			IF ($ < 65536) && (ntc_rg391_e - ntc_rg391 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg391_e - ntc_rg391 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg391:
@@ -15128,8 +15133,8 @@ ntc_rg391:
 ntc_rnd_seed:	dw 1
 
 ntc_rg391_e:
-			IF ($ < 65536) && (ntc_rg392_e - ntc_rg392 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg392_e - ntc_rg392 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg392:
@@ -15168,8 +15173,8 @@ ntc_rnd_zero:
 			jp ntc_div_store
 
 ntc_rg392_e:
-			IF ($ < 65536) && (ntc_rg393_e - ntc_rg393 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg393_e - ntc_rg393 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg393:
@@ -15188,8 +15193,8 @@ kw_inp:
 			ret
 
 ntc_rg393_e:
-			IF ($ < 65536) && (ntc_rg394_e - ntc_rg394 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg394_e - ntc_rg394 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg394:
@@ -15206,8 +15211,8 @@ kw_out:
 			ret
 
 ntc_rg394_e:
-			IF ($ < 65536) && (ntc_rg395_e - ntc_rg395 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg395_e - ntc_rg395 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg395:
@@ -15218,8 +15223,8 @@ kw_frame:
 			jp ntc_plat_frame
 
 ntc_rg395_e:
-			IF ($ < 65536) && (ntc_rg396_e - ntc_rg396 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg396_e - ntc_rg396 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg396:
@@ -15235,8 +15240,8 @@ ntc_font:		ds 95 * 8
 ; ============================================================
 
 ntc_rg396_e:
-			IF ($ < 65536) && (ntc_rg397_e - ntc_rg397 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg397_e - ntc_rg397 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg397:
@@ -15310,8 +15315,8 @@ ntc_bsp:		dw 0
 ntc_bstxt:		db "GURU 001", 0
 
 ntc_rg397_e:
-			IF ($ < 65536) && (ntc_rg398_e - ntc_rg398 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg398_e - ntc_rg398 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg398:
@@ -15342,8 +15347,8 @@ ZXN_PAPER		equ #02			; RRRGGGBB: blue
 ZXN_INK			equ #FC			; yellow
 
 ntc_rg398_e:
-			IF ($ < 65536) && (ntc_rg399_e - ntc_rg399 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg399_e - ntc_rg399 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg399:
@@ -15445,8 +15450,8 @@ ntc_nl_do:
 			jp (ix)
 
 ntc_rg399_e:
-			IF ($ < 65536) && (ntc_rg400_e - ntc_rg400 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg400_e - ntc_rg400 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg400:
@@ -15495,8 +15500,8 @@ ntc_plat_cls:
 			jp (ix)
 
 ntc_rg400_e:
-			IF ($ < 65536) && (ntc_rg401_e - ntc_rg401 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg401_e - ntc_rg401 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg401:
@@ -15600,8 +15605,8 @@ ntc_fr_done:
 			jp (ix)
 
 ntc_rg401_e:
-			IF ($ < 65536) && (ntc_rg402_e - ntc_rg402 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg402_e - ntc_rg402 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg402:
@@ -15622,22 +15627,30 @@ ntc_ex_wait:
 			jr ntc_ex_wait
 
 ntc_rg402_e:
-			IF ($ < 65536) && (ntc_rg403_e - ntc_rg403 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+			IF ($ < 65536) && (ntc_rg403_e - ntc_rg403 + $ > 48640)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BE00 (Option Memory Reserved #BE00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg403:
 ;## ntc_plat_memtop
-; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
-; use: #BA00 (the FileSystem class's DOS area #BA00-#BDFF, then the stack to
-; #C000). Called on the real stack (call / ret), only by the Memory class.
+; ntc_plat_memtop - HL = the first byte the program's arrays and the Memory class's heap in
+; main memory must not use. ZXN_MEMTOP (the compiler's): #BA00 with the FileSystem or Loader
+; class (their DOS area #BA00-#BDFF, then the stack to #C000), #BE00 without (20261118-1). A
+; program that runs on over the stack has its arrays in #C000-#FFFF, where the build has
+; already checked them against what is there: the top is then #FD00 (the start-up stub).
+; (20261118-1: it was #BA00 always, so such a program stopped at its start with GURU 001.)
+; Called on the real stack (call / ret).
 ntc_plat_memtop:
-			ld hl, #BA00
+			IF ntc_free > #C000		; fwdref-ok
+			ld hl, #FD00
+			ELSE
+			ld hl, ZXN_MEMTOP
+			ENDIF
 			ret
 
 
-; Option NexData: the data's 16K blocks are in these banks (the NEX file loads them)
-ntc_nexdata:	db 1, 1
+ntc_pgloaded:	db 5		; the pages taken from the start (Loaded n, Option SaveNex, Option Memory Reserve Pages, the program's own: 0 1 2 5): how many, then the pages
+			dw 0, 1, 2, 3, 5
 ntc_rg403_e:
 ntc_end:				; the end of the program (and of its file)
 var_e3_uink_c		equ var_e3_uink_i + 2
@@ -15698,11 +15711,13 @@ var_hud3d_scanner_h		equ var_hud3d_scanner_x + 6
 var_hud3d_scanner_frame		equ var_hud3d_scanner_x + 8
 var_hud3d_scanner_bg		equ var_hud3d_scanner_x + 10
 			DISPLAY "NTC memory: program ", /H, ntc_start, "-", /H, ntc_end - 1, " arrays ", /H, ntc_bss, "-", /H, ntc_free - 1, " stack #C000 down (the platform's)"
-			DISPLAY "NTC memory: Reserved #BA00-#FFFF (platform zxn)"
+			DISPLAY "NTC memory: Reserved #C000-#FCFF"
+			DISPLAY "NTC memory: Reserved #BE00-#BFFF (platform zxn)"
+			DISPLAY "NTC memory: Reserved #FD00-#FFFF (platform zxn)"
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 ntc_bssfrom	equ ntc_end
-			IF (ntc_bssfrom < 65536) && (ntc_bssfrom + ntc_bss_size > 47616)	; fwdref-ok
-ntc_bss		equ 65536		; after Option Memory Reserved #BA00-#FFFF
+			IF (ntc_bssfrom < 65536) && (ntc_bssfrom + ntc_bss_size > 48640)	; fwdref-ok
+ntc_bss		equ 65536		; after Option Memory Reserved #BE00-#FFFF
 			ELSE
 ntc_bss		equ ntc_bssfrom
 			ENDIF
@@ -15759,7 +15774,9 @@ ntc_bss_size	equ 2682
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ntc_memtab	equ ntc_free		; the Memory class's tables
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 47616) || (ntc_bss >= 65536), "the program (or its arrays) reaches into the platform's reserved #BA00-#FFFF (platform zxn: Option Memory Available frees it)"
+			ASSERT (ntc_free <= 49152) || (ntc_bss >= 64768), "the program (or its arrays) reaches into Option Memory Reserved #C000-#FCFF (E3.cls line 29)"
+			ASSERT (ntc_free <= 48640) || (ntc_bss >= 49152), "the program (or its arrays) reaches into the platform's reserved #BE00-#BFFF (platform zxn: Option Memory Available frees it)"
+			ASSERT (ntc_free <= 64768) || (ntc_bss >= 65536), "the program (or its arrays) reaches into the platform's reserved #FD00-#FFFF (platform zxn: Option Memory Available frees it)"
 
 ; ============================================================
 ; ZX Spectrum Next: the start stub (bank 5, page 11 at #7E00) and the NEX file
@@ -15768,8 +15785,8 @@ ntc_memtab	equ ntc_free		; the Memory class's tables
 			ASSERT ntc_free <= #BA00, "the program and its arrays must end below #BA00 (the FileSystem class's DOS area is #BA00-#BDFF, the stack #BE00-#BFFF, the screen #C000-#FFFF)"
 			ENDIF
 
-; Option NexData: "ROCKS.DAT", 1 blocks of 16K, in their banks
-			MMU 0 1, 2
+; Option SaveNex: "ROCKS.DAT" in page 3
+			MMU 0 1, 6
 			org #0000
 			INCBIN "ROCKS.DAT", 0, 16384
 			MMU 3, 11			; page 11 (bank 5's second half) at #6000 to assemble the stub
@@ -15825,18 +15842,18 @@ zxn_bmmu:
 			jr nz, zxn_bmmu
 			jp zxn_boot2 + #8000	; on in the copy at #E000-#FFFF (page 11 in slot 7)
 zxn_boot2:
-			ld a, #53			; slot 3: page 19
+			ld a, #53			; slot 3: page 3
 			out (c), a
 			inc b
-			ld a, 19
+			ld a, 3
 			out (c), a
 			ld hl, #C9FB		; #0038: ei, ret until ntc_plat_irqon puts its jump there
 			ld (#0038), hl
 			im 1
 			jp ntc_start
-zxn_mmu:	db #50, 16, #51, 17, #52, 18, #54, 20, #55, 21, #56, 10, #57, 11
-			SAVENEX OPEN "ROCKS.NEX", zxn_boot, #7E00
+zxn_mmu:	db #50, 0, #51, 1, #52, 2, #54, 4, #55, 5, #56, 10, #57, 11
+			SAVENEX OPEN "ROCKS.NEX", zxn_boot, #BFFE
 			SAVENEX CORE 3, 0, 0
 			SAVENEX CFG 0
-			SAVENEX BANK 5, 1, 8, 9, 10
+			SAVENEX BANK 5, 2, 0, 1, 3
 			SAVENEX CLOSE

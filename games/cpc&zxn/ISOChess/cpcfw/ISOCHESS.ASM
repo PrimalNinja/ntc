@@ -6,13 +6,18 @@
 			DEVICE AMSTRADCPC6128		; for SAVEAMSDOS at the end
 			org #0040
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 NTC_WINHOLE	equ 0		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
+NTC_WINPAGED	equ 0		; 1 = page 0 code may sit under the window (Option Memory Paged, not Reserved): the Memory class never hands out page 1 (main RAM's own #4000-#7FFF) when the code reaches past #4000
 NTC_BUFSIZE	equ 2048		; the library's buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer
+NTC_ISLN	equ 1		; interrupt classes (Option Class Interrupt): the slots ntc_isl has (8 bytes each)
+NTC_INTS	equ 1		; 0 = the platform never lets interrupts in (;@ints 0: ntc_xn's safe point has no ei)
+NTC_PLATRSV	equ 0		; 1 = the platform's fixed areas (;@reserved) are Reserved in the memory map: the build goes round them (the old top-of-RAM asserts are off)
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -1450,10 +1455,12 @@ p_findnextvalidsquare:
 			; ISOChess.bas 707: Dim bestScore As Integer, score As Integer
 
 			; ISOChess.bas 709: bestX = cx
-			dw kw_vtov, var_findnextvalidsquare_cx, var_findnextvalidsquare_bestx
+ntc_rf1:
+			dw kw_vtov, var_findnextvalidsquare_cx, 0
 
 			; ISOChess.bas 710: bestY = cy
-			dw kw_vtov, var_findnextvalidsquare_cy, var_findnextvalidsquare_besty
+ntc_rf2:
+			dw kw_vtov, var_findnextvalidsquare_cy, 0
 
 			; ISOChess.bas 711: bestScore = 30000
 			dw kw_ltov, 30000, var_findnextvalidsquare_bestscore
@@ -1527,10 +1534,12 @@ for48_t:
 			dw kw_vtov, var_findnextvalidsquare_score, var_findnextvalidsquare_bestscore
 
 			; ISOChess.bas 727: bestX = x
-			dw kw_vtov, var_findnextvalidsquare_x, var_findnextvalidsquare_bestx
+ntc_rf3:
+			dw kw_vtov, var_findnextvalidsquare_x, 0
 
 			; ISOChess.bas 728: bestY = y
-			dw kw_vtov, var_findnextvalidsquare_y, var_findnextvalidsquare_besty
+ntc_rf4:
+			dw kw_vtov, var_findnextvalidsquare_y, 0
 
 			; ISOChess.bas 729: End If
 if52_1:
@@ -2454,7 +2463,6 @@ p_main_r:		; end of main
 p_initgame_c:		; call initgame (normal)
 			ld hl, 0
 			ld (var_initgame_x), hl
-			ld hl, 0
 			ld (var_initgame_y), hl
 			ld (p_initgame_rs), sp
 			ld sp, p_initgame
@@ -2471,15 +2479,12 @@ p_resetturntimer_r:		; end of resetturntimer
 			jp ntc_xn
 p_isox_c:		; call isox (normal)
 			pop hl			; c
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_isox_c), de
+			ld de, var_isox_c		; (the block of 2 parameters)
+			ldi
+			ldi
 			pop hl			; r
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_isox_r), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_isox_isox), hl
 			ld (p_isox_rs), sp
@@ -2490,15 +2495,12 @@ p_isox_r:		; end of isox
 			jp ntc_xn
 p_isoy_c:		; call isoy (normal)
 			pop hl			; c
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_isoy_c), de
+			ld de, var_isoy_c		; (the block of 2 parameters)
+			ldi
+			ldi
 			pop hl			; r
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_isoy_r), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_isoy_isoy), hl
 			ld (p_isoy_rs), sp
@@ -2510,25 +2512,15 @@ p_isoy_r:		; end of isoy
 p_drawstaticboard_c:		; call drawstaticboard (normal)
 			ld hl, 0
 			ld (var_drawstaticboard_i), hl
-			ld hl, 0
 			ld (var_drawstaticboard_x0), hl
-			ld hl, 0
 			ld (var_drawstaticboard_y0), hl
-			ld hl, 0
 			ld (var_drawstaticboard_x1), hl
-			ld hl, 0
 			ld (var_drawstaticboard_y1), hl
-			ld hl, 0
 			ld (var_drawstaticboard_bx0), hl
-			ld hl, 0
 			ld (var_drawstaticboard_by0), hl
-			ld hl, 0
 			ld (var_drawstaticboard_bx1), hl
-			ld hl, 0
 			ld (var_drawstaticboard_by1), hl
-			ld hl, 0
 			ld (var_drawstaticboard_bx2), hl
-			ld hl, 0
 			ld (var_drawstaticboard_by2), hl
 			ld (p_drawstaticboard_rs), sp
 			ld sp, p_drawstaticboard
@@ -2539,7 +2531,6 @@ p_drawstaticboard_r:		; end of drawstaticboard
 p_drawallpieces_c:		; call drawallpieces (normal)
 			ld hl, 0
 			ld (var_drawallpieces_x), hl
-			ld hl, 0
 			ld (var_drawallpieces_y), hl
 			ld (p_drawallpieces_rs), sp
 			ld sp, p_drawallpieces
@@ -2549,27 +2540,19 @@ p_drawallpieces_r:		; end of drawallpieces
 			jp ntc_xn
 p_drawpieceat_c:		; call drawpieceat (normal)
 			pop hl			; c
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_drawpieceat_c), de
+			ld de, var_drawpieceat_c		; (the block of 3 parameters)
+			ldi
+			ldi
 			pop hl			; r
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_drawpieceat_r), de
+			ldi
+			ldi
 			pop hl			; p
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_drawpieceat_p), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_drawpieceat_cx), hl
-			ld hl, 0
 			ld (var_drawpieceat_cy), hl
-			ld hl, 0
 			ld (var_drawpieceat_pt), hl
-			ld hl, 0
 			ld (var_drawpieceat_pencol), hl
 			ld (p_drawpieceat_rs), sp
 			ld sp, p_drawpieceat
@@ -2579,23 +2562,17 @@ p_drawpieceat_r:		; end of drawpieceat
 			jp ntc_xn
 p_drawcursor_c:		; call drawcursor (normal)
 			pop hl			; c
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_drawcursor_c), de
+			ld de, var_drawcursor_c		; (the block of 3 parameters)
+			ldi
+			ldi
 			pop hl			; r
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_drawcursor_r), de
+			ldi
+			ldi
 			pop hl			; pencol
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_drawcursor_pencol), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_drawcursor_cx), hl
-			ld hl, 0
 			ld (var_drawcursor_cy), hl
 			ld (p_drawcursor_rs), sp
 			ld sp, p_drawcursor
@@ -2606,11 +2583,8 @@ p_drawcursor_r:		; end of drawcursor
 p_togglevalidmarkers_c:		; call togglevalidmarkers (normal)
 			ld hl, 0
 			ld (var_togglevalidmarkers_x), hl
-			ld hl, 0
 			ld (var_togglevalidmarkers_y), hl
-			ld hl, 0
 			ld (var_togglevalidmarkers_cx), hl
-			ld hl, 0
 			ld (var_togglevalidmarkers_cy), hl
 			ld (p_togglevalidmarkers_rs), sp
 			ld sp, p_togglevalidmarkers
@@ -2627,10 +2601,8 @@ p_updatehud_c:		; call updatehud (normal)
 			ld hl, 0
 			ld (var_updatehud_elapsed), hl
 			ld (var_updatehud_elapsed+2), hl
-			ld hl, 0
 			ld (var_updatehud_remticks), hl
 			ld (var_updatehud_remticks+2), hl
-			ld hl, 0
 			ld (var_updatehud_secsleft), hl
 			ld (p_updatehud_rs), sp
 			ld sp, p_updatehud
@@ -2674,21 +2646,13 @@ p_waitkeyrelease_r:		; end of waitkeyrelease
 p_handleplayerinput_c:		; call handleplayerinput (normal)
 			ld hl, 0
 			ld (var_handleplayerinput_kw), hl
-			ld hl, 0
 			ld (var_handleplayerinput_ka), hl
-			ld hl, 0
 			ld (var_handleplayerinput_ks), hl
-			ld hl, 0
 			ld (var_handleplayerinput_kd), hl
-			ld hl, 0
 			ld (var_handleplayerinput_ksp), hl
-			ld hl, 0
 			ld (var_handleplayerinput_dx), hl
-			ld hl, 0
 			ld (var_handleplayerinput_dy), hl
-			ld hl, 0
 			ld (var_handleplayerinput_nx), hl
-			ld hl, 0
 			ld (var_handleplayerinput_ny), hl
 			ld (p_handleplayerinput_rs), sp
 			ld sp, p_handleplayerinput
@@ -2698,15 +2662,12 @@ p_handleplayerinput_r:		; end of handleplayerinput
 			jp ntc_xn
 p_movecursorto_c:		; call movecursorto (normal)
 			pop hl			; nx
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_movecursorto_nx), de
+			ld de, var_movecursorto_nx		; (the block of 2 parameters)
+			ldi
+			ldi
 			pop hl			; ny
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_movecursorto_ny), de
+			ldi
+			ldi
 			ld (p_movecursorto_rs), sp
 			ld sp, p_movecursorto
 			jp ntc_xn
@@ -2715,85 +2676,50 @@ p_movecursorto_r:		; end of movecursorto
 			jp ntc_xn
 p_findnextvalidsquare_c:		; call findnextvalidsquare (normal)
 			pop hl			; cx
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_findnextvalidsquare_cx), de
+			ld de, var_findnextvalidsquare_cx		; (the block of 4 parameters)
+			ldi
+			ldi
 			pop hl			; cy
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_findnextvalidsquare_cy), de
+			ldi
+			ldi
 			pop hl			; dx
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_findnextvalidsquare_dx), de
+			ldi
+			ldi
 			pop hl			; dy
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_findnextvalidsquare_dy), de
+			ldi
+			ldi
 			pop hl			; bestx
-			ld (p_findnextvalidsquare_a4), hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_findnextvalidsquare_bestx), de
+			ld (ntc_rf1 + 4), hl		; (by reference: var_findnextvalidsquare_bestx)
+			ld (ntc_rf3 + 4), hl		; (by reference: var_findnextvalidsquare_bestx)
 			pop hl			; besty
-			ld (p_findnextvalidsquare_a5), hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_findnextvalidsquare_besty), de
+			ld (ntc_rf2 + 4), hl		; (by reference: var_findnextvalidsquare_besty)
+			ld (ntc_rf4 + 4), hl		; (by reference: var_findnextvalidsquare_besty)
 			ld hl, 0
 			ld (var_findnextvalidsquare_x), hl
-			ld hl, 0
 			ld (var_findnextvalidsquare_y), hl
-			ld hl, 0
 			ld (var_findnextvalidsquare_vx), hl
-			ld hl, 0
 			ld (var_findnextvalidsquare_vy), hl
-			ld hl, 0
 			ld (var_findnextvalidsquare_dot), hl
-			ld hl, 0
 			ld (var_findnextvalidsquare_cross), hl
-			ld hl, 0
 			ld (var_findnextvalidsquare_dist), hl
-			ld hl, 0
 			ld (var_findnextvalidsquare_bestscore), hl
-			ld hl, 0
 			ld (var_findnextvalidsquare_score), hl
 			ld (p_findnextvalidsquare_rs), sp
 			ld sp, p_findnextvalidsquare
 			jp ntc_xn
 p_findnextvalidsquare_r:		; end of findnextvalidsquare
-			ld hl, (p_findnextvalidsquare_a4)
-			ld de, (var_findnextvalidsquare_bestx)
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			ld hl, (p_findnextvalidsquare_a5)
-			ld de, (var_findnextvalidsquare_besty)
-			ld (hl), e
-			inc hl
-			ld (hl), d
 			ld sp, (p_findnextvalidsquare_rs)
 			jp ntc_xn
 p_computevalidmoves_c:		; call computevalidmoves (normal)
 			pop hl			; sx
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_computevalidmoves_sx), de
+			ld de, var_computevalidmoves_sx		; (the block of 2 parameters)
+			ldi
+			ldi
 			pop hl			; sy
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_computevalidmoves_sy), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_computevalidmoves_tx), hl
-			ld hl, 0
 			ld (var_computevalidmoves_ty), hl
 			ld (p_computevalidmoves_rs), sp
 			ld sp, p_computevalidmoves
@@ -2803,42 +2729,27 @@ p_computevalidmoves_r:		; end of computevalidmoves
 			jp ntc_xn
 p_isvalidchessmove_c:		; call isvalidchessmove (normal)
 			pop hl			; sx
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_isvalidchessmove_sx), de
+			ld de, var_isvalidchessmove_sx		; (the block of 4 parameters)
+			ldi
+			ldi
 			pop hl			; sy
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_isvalidchessmove_sy), de
+			ldi
+			ldi
 			pop hl			; tx
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_isvalidchessmove_tx), de
+			ldi
+			ldi
 			pop hl			; ty
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_isvalidchessmove_ty), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_isvalidchessmove_isvalidchessmove), hl
-			ld hl, 0
 			ld (var_isvalidchessmove_p), hl
-			ld hl, 0
 			ld (var_isvalidchessmove_target), hl
-			ld hl, 0
 			ld (var_isvalidchessmove_pt), hl
-			ld hl, 0
 			ld (var_isvalidchessmove_side), hl
-			ld hl, 0
 			ld (var_isvalidchessmove_dx), hl
-			ld hl, 0
 			ld (var_isvalidchessmove_dy), hl
-			ld hl, 0
 			ld (var_isvalidchessmove_adx), hl
-			ld hl, 0
 			ld (var_isvalidchessmove_ady), hl
 			ld (p_isvalidchessmove_rs), sp
 			ld sp, p_isvalidchessmove
@@ -2848,34 +2759,23 @@ p_isvalidchessmove_r:		; end of isvalidchessmove
 			jp ntc_xn
 p_ispathclear_c:		; call ispathclear (normal)
 			pop hl			; sx
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_ispathclear_sx), de
+			ld de, var_ispathclear_sx		; (the block of 4 parameters)
+			ldi
+			ldi
 			pop hl			; sy
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_ispathclear_sy), de
+			ldi
+			ldi
 			pop hl			; tx
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_ispathclear_tx), de
+			ldi
+			ldi
 			pop hl			; ty
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_ispathclear_ty), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_ispathclear_ispathclear), hl
-			ld hl, 0
 			ld (var_ispathclear_stepx), hl
-			ld hl, 0
 			ld (var_ispathclear_stepy), hl
-			ld hl, 0
 			ld (var_ispathclear_cx), hl
-			ld hl, 0
 			ld (var_ispathclear_cy), hl
 			ld (p_ispathclear_rs), sp
 			ld sp, p_ispathclear
@@ -2885,28 +2785,20 @@ p_ispathclear_r:		; end of ispathclear
 			jp ntc_xn
 p_executemove_c:		; call executemove (normal)
 			pop hl			; sx
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_executemove_sx), de
+			ld de, var_executemove_sx		; (the block of 4 parameters)
+			ldi
+			ldi
 			pop hl			; sy
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_executemove_sy), de
+			ldi
+			ldi
 			pop hl			; tx
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_executemove_tx), de
+			ldi
+			ldi
 			pop hl			; ty
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_executemove_ty), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_executemove_movingpiece), hl
-			ld hl, 0
 			ld (var_executemove_capturedpiece), hl
 			ld (p_executemove_rs), sp
 			ld sp, p_executemove
@@ -2931,25 +2823,15 @@ p_piecevalue_r:		; end of piecevalue
 p_makecpumove_c:		; call makecpumove (normal)
 			ld hl, 0
 			ld (var_makecpumove_sx), hl
-			ld hl, 0
 			ld (var_makecpumove_sy), hl
-			ld hl, 0
 			ld (var_makecpumove_tx), hl
-			ld hl, 0
 			ld (var_makecpumove_ty), hl
-			ld hl, 0
 			ld (var_makecpumove_bestsx), hl
-			ld hl, 0
 			ld (var_makecpumove_bestsy), hl
-			ld hl, 0
 			ld (var_makecpumove_besttx), hl
-			ld hl, 0
 			ld (var_makecpumove_bestty), hl
-			ld hl, 0
 			ld (var_makecpumove_bestscore), hl
-			ld hl, 0
 			ld (var_makecpumove_score), hl
-			ld hl, 0
 			ld (var_makecpumove_foundmove), hl
 			ld (p_makecpumove_rs), sp
 			ld sp, p_makecpumove
@@ -3042,12 +2924,12 @@ p_resetturntimer_rs:			dw 0
 var_turnstartticks:			dw 0, 0
 var_lastsecshown:			dw 0
 p_isox_rs:			dw 0
-var_isox_c:			dw 0
-var_isox_r:			dw 0
+var_isox_c:			dw 0, 0		; parameters, one block
+var_isox_r		equ var_isox_c + 2
 var_isox_isox:			dw 0
 p_isoy_rs:			dw 0
-var_isoy_c:			dw 0
-var_isoy_r:			dw 0
+var_isoy_c:			dw 0, 0		; parameters, one block
+var_isoy_r		equ var_isoy_c + 2
 var_isoy_isoy:			dw 0
 p_drawstaticboard_rs:			dw 0
 var_drawstaticboard_i:			dw 0
@@ -3065,18 +2947,18 @@ p_drawallpieces_rs:			dw 0
 var_drawallpieces_x:			dw 0
 var_drawallpieces_y:			dw 0
 p_drawpieceat_rs:			dw 0
-var_drawpieceat_c:			dw 0
-var_drawpieceat_r:			dw 0
-var_drawpieceat_p:			dw 0
+var_drawpieceat_c:			dw 0, 0, 0		; parameters, one block
+var_drawpieceat_r		equ var_drawpieceat_c + 2
+var_drawpieceat_p		equ var_drawpieceat_c + 4
 var_drawpieceat_cx:			dw 0
 var_drawpieceat_cy:			dw 0
 var_drawpieceat_pt:			dw 0
 var_drawpieceat_pencol:			dw 0
 var_drawpieceat___sel14:			dw 0
 p_drawcursor_rs:			dw 0
-var_drawcursor_c:			dw 0
-var_drawcursor_r:			dw 0
-var_drawcursor_pencol:			dw 0
+var_drawcursor_c:			dw 0, 0, 0		; parameters, one block
+var_drawcursor_r		equ var_drawcursor_c + 2
+var_drawcursor_pencol		equ var_drawcursor_c + 4
 var_drawcursor_cx:			dw 0
 var_drawcursor_cy:			dw 0
 p_togglevalidmarkers_rs:			dw 0
@@ -3119,17 +3001,13 @@ var_validcount:			dw 0
 var_selx:			dw 0
 var_sely:			dw 0
 p_movecursorto_rs:			dw 0
-var_movecursorto_nx:			dw 0
-var_movecursorto_ny:			dw 0
+var_movecursorto_nx:			dw 0, 0		; parameters, one block
+var_movecursorto_ny		equ var_movecursorto_nx + 2
 p_findnextvalidsquare_rs:			dw 0
-var_findnextvalidsquare_cx:			dw 0
-var_findnextvalidsquare_cy:			dw 0
-var_findnextvalidsquare_dx:			dw 0
-var_findnextvalidsquare_dy:			dw 0
-var_findnextvalidsquare_bestx:			dw 0
-p_findnextvalidsquare_a4:			dw 0
-var_findnextvalidsquare_besty:			dw 0
-p_findnextvalidsquare_a5:			dw 0
+var_findnextvalidsquare_cx:			dw 0, 0, 0, 0		; parameters, one block
+var_findnextvalidsquare_cy		equ var_findnextvalidsquare_cx + 2
+var_findnextvalidsquare_dx		equ var_findnextvalidsquare_cx + 4
+var_findnextvalidsquare_dy		equ var_findnextvalidsquare_cx + 6
 var_findnextvalidsquare_x:			dw 0
 var_findnextvalidsquare_y:			dw 0
 var_findnextvalidsquare_vx:			dw 0
@@ -3140,16 +3018,16 @@ var_findnextvalidsquare_dist:			dw 0
 var_findnextvalidsquare_bestscore:			dw 0
 var_findnextvalidsquare_score:			dw 0
 p_computevalidmoves_rs:			dw 0
-var_computevalidmoves_sx:			dw 0
-var_computevalidmoves_sy:			dw 0
+var_computevalidmoves_sx:			dw 0, 0		; parameters, one block
+var_computevalidmoves_sy		equ var_computevalidmoves_sx + 2
 var_computevalidmoves_tx:			dw 0
 var_computevalidmoves_ty:			dw 0
 var_isvalidchessmove_isvalidchessmove:			dw 0
 p_isvalidchessmove_rs:			dw 0
-var_isvalidchessmove_sx:			dw 0
-var_isvalidchessmove_sy:			dw 0
-var_isvalidchessmove_tx:			dw 0
-var_isvalidchessmove_ty:			dw 0
+var_isvalidchessmove_sx:			dw 0, 0, 0, 0		; parameters, one block
+var_isvalidchessmove_sy		equ var_isvalidchessmove_sx + 2
+var_isvalidchessmove_tx		equ var_isvalidchessmove_sx + 4
+var_isvalidchessmove_ty		equ var_isvalidchessmove_sx + 6
 var_isvalidchessmove_p:			dw 0
 var_isvalidchessmove_target:			dw 0
 var_isvalidchessmove_pt:			dw 0
@@ -3161,19 +3039,19 @@ var_isvalidchessmove_ady:			dw 0
 var_isvalidchessmove___sel61:			dw 0
 var_ispathclear_ispathclear:			dw 0
 p_ispathclear_rs:			dw 0
-var_ispathclear_sx:			dw 0
-var_ispathclear_sy:			dw 0
-var_ispathclear_tx:			dw 0
-var_ispathclear_ty:			dw 0
+var_ispathclear_sx:			dw 0, 0, 0, 0		; parameters, one block
+var_ispathclear_sy		equ var_ispathclear_sx + 2
+var_ispathclear_tx		equ var_ispathclear_sx + 4
+var_ispathclear_ty		equ var_ispathclear_sx + 6
 var_ispathclear_stepx:			dw 0
 var_ispathclear_stepy:			dw 0
 var_ispathclear_cx:			dw 0
 var_ispathclear_cy:			dw 0
 p_executemove_rs:			dw 0
-var_executemove_sx:			dw 0
-var_executemove_sy:			dw 0
-var_executemove_tx:			dw 0
-var_executemove_ty:			dw 0
+var_executemove_sx:			dw 0, 0, 0, 0		; parameters, one block
+var_executemove_sy		equ var_executemove_sx + 2
+var_executemove_tx		equ var_executemove_sx + 4
+var_executemove_ty		equ var_executemove_sx + 6
 var_executemove_movingpiece:			dw 0
 var_executemove_capturedpiece:			dw 0
 p_piecevalue_rs:			dw 0
@@ -3312,9 +3190,11 @@ kw_waitkey:
 ntc_xn:
 			ld (ntc_ip), sp
 			ld sp, (ntc_csp)
+	IF NTC_INTS					; (;@ints 0: a platform that never lets interrupts in - the Next's dot commands)
 			ei
 			nop					; an interrupt can be taken here
 			di
+	ENDIF
 			ld sp, (ntc_ip)
 			ret
 
@@ -5675,6 +5555,7 @@ kw_bssinit:
 			or a
 			sbc hl, bc
 			jr c, ntc_bs_ok
+			jr z, ntc_bs_ok		; (the stack just under them: CP/M's ntc_cpmstack = their start)
 			ld hl, (ntc_csp)
 			ld bc, -256
 			add hl, bc
@@ -5718,7 +5599,7 @@ ntc_bs_stop:
 ntc_bsa:		dw 0
 ntc_bsz:		dw 0
 ntc_bsp:		dw 0
-ntc_bstxt:		db "Not enough memory for the arrays", 0
+ntc_bstxt:		db "GURU 001", 0
 
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based) - kept here for Tab
@@ -5941,6 +5822,7 @@ ntc_plat_memtop:
 
 
 ntc_end:				; the end of the program (and of its file)
+			DISPLAY "NTC memory: program ", /H, ntc_start, "-", /H, ntc_end - 1, " arrays ", /H, ntc_bss, "-", /H, ntc_free - 1, " stack the caller's"
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 ntc_bssfrom	equ ntc_end
 ntc_bss		equ ntc_bssfrom

@@ -11,7 +11,8 @@
 ;         11, what the ULA and the tilemap show - at #C000-#FFFF.
 ;           #0000-#003F  RST / IM 1 (#0038: the interrupt handler's jump)
 ;           #0040-       the program, its arrays, the Memory class's heap
-;           #BA00-#BDFF  the FileSystem class's DOS area (its call trampoline, stack,
+;           #BA00-#BDFF  the FileSystem / Loader classes' DOS area, when the program has one
+;                        of them - else the program's - (its call trampoline, stack,
 ;                        name and data buffers: +3DOS pages bank 7 over #C000-#FFFF
 ;                        during a file call, so none of that can live there)
 ;           #BE00-#BFFF  the stack (ntc_plat_memtop: #BA00 - the DOS area is above the heap)
@@ -54,7 +55,7 @@
 ;@stack    #C000
 ;@cols     40
 ;@rows     32
-;@reserved #BA00,#0600 #FD00,#0300		; the FileSystem class's DOS area #BA00-#BDFF and the stack #BE00-#BFFF; the start-up stub and the loader's stack #FD00-#FFFF (the rest of #C000-#FFFF is the program's: the compiler adds what the program really has there - the text, Layer 2's window, the DOS's)
+;@reserved #BE00,#0200 #FD00,#0300		; the stack #BE00-#BFFF; the start-up stub and the loader's stack #FD00-#FFFF. The compiler adds what the program really has: the FileSystem / Loader classes' DOS area #BA00-#BDFF (20261118-1: it was kept from every program), and in #C000-#FFFF the text, Layer 2's window, the DOS's
 ; ============================================================
 
 ;## ntc_plat_data
@@ -1099,11 +1100,19 @@ ntc_ex_wait:
 			jr ntc_ex_wait
 
 ;## ntc_plat_memtop
-; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
-; use: #BA00 (the FileSystem class's DOS area #BA00-#BDFF, then the stack to
-; #C000). Called on the real stack (call / ret), only by the Memory class.
+; ntc_plat_memtop - HL = the first byte the program's arrays and the Memory class's heap in
+; main memory must not use. ZXN_MEMTOP (the compiler's): #BA00 with the FileSystem or Loader
+; class (their DOS area #BA00-#BDFF, then the stack to #C000), #BE00 without (20261118-1). A
+; program that runs on over the stack has its arrays in #C000-#FFFF, where the build has
+; already checked them against what is there: the top is then #FD00 (the start-up stub).
+; (20261118-1: it was #BA00 always, so such a program stopped at its start with GURU 001.)
+; Called on the real stack (call / ret).
 ntc_plat_memtop:
-			ld hl, #BA00
+			IF ntc_free > #C000		; fwdref-ok
+			ld hl, #FD00
+			ELSE
+			ld hl, ZXN_MEMTOP
+			ENDIF
 			ret
 
 ;## ntc_gfx ntc_data ntc_plat_data @shared

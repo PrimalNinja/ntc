@@ -271,7 +271,14 @@ function build(dir, outFile)
 	L.push("' Don't edit: change the PNGs and run  node gfxtool.js build");
 	L.push("' Load: the tilemap palette, the sprite palettes, the tile definitions (bank 5 + #0000, seen at");
 	L.push("' #C000: Tiles.Init points the tilemap there) and the sprite patterns (4 bit, from pattern 0).");
+	// (game.json's "gfxpage": n - every sprite pattern and the tiles in a data file, build/NAME.DAT,
+	// that NTC puts in the NEX file's pages n and n + 1 (Option SaveNex): nothing of it is in the
+	// program's own memory, and nothing is assembled into a bank by hand. NTC 20261116-5 on.)
+	var gj0 = {};
+	try { gj0 = JSON.parse(fs.readFileSync(path.join(dir, '..', 'game.json'), 'utf8')); } catch (e) { }
+	var gp = gj0.gfxpage || 0;
 	L.push('Option Explicit');
+	if (gp) L.push('Option SaveNex "' + gj0.name + '.DAT", ' + gp + ', ' + (gp + 1) + "      ' the patterns in page " + gp + ', the tiles in page ' + (gp + 1) + ' (a page is the Next\'s 16K bank of the same number)');
 	L.push('');
 	g.consts.forEach(function(c) { L.push('Public Const ' + c[0] + ' = ' + c[1]); });
 	L.push('Public Const SpritePatterns = ' + g.pats.length);
@@ -318,6 +325,7 @@ function build(dir, outFile)
 	// (gfxbank n: the rest of the patterns and the tiles in bank n - its first page read through
 	// MMU slot 7 for the patterns, its second for the tiles - so none of it stays in the program's RAM)
 	if (!b5) gb = 0;
+	if (gp) { b5 = false; gb = 0; }
 	var n1 = 0, n2 = 0, n3 = g.pats.length;
 	if (b5)
 	{
@@ -357,12 +365,34 @@ function build(dir, outFile)
 			L.push('            dec b');
 		}
 	}
+	if (gp)
+	{
+		if (g.pats.length > 128) throw new Error('more than 128 sprite patterns: they do not fit page ' + gp);
+		L.push('            ld bc, #303B            ; sprite patterns from pattern 0');
+		L.push('            xor a');
+		L.push('            out (c), a');
+		L.push('            ld a, ' + (gp * 2) + '               ; page ' + gp + ' (its first half) at #E000: ' + Math.min(64, g.pats.length) + ' patterns');
+		L.push('            call ld_pg');
+		L.push('            ld hl, #E000');
+		L.push('            ld de, ' + (Math.min(64, g.pats.length) * 128));
+		L.push('            call ld_po');
+		if (g.pats.length > 64)
+		{
+			L.push('            ld a, ' + (gp * 2 + 1) + '               ; its second half: ' + (g.pats.length - 64) + ' more');
+			L.push('            call ld_pg');
+			L.push('            ld hl, #E000');
+			L.push('            ld de, ' + ((g.pats.length - 64) * 128));
+			L.push('            call ld_po');
+		}
+		L.push('            ld a, ' + (gp * 2 + 2) + '               ; page ' + (gp + 1) + ' at #E000: the tiles');
+		L.push('            call ld_pg');
+	}
 	L.push('            ld hl, #C000            ; every tile transparent (colour 15) first');
 	L.push('            ld de, #C001');
 	L.push('            ld bc, #1FFF');
 	L.push('            ld (hl), #FF');
 	L.push('            ldir');
-	L.push(gb ? '            ld hl, #E000' : '            ld hl, truns');
+	L.push((gb || gp) ? '            ld hl, #E000' : '            ld hl, truns');
 	L.push('ld_run:');
 	L.push('            ld a, (hl)              ; a run: first tile, count (0, 0 = the end), its definitions');
 	L.push('            inc hl');
@@ -402,23 +432,26 @@ function build(dir, outFile)
 	L.push('            jr ld_run');
 	L.push('ld_spr:');
 	if (b5) L.push('            jr ld_done');
-	L.push('            ld bc, #303B            ; sprite patterns from pattern 0');
-	L.push('            xor a');
-	L.push('            out (c), a');
-	L.push('            ld hl, pats');
-	L.push('            ld de, ' + (g.pats.length * 128));
-	L.push('            ld c, #5B');
-	L.push('ld_pat:');
-	L.push('            ld a, d');
-	L.push('            or e');
-	L.push('            jr z, ld_done');
-	L.push('            ld a, (hl)');
-	L.push('            out (c), a');
-	L.push('            inc hl');
-	L.push('            dec de');
-	L.push('            jr ld_pat');
+	if (!gp)
+	{
+		L.push('            ld bc, #303B            ; sprite patterns from pattern 0');
+		L.push('            xor a');
+		L.push('            out (c), a');
+		L.push('            ld hl, pats');
+		L.push('            ld de, ' + (g.pats.length * 128));
+		L.push('            ld c, #5B');
+		L.push('ld_pat:');
+		L.push('            ld a, d');
+		L.push('            or e');
+		L.push('            jr z, ld_done');
+		L.push('            ld a, (hl)');
+		L.push('            out (c), a');
+		L.push('            inc hl');
+		L.push('            dec de');
+		L.push('            jr ld_pat');
+	}
 	L.push('ld_done:');
-	if (gb)
+	if (gb || gp)
 	{
 		L.push('            ld bc, #243B            ; bank 5 back at #E000');
 		L.push('            ld a, #57');
@@ -429,7 +462,20 @@ function build(dir, outFile)
 	}
 	L.push('            ld sp, ({sps})');
 	L.push('            jp ld_end');
-	if (b5)
+	if (gp)
+	{
+		L.push('; ld_pg - the Next\'s 8K page A at #E000 (MMU slot 7)');
+		L.push('ld_pg:');
+		L.push('            ld bc, #243B');
+		L.push('            push af');
+		L.push('            ld a, #57');
+		L.push('            out (c), a');
+		L.push('            inc b');
+		L.push('            pop af');
+		L.push('            out (c), a');
+		L.push('            ret');
+	}
+	if (b5 || gp)
 	{
 		L.push('; ld_po - DE bytes from HL to the sprite patterns');
 		L.push('ld_po:');
@@ -477,7 +523,23 @@ function build(dir, outFile)
 	truns.push('            db 0, 0');
 	var restp = ['pats:'];
 	g.pats.forEach(function(p, k) { if (k >= n1 + n2) dbLines(p, 16).forEach(function(l) { restp.push(l); }); });
-	if (!gb) { truns.forEach(function(l) { L.push(l); }); restp.forEach(function(l) { L.push(l); }); }
+	if (gp)
+	{
+		// the data file: 16K of patterns (128 bytes each), then the tile runs in the next page's first 8K
+		var dat = Buffer.alloc(32768, 0), dp = 16384;
+		g.pats.forEach(function(p, k) { for (var q = 0; q < 128; q++) dat[k * 128 + q] = p[q]; });
+		runs.forEach(function(r)
+		{
+			dat[dp++] = r.first; dat[dp++] = r.n;
+			for (var k = 0; k < r.n; k++) for (var q = 0; q < 32; q++) dat[dp++] = g.tdefs[r.first + k][q];
+		});
+		dp += 2;
+		if (dp > 16384 + 8192) throw new Error('the tiles (' + (dp - 16384) + ' bytes) do not fit 8K of page ' + (gp + 1));
+		var bdir = path.join(dir, '..', 'build');
+		if (!fs.existsSync(bdir)) fs.mkdirSync(bdir);
+		fs.writeFileSync(path.join(bdir, gj0.name + '.DAT'), dat);
+	}
+	else if (!gb) { truns.forEach(function(l) { L.push(l); }); restp.forEach(function(l) { L.push(l); }); }
 	L.push('ld_end:');
 	if (b5)
 	{
@@ -494,7 +556,7 @@ function build(dir, outFile)
 			L.push('            ORG #E000');
 			truns.forEach(function(l) { L.push(l); });
 		}
-		L.push('            MMU 6 7, 0');
+		L.push('            MMU 6 7, 10');
 		L.push('            ORG ld_end');
 	}
 	L.push('#endasm');

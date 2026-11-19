@@ -1,18 +1,21 @@
 ' Link - the CPC side of the AUCKLAND coprocessor link (tools/s3dpi/PROTOCOL.TXT): the card keeps
-' AUCKLAND.DAT and makes each frame; the CPC sends its keys (a packet through the card's I/O
-' port) and reads the card's answer in a ROM it serves (#C000-#FFFF: the status block at #C100,
+' AUCKLAND.DAT and makes each frame; the CPC sends its keys (a packet through the card's data
+' FIFO) and reads the card's answer in the ROM it serves (#C000-#FFFF: the status block at #C100,
 ' the draw lists at #C200 and #E000), copies the list out, and draws it (XOR lines, Graphics).
-' PORTS: the card's own aren't public yet - CMDP / KICKP are an M4-like stand-in (bytes to
-' #FE00, a kick at #FC00): change them to the CPC-CPLINK2's. The ROM number: Setup.
+' PORTS: the CPC-CPLINK2's (github.com/rabs664/Amstrad-CPC-CPLink2) - DATP #FD80 the data FIFO
+' (write a byte when status bit1 DIR is high), STAP #FD81 the status / reset. The PI ROMs are
+' upper ROMs 32 (PI ROM 1) and 33 (PI ROM 2), selected the standard way (KL ROM SELECT); the
+' s3dpi 16K layout lives in PI ROM 1. The ROM number: Setup. Reset clears the FIFOs at startup.
 ' Test without a card: Load "FRAME.LST" (a list tools/s3dpi/sim wrote), then Draw.
 Option Explicit
-Public Const CMDP = &HFE00             ' (stand-in) a packet's bytes go here, one OUT each
-Public Const KICKP = &HFC00            ' (stand-in) an OUT here: the packet is complete
-Private rom As Integer                 ' the card's ROM number
+Public Const DATP = &HFD80             ' data FIFO: write a byte to the PI, read a byte from the PI
+Public Const STAP = &HFD81             ' status (bit0 DOR, bit1 DIR, bit2 ROR1, bit3 ROR2, hi &A); write = reset
+Private rom As Integer                 ' the PI ROM number (32 = PI ROM 1)
 Private lst(7679) As Byte              ' the list, copied out of the card's ROM
 Private st(47) As Byte                 ' the status block, copied out
 Private pk(9) As Byte, np As Integer   ' the packet being built
 Private sps As Integer
+Private cnt As Integer                 ' Send's byte countdown
 
 ' Inks: pen 1 white, 2 green, 3 cyan, black paper and border (AUCKLAND's)
 Public Sub Inks()
@@ -42,6 +45,15 @@ End Sub
 ' Setup(n): the card is ROM n
 Public Sub Setup(ByVal n As Integer)
   rom = n
+End Sub
+
+' Reset(): clear the CPLINK2 FIFOs and ROM counters (DIR high, DOR low) - do this at startup
+Public Sub Reset()
+#asm
+            ld bc, {STAP}
+            xor a
+            out (c), a
+#endasm
 End Sub
 
 ' Hello(): True when the card answers (its status block says "S3DP")
@@ -251,24 +263,37 @@ Private Sub RomRead(ByVal a As Integer, ByVal t As Integer, ByVal n As Integer)
 #endasm
 End Sub
 
-' Send(): pk(0 .. np - 1) out to the card, then the kick (stand-in ports: CMDP, KICKP)
+' Send(): pk(0 .. np - 1) into the data FIFO, each byte once status bit1 (DIR) is high - the
+' CPLINK2 FIFO frames the stream itself, so there is no kick. A bounded spin gives up if the
+' card is wedged or absent (so no card doesn't hang the demo before the Hello check).
 Private Sub Send()
 #asm
             ld a, ({np})
+            ld ({cnt}), a
             or a
-            jr z, sn_k
-            ld e, a
+            jr z, sn_x
             ld hl, {pk}
-            ld bc, {CMDP}
 sn_lp:
+            ld de, 0                    ; spin guard
+sn_w:
+            ld bc, {STAP}
+            in a, (c)
+            bit 1, a                    ; DIR: the FIFO can take a byte
+            jr nz, sn_ok
+            dec de
+            ld a, d
+            or e
+            jr nz, sn_w
+            jr sn_x                     ; timed out - card wedged or absent
+sn_ok:
             ld a, (hl)
+            ld bc, {DATP}
             out (c), a
             inc hl
-            dec e
+            ld a, ({cnt})
+            dec a
+            ld ({cnt}), a
             jr nz, sn_lp
-sn_k:
-            ld bc, {KICKP}
-            xor a
-            out (c), a
+sn_x:
 #endasm
 End Sub

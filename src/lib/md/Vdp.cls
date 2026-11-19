@@ -316,3 +316,104 @@ Public Sub Update()
             NTC_TS
 #endasm
 End Sub
+
+' ---- for games that need more than the calls above (20261119-1)
+' Sat(): the sprite table's address in RAM (80 x 8 bytes, as the VDP's: y + 128, the size and the
+' link, the cell value, x + 128), for #asm that writes many sprites itself; Update sends it
+Public Function Sat() As Long
+#asm
+            movea.l (sp)+, a0
+            move.l #ntc_sat, (a0)
+#endasm
+End Function
+
+' Copy addr, vaddr, n: n words from addr (a Long) to VRAM address vaddr (tiles, a plane's cells,
+' the scroll table: anything)
+Public Sub Copy(ByVal addr As Long, ByVal vaddr As Integer, ByVal n As Integer)
+#asm
+            movea.l (sp)+, a0
+            movea.l (a0), a1
+            movea.l (sp)+, a0
+            move.w (a0), d0
+            movea.l (sp)+, a0
+            move.w (a0), d1
+            NTC_RS
+            jsr ntc_md_vaddr
+            NTC_TS
+            subq.w #1, d1
+            bmi vcp_done
+vcp_lp:
+            move.w (a1)+, VDP_DATA
+            dbra d1, vcp_lp
+vcp_done:
+#endasm
+End Sub
+
+' Display on: the picture off (0: the screen is the backdrop colour; loading is faster) or on
+Public Sub Display(ByVal n As Integer)
+#asm
+            movea.l (sp)+, a0
+            tst.w (a0)
+            beq vds_off
+            move.w #$8174, VDP_CTRL
+            bra vds_end
+vds_off:
+            move.w #$8134, VDP_CTRL
+vds_end:
+#endasm
+End Sub
+
+' ScrollMode m: how the planes scroll across: ScrollWhole (ScrollX moves the whole plane),
+' ScrollCell (each 8 lines its own: ScrollRow) or ScrollLine (each line its own: ScrollLineX)
+Public Const ScrollWhole = 0
+Public Const ScrollCell = 2
+Public Const ScrollLine = 3
+Public Sub ScrollMode(ByVal m As Integer)
+#asm
+            movea.l (sp)+, a0
+            move.w (a0), d0
+            andi.w #3, d0
+            ori.w #$8B00, d0
+            move.w d0, VDP_CTRL
+#endasm
+End Sub
+
+' ScrollRow plane, row, x: in ScrollCell mode, the plane's cell row (0-27) moved right by x
+Public Sub ScrollRow(ByVal plane As Integer, ByVal row As Integer, ByVal x As Integer)
+#asm
+            movea.l (sp)+, a0
+            move.w (a0), d0
+            movea.l (sp)+, a0
+            move.w (a0), d1
+            movea.l (sp)+, a1
+            andi.w #1, d0
+            add.w d0, d0
+            lsl.w #5, d1
+            add.w d1, d0
+            addi.w #$FC00, d0
+            NTC_RS
+            jsr ntc_md_vaddr
+            NTC_TS
+            move.w (a1), VDP_DATA
+#endasm
+End Sub
+
+' ScrollLineX plane, line, x: in ScrollLine mode, the plane's line (0-223) moved right by x
+Public Sub ScrollLineX(ByVal plane As Integer, ByVal intLine As Integer, ByVal x As Integer)
+#asm
+            movea.l (sp)+, a0
+            move.w (a0), d0
+            movea.l (sp)+, a0
+            move.w (a0), d1
+            movea.l (sp)+, a1
+            andi.w #1, d0
+            add.w d0, d0
+            lsl.w #2, d1
+            add.w d1, d0
+            addi.w #$FC00, d0
+            NTC_RS
+            jsr ntc_md_vaddr
+            NTC_TS
+            move.w (a1), VDP_DATA
+#endasm
+End Sub

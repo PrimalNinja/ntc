@@ -50,6 +50,8 @@ var failed = 0;
 wanted.forEach(function(plat)
 {
 	if (!plats[plat]) { console.log('no such platform: ' + plat); failed++; return; }
+	// a platform this NTC hasn't (zx81 is not in NTC 20261117-2): said, and the others still build
+	if (!fs.existsSync(path.join(ntc, 'asm', 'ntc_plat_' + plat + '.asm'))) { console.log(plat + ': this NTC has no ' + plat + ' platform (no asm/ntc_plat_' + plat + '.asm) - left as it is'); return; }
 	var files = ['ISOChess.bas'].concat(plats[plat]).map(function(f) { return { name: f, text: fs.readFileSync(path.join(here, f), 'utf8') }; });
 	var opts = { platform: plat, name: name };
 	if (plat === 'cpc' || plat === 'cpcmin' || plat === 'cpcfw') opts.amsdos = name;

@@ -79,7 +79,8 @@ shows the other, and flip with R12 (&10 shows #4000, &30 shows #C000).
   nothing:
   - cpcmin: #A600-#BFFF;
   - cpc and cpcmin: the screen at #C000, unless the program frees it;
-  - zxn: #BA00-#BFFF.
+  - zxn: #BE00-#BFFF (the stack); #BA00-#BDFF as well when the program has the FileSystem or the
+    Loader class (their DOS area) - 20261118-1, it was kept from every program.
 
   Today `cpc` and `cpcmin` let a program run into #A600 and #C000 with no error, and `zxn` stops at
   #BA00 with an assert.

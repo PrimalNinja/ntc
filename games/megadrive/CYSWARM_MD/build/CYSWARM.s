@@ -5,6 +5,7 @@
 
 			org 0
 
+NTC_RAMEND	equ $01000000		; the end of the RAM the variables and arrays are in (;@ramend)
 ;## ntc_md_vectors ntc_md_boot
 ; the 68000's vectors and the cartridge header (the compiler puts this first, at 0)
 			dc.l $00FF8000				; the supervisor stack
@@ -38,13 +39,18 @@
 			dc.b "                                        "
 			dc.b "JUE             "		; every region
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 NTC_WINHOLE	equ 0		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
+NTC_WINPAGED	equ 0		; 1 = page 0 code may sit under the window (Option Memory Paged, not Reserved): the Memory class never hands out page 1 (main RAM's own #4000-#7FFF) when the code reaches past #4000
 NTC_BUFSIZE	equ 2048		; the library's buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer
+NTC_ISLN	equ 1		; interrupt classes (Option Class Interrupt): the slots ntc_isl has (8 bytes each)
+NTC_INTS	equ 1		; 0 = the platform never lets interrupts in (;@ints 0: ntc_xn's safe point has no ei)
+NTC_PLATRSV	equ 0		; 1 = the platform's fixed areas (;@reserved) are Reserved in the memory map: the build goes round them (the old top-of-RAM asserts are off)
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 NTC_RS		macro			; the real stack: the thread position kept in ntc_ip
 			move.l sp, ntc_ip
@@ -7399,7 +7405,7 @@ kw_bssinit:
 			andi.l #$FFFF, d0
 			move.l a0, d1
 			add.l d0, d1
-			cmpi.l #$01000000, d1
+			cmpi.l #NTC_RAMEND, d1		; (the platform's ;@ramend, written by the compiler: $01000000 on the Mega Drive)
 			bhi kw_bs_big
 			tst.l d0
 			beq kw_bs_e
@@ -7421,7 +7427,7 @@ kw_bs_pl:
 kw_bs_stop:
 			jsr ntc_plat_newline
 			jmp kw_stop
-kw_bs_txt:	dc.b "Not enough memory for the arrays", 0
+kw_bs_txt:	dc.b "GURU 001", 0
 			even
 
 			even
@@ -7578,19 +7584,25 @@ ntc_md_pad:
 			move.b #$00, (a0)
 			nop
 			nop
-			move.b (a0), d2				; ?0SA00DU
+			move.b (a0), d2				; ?0SA00DU (TH's 2nd step)
 			move.b #$40, (a0)
 			nop
 			nop
-			move.b #$00, (a0)
+			move.b #$00, (a0)			; (4th: ?0SA00DU again)
+			nop
+			nop
+			move.b #$40, (a0)
+			nop
+			nop
+			move.b #$00, (a0)			; 6th: a 6 button pad says so here
 			nop
 			nop
 			move.b (a0), d3				; ?0SA0000 on a 6 button pad
 			move.b #$40, (a0)
 			nop
 			nop
-			move.b (a0), d4				; ?1CBMXYZ on a 6 button pad
-			move.b #$00, (a0)
+			move.b (a0), d4				; ?1CBMXYZ on a 6 button pad (7th)
+			move.b #$00, (a0)			; (8th: back to the start)
 			nop
 			nop
 			move.b #$40, (a0)
@@ -8201,7 +8213,7 @@ ntc_md_font:
 
 			even
 ntc_romend:			; the end of the ROM: the RAM block's first image follows
-			org $FF8000
+			org $FF8000		; (;@ramorg: where this platform's variables are - 16 bit addresses, sign extended)
 ntc_ram:
 ; variables
 var_gfx_palettes_palettes:			dc.l 0

@@ -25,6 +25,7 @@ NTC_PLATRSV	equ 1		; 1 = the platform's fixed areas (;@reserved) are Reserved in
 NTC_ZXIRQ	equ 1		; 1 = the interrupt handler (ntc_irq) is in the program: Frame catches up its lost ticks
 ; the ZX Spectrum Next: NTC_ZXN defined (a DEFINE - sjasmplus's IFDEF tests those, not labels)
 			DEFINE NTC_ZXN
+ZXN_MEMTOP	equ #BA00		; the top of the memory under the stack (ntc_plat_memtop): #BA00 with the FileSystem / Loader classes' DOS area, #BE00 without (20261118-1)
 ZXN_PROGPAGE	equ 0		; the Next's 8K page the program starts in (#0000): its six are ZXN_PROGPAGE .. + 5 (20261116-7: it was 16)
 ZXN_FIRSTBANK	equ 2		; first free 16K bank (page 4), above the program/screen/low banks
 ZXN_MAXBANK	equ 110		; scan range: banks 2-111 (a 2MB Next has 112 16K banks, pages 0-223; the MMU has no page past 223 - a higher page number is not RAM)
@@ -5618,11 +5619,19 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg279:
 ;## ntc_plat_memtop
-; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
-; use: #BA00 (the FileSystem class's DOS area #BA00-#BDFF, then the stack to
-; #C000). Called on the real stack (call / ret), only by the Memory class.
+; ntc_plat_memtop - HL = the first byte the program's arrays and the Memory class's heap in
+; main memory must not use. ZXN_MEMTOP (the compiler's): #BA00 with the FileSystem or Loader
+; class (their DOS area #BA00-#BDFF, then the stack to #C000), #BE00 without (20261118-1). A
+; program that runs on over the stack has its arrays in #C000-#FFFF, where the build has
+; already checked them against what is there: the top is then #FD00 (the start-up stub).
+; (20261118-1: it was #BA00 always, so such a program stopped at its start with GURU 001.)
+; Called on the real stack (call / ret).
 ntc_plat_memtop:
-			ld hl, #BA00
+			IF ntc_free > #C000		; fwdref-ok
+			ld hl, #FD00
+			ELSE
+			ld hl, ZXN_MEMTOP
+			ENDIF
 			ret
 
 
@@ -5692,8 +5701,9 @@ glyph_76			equ ntc_font + 688		; "v"
 glyph_77			equ ntc_font + 696		; "w"
 glyph_79			equ ntc_font + 712		; "y"
 			DISPLAY "NTC memory: program ", /H, ntc_start, "-", /H, ntc_end - 1, " arrays ", /H, ntc_bss, "-", /H, ntc_free - 1, " stack #C000 down (the platform's)"
-			DISPLAY "NTC memory: Reserved #BA00-#BFFF (platform zxn)"
+			DISPLAY "NTC memory: Reserved #BE00-#BFFF (platform zxn)"
 			DISPLAY "NTC memory: Reserved #FD00-#FFFF (platform zxn)"
+			DISPLAY "NTC memory: Reserved #BA00-#BDFF (platform zxn)"
 			DISPLAY "NTC memory: Reserved #C000-#FCFF (platform zxn)"
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 ntc_bssfrom	equ ntc_end
@@ -5713,8 +5723,9 @@ ntc_bss_size	equ 85
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ntc_memtab	equ ntc_free		; the Memory class's tables
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 47616) || (ntc_bss >= 49152), "the program (or its arrays) reaches into the platform's reserved #BA00-#BFFF (platform zxn: Option Memory Available frees it)"
+			ASSERT (ntc_free <= 48640) || (ntc_bss >= 49152), "the program (or its arrays) reaches into the platform's reserved #BE00-#BFFF (platform zxn: Option Memory Available frees it)"
 			ASSERT (ntc_free <= 64768) || (ntc_bss >= 65536), "the program (or its arrays) reaches into the platform's reserved #FD00-#FFFF (platform zxn: Option Memory Available frees it)"
+			ASSERT (ntc_free <= 47616) || (ntc_bss >= 48640), "the program (or its arrays) reaches into the platform's reserved #BA00-#BDFF (platform zxn: Option Memory Available frees it)"
 			ASSERT (ntc_free <= 49152) || (ntc_bss >= 64768), "the program (or its arrays) reaches into the platform's reserved #C000-#FCFF (platform zxn: Option Memory Available frees it)"
 
 ; ============================================================

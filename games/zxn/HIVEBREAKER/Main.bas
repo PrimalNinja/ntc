@@ -17,7 +17,7 @@
 ' only what's what, and what a hit does. (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
 Option Explicit
 Option Turbo
-Option NexData "HIVEBRK.DAT", 1
+Option SaveNex "HIVEBRK.DAT", 3      ' <--- CHANGED (was Option NexData "HIVEBRK.DAT", 1: gone)   the data file in page 3 of the NEX file (NTC3D's E3 reads page 3)
 
 ' ---- controls (Fly3D's bits are 1 - 8) and settings
 Const K_FIRE = 64, K_ECM = 128, K_JUMP = 256, K_FORM = 512

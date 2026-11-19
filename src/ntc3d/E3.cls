@@ -26,6 +26,7 @@
 ' The Z80 lives in Lib (one block: its labels are fn_e3_lib_...): the multiplies, the polygon
 ' filler, the projection, the 3D clipper and the object pipeline. The Subs BASIC calls are thin.
 Option Explicit
+Option Memory Reserved &HC000, &H3D00     ' <--- NEW (20261118-1)   #C000-#FCFF is not the program's: the data page (DataOn) and the drawing buffer are in slots 6 and 7
 
 Public pvx(47) As Integer, pvy(47) As Integer   ' a polygon's screen vertices
 Public cm(8) As Integer                          ' the camera: right, up, forward (s1.14)

@@ -37,7 +37,7 @@ Const PAT_PLAYER As Integer = 0
 Const PAT_LANDER As Integer = 1
 Const PAT_MUTANT As Integer = 2
 Const PAT_HUMAN  As Integer = 3
-Const PAT_BOLT   As Integer = 4
+Const PAT_BOLT   As Integer = 8      ' <--- CHANGED (was 4, which is the ship's second frame: PAT_PLAYER + PAT_FRAME2)
 Const PAT_FRAME2 As Integer = 4      ' + this: the second frame of 0-3 (ship, lander, mutant, human)
 Const PAT_SHOT   As Integer = 9
 Const PAT_BOOM   As Integer = 10     ' 10-13
@@ -161,7 +161,7 @@ Sub LoadSpriteTilemap(ByVal filename As String)
     WriteNextReg(&H15, &H0B)
     ' Sprite transparency index = 0
     WriteNextReg(&H4B, &H00)
-    If FileSystem.Load(filename, VarPtr(sprbuf), 4608) = 4608 Then
+    If Loader.Load(filename, VarPtr(sprbuf), 4608) = 4608 Then      ' <--- CHANGED (was FileSystem.Load: the Loader class reads a program's own file and is a fraction of the size)
         WriteNextReg(&H43, &H20)
         WriteNextReg(&H40, 0)
         For i = 0 To 255

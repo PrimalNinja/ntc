@@ -1,4 +1,4 @@
-# NTC - Native Threaded Code v20261118
+# NTC - Native Threaded Code v20261119
 
 (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
 
@@ -1274,7 +1274,7 @@ how to build vasm and the core.
 assembles with vasm (`NTC_VASM`) and writes a 2HD floppy image that boots itself. `python3
 x68run.py GAME.xdf [--frames=N] [--keys=frame:text,...] [--shot=out.png] [--log] [--untilend]`
 boots it on the px68k libretro core (`NTC_X68CORE`, with Sharp's ROMs in `NTC_X68SYS/keropi`),
-types keys, saves a picture and prints a `--log` build's transcript. `x68regress.sh` runs 15
+types keys, saves a picture and prints a `--log` build's transcript. `x68regress.sh` runs 16
 tests. `docs/x68000.md` says how to get the tools.
 
 ### townsbuild.js, townsrun.py, townsregress.sh - the Fujitsu FM Towns (towns)
@@ -1284,7 +1284,14 @@ assembles with nasm (`NTC_NASM`, or `nasm` on the path) and writes a 2HD floppy 
 itself. `python3 townsrun.py GAME.bin [--secs=N] [--keys=seconds:text,...] [--shot=out.png]
 [--log] [--anykey] [--freq=MHz]` boots it on Tsugaru (`NTC_TSUGARU` = `Tsugaru_Headless`, the
 ROMs in `NTC_TOWNSROM`), types text, saves a picture and prints a `--log` build's transcript.
-`townsregress.sh` runs 17 tests. `docs/towns.md` says how to get the tools.
+`townsregress.sh` runs 18 tests (`--pad` and the last test need Tsugaru with `test/tsugaru-padset.patch`). `docs/towns.md` says how to get the tools.
+
+### tools/adpcm/okiadpcm.js, tools/md/dpcm.js - music for the Pcm classes
+
+`node tools/adpcm/okiadpcm.js --target=towns|x68000 --out=MUSIC.DAT [--rate=12000] [--volume=1.0]
+SONG0.PCM ...` turns up to 5 songs (8-bit unsigned mono PCM) into the data `Pcm.Init` takes on the FM
+Towns and the X68000. `node tools/md/dpcm.js --out=MUSIC.DAT [--rate=12000] SONG0.PCM ...` does it for
+the Mega Drive (`tools/md/z80pcm.asm` is its Z80 player, already inside `lib/md/Pcm.cls`).
 
 ### m65build.py, m65run.py, m65regress.sh - the MEGA65 (m65)
 

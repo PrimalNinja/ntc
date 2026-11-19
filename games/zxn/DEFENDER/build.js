@@ -37,6 +37,9 @@ if (fs.existsSync(path.join(here, 'gfx')))
 	cp.execFileSync(process.execPath, [path.join(here, 'gfxtool.js'), 'build', path.join(here, 'gfx'), path.join(here, 'GfxData.cls')], { stdio: 'inherit' });
 }
 
+// (the sprites: tools/sprdata.js -> SprData.cls)
+cp.execFileSync(process.execPath, [path.join(here, 'tools', 'sprdata.js')], { stdio: 'inherit' });
+
 // 2. the IDE project
 var files = cfg.files.map(function(f) { return { name: f, text: fs.readFileSync(path.join(here, f), 'utf8') }; });
 fs.writeFileSync(path.join(here, name + '.json'), JSON.stringify({ version: 1, name: name, mode: 'turbo', platform: 'zxn', files: files }, null, '\t'));

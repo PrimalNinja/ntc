@@ -652,7 +652,8 @@ variables, `Declare`.
     platform's default Reserved range it covers (below).
   Platforms state their own fixed areas as default Reserved ranges (`;@reserved` in the platform
   file): `cpc` the screen `#C000-#FFFF`; `cpcmin` the firmware's RAM `#A600-#BFFF` and the screen;
-  `zxn` `#BA00-#FFFF` (the DOS area, the stack, the screen). A program that uses the screen's
+  `zxn` the stack `#BE00-#BFFF` and the start-up stub `#FD00-#FFFF` (the compiler adds the DOS area
+  `#BA00-#BDFF` with the `FileSystem` or `Loader` class, and what the program has in `#C000-#FFFF`). A program that uses the screen's
   memory itself (the screen moved to base block 1, say) frees it with
   `Option Memory Available &HC000, &H4000`. The assembler prints the map it built (`NTC memory:`
   lines: the program, its arrays and stack, each hole, each Safe range and what went in it).

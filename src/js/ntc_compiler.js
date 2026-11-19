@@ -90,6 +90,7 @@ function ntcCompile(input_a, objOptions_a)
 	function zxnFirstBank() { return 2; }
 	var arrReservePages = [];	// Option Memory Reserve Pages n[, n | n To m] ...: pages never handed out or filled
 	var blnZxnFs = false;		// zxn: the program has the FileSystem class (the DOS uses Next bank 7 during a file call)
+	var blnZxnDos = false;		// zxn: the program has the FileSystem or the Loader class: their DOS area #BA00-#BDFF is taken (20261118-1: it was kept from every program)
 	var blnZxnGfx = false;		// zxn: the program has the Graphics class (Layer 2's two buffers: Next banks 12-21)
 	// the pages a Next program has taken from the start, and why (page = Next bank)
 	function zxnAutoPages()
@@ -9375,9 +9376,12 @@ function ntcCompile(input_a, objOptions_a)
 		//   the FileSystem class: all of it (the DOS switches its own bank in there during a file call)
 		//   the Graphics class:   #C000-#DFFF (the Layer 2 page being drawn on is switched in there)
 		//   text:                 #E000-#F3FF (the text and its font) - added when the program has text
-		//   always:               #FD00-#FFFF (the start-up stub and the loader's stack: the platform's ;@reserved)
+		//   FileSystem or Loader: #BA00-#BDFF too (their DOS area, under the stack) - 20261118-1: a program with
+		//                         neither has it for itself
+		//   always:               #BE00-#BFFF (the stack) and #FD00-#FFFF (the start-up stub and the loader's stack): the platform's ;@reserved
 		if (objOptions.platform === 'zxn')
 		{
+			if (blnZxnDos) { arrPairs.push('#BA00,#0400'); }	// the FileSystem / Loader classes' DOS area (trampoline, stack, name, buffers): only with one of them
 			if (blnZxnFs) { arrPairs.push('#C000,#3D00'); }
 			else if (blnZxnGfx) { arrPairs.push('#C000,#2000'); }
 		}
@@ -12367,6 +12371,7 @@ function ntcCompile(input_a, objOptions_a)
 	objMemory = findMemory(arrFiles, true);
 	blnMemoryUsed = arrFiles.some(function(objFile_a) { return /(^|[\/\\])(memory|list)\.cls$/i.test(String(objFile_a.name)); });
 	blnZxnFs = (objOptions.platform === 'zxn') && arrFiles.some(function(objFile_a) { return /(^|[\/\\])filesystem\.cls$/i.test(String(objFile_a.name)); });
+	blnZxnDos = (objOptions.platform === 'zxn') && arrFiles.some(function(objFile_a) { return /(^|[\/\\])(filesystem|loader)\.cls$/i.test(String(objFile_a.name)); });
 	blnZxnGfx = (objOptions.platform === 'zxn') && arrFiles.some(function(objFile_a) { return /(^|[\/\\])graphics\.cls$/i.test(String(objFile_a.name)); });
 	if (strTerminal !== 'none')
 	{
@@ -13015,6 +13020,7 @@ function ntcCompile(input_a, objOptions_a)
 		// the Memory class's banks start above the program, the screen, Layer 2 and the low banks (bank 22,
 		// page 44), or at Option Memory Paged's start bank
 		var intFirstBank = zxnFirstBank();
+		arrAsm.push('ZXN_MEMTOP\tequ ' + (blnZxnDos ? '#BA00' : '#BE00') + '\t\t; the top of the memory under the stack (ntc_plat_memtop): #BA00 with the FileSystem / Loader classes\' DOS area, #BE00 without (20261118-1)');
 		arrAsm.push('ZXN_PROGPAGE\tequ 0\t\t; the Next\'s 8K page the program starts in (#0000): its six are ZXN_PROGPAGE .. + 5 (20261116-7: it was 16)');
 		arrAsm.push('ZXN_FIRSTBANK\tequ ' + intFirstBank + '\t\t; first free 16K bank (page ' + (2 * intFirstBank) + '), ' + (((objPageWindow !== null) && (objPageWindow.startbank >= 2)) ? 'Option Memory Paged\'s start bank' : 'above the program/screen/low banks'));
 		arrAsm.push('ZXN_MAXBANK\tequ ' + (112 - intFirstBank) + '\t\t; scan range: banks ' + intFirstBank + '-111 (a 2MB Next has 112 16K banks, pages 0-223; the MMU has no page past 223 - a higher page number is not RAM)');

@@ -88,8 +88,9 @@ experience and some gold are yours when the last one falls. If all four heroes f
 - **The heroes' faces** are sprites in the panel; hurt, they flash; fallen, they go grey.
 - **The words, the panel and the map** are the tilemap, two bytes a cell so each line has its own
   colour (`Board.cls`).
-- **Memory:** 64 of the sprite patterns are stored in bank 5 in the NEX file and loaded into the
-  sprite RAM before the tiles go there (`"bank5": true` in `game.json`, read by `gfxtool.js`).
+- **Memory:** the sprite patterns and the tiles are in a data file, `build/DUNGEON.DAT`, that NTC
+  puts in the NEX file's pages 45 and 46 (`Option SaveNex` in `GfxData.cls`; `"gfxpage": 45` in
+  `game.json`, read by `gfxtool.js`), so they don't take the program's RAM.
 
 It runs in the emulator. It hasn't been run on real hardware yet.
 

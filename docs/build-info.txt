@@ -37,6 +37,75 @@ Packaging rule (what goes in the archive) - READ THIS BEFORE ZIPPING
 History (newest first)
 ======================
 
+20261119-1
+  - FOR GAMES on the FM Towns, the X68000 and the Mega Drive: the supporting classes, lifted
+    from TIANLONG (the first game on the FM Towns and the X68000) and made NTC's own. Each
+    was proved by building that game again without its own copy of the class and playing it
+    with its test pilot on the emulator.
+  - towns: HIGH DATA (the other session's change, on 20261117-2, brought in): files past the
+    program on the disc, loaded to $100000 on by the boot sector. New: the macro
+    NTC_HIGHFILE label, "FILE" for #asm (it was three lines by hand); the boot sector's last
+    16 bytes carry the sizes and townsbuild.js prints the high data's size and warns past
+    1 MB (a 2 MB machine's RAM).
+  - towns: Memory class (Alloc, Free, AllocHigh, FreeHigh): the memory NTC does not use,
+    handed out as Long addresses. TIANLONG had picked $80000 and $98000 by hand, a few bytes
+    under NTC's exception record.
+  - towns: the keyboard is followed in one place (ntc_tw_keypoll): keys held (a table) and a
+    queue of 16 typed characters. Inkey, Input and the new Keys class read the same events;
+    before, a game reading the port itself and Inkey took each other's bytes.
+  - towns: Keys class (Down(key), Joystick(n): the pads at $4D0 / $4D2, with RUN and SELECT),
+    Vdp class (256 x 240, 2 layers of 32768 colours: sprites, a backdrop in 4 scrolled bands,
+    words; its backdrop copy now comes from Memory), Pcm class (the RF5C68: ADPCM music, 4
+    channels for sound effects; Init takes the songs' address).
+  - x68000: THE SUPERVISOR CALL: trap #1 (lea routine, a0 / trap #1: the routine runs in
+    supervisor mode and ends with rts). The platform sets it up at the start; a game had to.
+  - x68000: Keys class (Down(key), Group(g), Joystick(n): IOCS _BITSNS / _JOYGET), Vdp class
+    (256 x 256 in 256 colours: sprites, graphics page 0 with up to 4 raster splits, the text
+    plane), Pcm class (ADPCM music by the ROM's DMA call), Opm class (the YM2151's registers).
+  - md: Vdp gains Sat() (the sprite table's address: games used the library's own label),
+    Copy addr&, vaddr, n, Display on, ScrollMode (whole / cell / line), ScrollRow,
+    ScrollLineX. New classes: Z80 (Load, Poke, Peek, Stop), Pcm (DPCM music on the YM2612's
+    DAC by a Z80 player, built in), Keys (the pads with the other machines' calls).
+  - The Keys class has the same names on the Next, the CPC, the MSX, the FM Towns, the
+    X68000 and the Mega Drive, so a game's control code is the same file.
+  - Tools: tools/adpcm/okiadpcm.js (songs for Pcm on the FM Towns and X68000), tools/md/dpcm.js
+    and tools/md/z80pcm.asm (the Mega Drive's). They make TIANLONG's music files byte for byte.
+  - Tests: test/towns/Classes.bas + Dat.cls (townsregress.sh: 18), test/x68/Classes.bas +
+    Sup.cls (x68regress.sh: 16), test/md/Classes.bas + Prog.cls (mdregress.sh: 15).
+    townsrun.py --pad=seconds:bits presses the pad; it needs Tsugaru built with
+    test/tsugaru-padset.patch (the other session's: a PADSET console command).
+  - RUN, on the emulators only (Tsugaru, px68k, Genesis Plus GX): TIANLONG rebuilt on these
+    classes and played by its pilot on all three; the Mega Drive's music recorded and as
+    loud second by second as the original build's. NOT run on real machines. NOT checked by
+    ear: the FM Towns' and X68000's sound on the new classes.
+  - NOT done: the FM Towns' bands are TIANLONG's four (lines 0, 56, 112, 152); no tile
+    layers on the FM Towns or X68000; no file classes; Memory blocks are not given back; the
+    X68000's boot still loads the whole disc first.
+
+20261118-1
+  - zxn: the DOS area #BA00-#BDFF is kept out of the program only when it has the FileSystem or
+    the Loader class (they are the only users: the DOS call's trampoline, stack, name and
+    buffers). Before, every Next program lost that 1K. The platform's fixed areas are now the
+    stack #BE00-#BFFF and the start-up stub #FD00-#FFFF; the compiler adds #BA00-#BDFF itself.
+    (portable-ntc-basic.md listed this as a gap.) Found building HIVEBREAKER, which ends at
+    #BC4E and has no files.
+  - FIXED (zxn): a program whose arrays were put in #C000-#FFFF (a program that runs on over the
+    stack, the layout of 20261116-6) stopped at its start with GURU 001. The start-of-program
+    check (kw_bssinit) asks the platform for the top of memory, and the Next answered #BA00
+    always. It now answers #BA00 with FileSystem / Loader, #BE00 without (ZXN_MEMTOP), and
+    #FD00 when the arrays are above the stack (the build has already checked them against what
+    is there). Found with CAVEMAN and HIVEBREAKER in ZEsarUX. NOT changed: Option Memory Heap
+    Main on a Next program that runs over the stack (the heap would start after the arrays and
+    is not checked against the text or Layer 2's window).
+  - NTC3D (src/ntc3d/E3.cls): Option Memory Reserved &HC000, &H3D00. The engine keeps the data
+    page and the drawing buffer in slots 6 and 7, so #C000-#FCFF is not the program's. Since
+    20261116-6 (#C000-#FFFF became main memory) a big NTC3D game's arrays could be put there,
+    under the data page. ROCKS is small enough that it never happened.
+  - Docs: userguide (The Next's pages), memory-map.md, NTC.md, portable-ntc-basic.md.
+  - With this build: the demos and games (their own zips) rebuilt and brought up to date -
+    Option SaveNex in place of bank data assembled by hand, Option Memory Reserved for the tile
+    games' memory at #C000, the Loader class in DEFENDER.
+
 20261117-2
   - NEW PLATFORM: towns - the Fujitsu FM Towns (80386), first stage. NTC's first x86
     platform. A program is a 2HD floppy image that boots itself: NTC's boot sector ("IPL4")

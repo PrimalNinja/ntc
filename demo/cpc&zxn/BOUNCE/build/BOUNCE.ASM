@@ -6,13 +6,18 @@
 			DEVICE AMSTRADCPC6128		; for SAVEAMSDOS at the end
 			org #0100
 
-NTC_TERM	equ 1		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 1		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 60		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 NTC_WINHOLE	equ 0		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
+NTC_WINPAGED	equ 0		; 1 = page 0 code may sit under the window (Option Memory Paged, not Reserved): the Memory class never hands out page 1 (main RAM's own #4000-#7FFF) when the code reaches past #4000
 NTC_BUFSIZE	equ 2048		; the library's buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer
+NTC_ISLN	equ 1		; interrupt classes (Option Class Interrupt): the slots ntc_isl has (8 bytes each)
+NTC_INTS	equ 1		; 0 = the platform never lets interrupts in (;@ints 0: ntc_xn's safe point has no ei)
+NTC_PLATRSV	equ 0		; 1 = the platform's fixed areas (;@reserved) are Reserved in the memory map: the build goes round them (the old top-of-RAM asserts are off)
 NTC_CPMGFX	equ 1		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -791,7 +796,7 @@ p_cybsys_host:
 
 p_cybsys_byteat:
 
-			; CybSys.cls 55: ByteAt = b(i)
+			; CybSys.cls 67: ByteAt = b(i)
 			dw kw_aget8, arr_cybsys_b, var_cybsys_byteat_i, var_cybsys_byteat_byteat
 			dw p_cybsys_byteat_r
 
@@ -801,8 +806,8 @@ p_cybsys_byteat:
 
 p_cybsys_bdos:
 
-			; CybSys.cls 225: #asm
-			dw asm_4_225
+			; CybSys.cls 237: #asm
+			dw asm_4_237
 			dw p_cybsys_bdos_r
 
 ; ============================================================
@@ -858,9 +863,7 @@ p_front_r:		; end of front
 p_myslot_c:		; call myslot (turbo)
 			ld hl, 0
 			ld (var_myslot_myslot), hl
-			ld hl, 0
 			ld (var_myslot_a), hl
-			ld hl, 0
 			ld (var_myslot_n), hl
 			ld (p_myslot_rs), sp
 			ld sp, p_myslot
@@ -891,20 +894,15 @@ p_zxnscr_leave_r:		; end of leave
 			ret
 p_zxnscr_ball_c:		; call ball (turbo)
 			pop hl			; i
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_zxnscr_ball_i), de
+			ld de, var_zxnscr_ball_i		; (the block of 3 parameters)
+			ldi
+			ldi
 			pop hl			; x
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_zxnscr_ball_x), de
+			ldi
+			ldi
 			pop hl			; y
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_zxnscr_ball_y), de
+			ldi
+			ldi
 			ld (p_zxnscr_ball_rs), sp
 			ld sp, p_zxnscr_ball
 			ret
@@ -955,15 +953,12 @@ p_cpcscr_setback_r:		; end of setback
 			ret
 p_cpcscr_text_c:		; call text (turbo)
 			pop hl			; col
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_cpcscr_text_col), de
+			ld de, var_cpcscr_text_col		; (the block of 2 parameters)
+			ldi
+			ldi
 			pop hl			; row
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_cpcscr_text_row), de
+			ldi
+			ldi
 			pop hl			; s
 			ld de, var_cpcscr_text_s
 			ld b, 60
@@ -1009,20 +1004,15 @@ p_cpcscr_leave_r:		; end of leave
 			ret
 p_cpcscr_ball_c:		; call ball (turbo)
 			pop hl			; i
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_cpcscr_ball_i), de
+			ld de, var_cpcscr_ball_i		; (the block of 3 parameters)
+			ldi
+			ldi
 			pop hl			; x
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_cpcscr_ball_x), de
+			ldi
+			ldi
 			pop hl			; y
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_cpcscr_ball_y), de
+			ldi
+			ldi
 			ld (p_cpcscr_ball_rs), sp
 			ld sp, p_cpcscr_ball
 			ret
@@ -1057,15 +1047,12 @@ p_cpcscr_done_r:		; end of done
 			ret
 p_cybsys_ask_c:		; call ask (turbo)
 			pop hl			; op
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_cybsys_ask_op), de
+			ld de, var_cybsys_ask_op		; (the block of 2 parameters)
+			ldi
+			ldi
 			pop hl			; v
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_cybsys_ask_v), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_cybsys_ask_ask), hl
 			ld (p_cybsys_ask_rs), sp
@@ -1108,15 +1095,12 @@ p_cybsys_byteat_r:		; end of byteat
 			ret
 p_cybsys_bdos_c:		; call bdos (turbo)
 			pop hl			; f
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_cybsys_bdos_f), de
+			ld de, var_cybsys_bdos_f		; (the block of 2 parameters)
+			ldi
+			ldi
 			pop hl			; d
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_cybsys_bdos_d), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_cybsys_bdos_bdos), hl
 			ld (p_cybsys_bdos_rs), sp
@@ -2006,19 +1990,19 @@ fn_ballgfx_cpcinstall:		; sub cpcinstall (asm keyword), BallGfx.cls line 81
 @cb_end:		; BallGfx.cls 784
 			ret			; end of #asm
 
-asm_4_225:		; #asm, CybSys.cls line 225
-            ld (var_cybsys_hsp), sp		; CybSys.cls 226
-            ld sp, (ntc_csp)		; CybSys.cls 227
-            ld a, (var_cybsys_bdos_f)		; CybSys.cls 228
-            ld c, a		; CybSys.cls 229
-            ld de, (var_cybsys_bdos_d)		; CybSys.cls 230
-            ei                      ; (CP/M's BDOS: interrupts on) [231]
-            call 5		; CybSys.cls 232
-            di                      ; (off before SP is the threaded code again: it comes back with them on) [233]
-            ld l, a		; CybSys.cls 234
-            ld h, 0		; CybSys.cls 235
-            ld (var_cybsys_bdos_bdos), hl		; CybSys.cls 236
-            ld sp, (var_cybsys_hsp)		; CybSys.cls 237
+asm_4_237:		; #asm, CybSys.cls line 237
+            ld (var_cybsys_hsp), sp		; CybSys.cls 238
+            ld sp, (ntc_csp)		; CybSys.cls 239
+            ld a, (var_cybsys_bdos_f)		; CybSys.cls 240
+            ld c, a		; CybSys.cls 241
+            ld de, (var_cybsys_bdos_d)		; CybSys.cls 242
+            ei                      ; (CP/M's BDOS: interrupts on) [243]
+            call 5		; CybSys.cls 244
+            di                      ; (off before SP is the threaded code again: it comes back with them on) [245]
+            ld l, a		; CybSys.cls 246
+            ld h, 0		; CybSys.cls 247
+            ld (var_cybsys_bdos_bdos), hl		; CybSys.cls 248
+            ld sp, (var_cybsys_hsp)		; CybSys.cls 249
 			ret			; end of #asm
 
 fn_system_commandline:		; function commandline (asm keyword), System.cls line 68
@@ -2062,9 +2046,9 @@ var_zxnscr_con15:			dw 0
 p_zxnscr_enter_rs:			dw 0
 p_zxnscr_leave_rs:			dw 0
 p_zxnscr_ball_rs:			dw 0
-var_zxnscr_ball_i:			dw 0
-var_zxnscr_ball_x:			dw 0
-var_zxnscr_ball_y:			dw 0
+var_zxnscr_ball_i:			dw 0, 0, 0		; parameters, one block
+var_zxnscr_ball_x		equ var_zxnscr_ball_i + 2
+var_zxnscr_ball_y		equ var_zxnscr_ball_i + 4
 p_zxnscr_show_rs:			dw 0
 p_zxnscr_done_rs:			dw 0
 var_zxnscr_done_n:			dw 0
@@ -2078,8 +2062,8 @@ p_cpcscr_setback_rs:			dw 0
 var_cpcscr_setback_p:			dw 0
 var_cpcscr_back:			dw 0
 p_cpcscr_text_rs:			dw 0
-var_cpcscr_text_col:			dw 0
-var_cpcscr_text_row:			dw 0
+var_cpcscr_text_col:			dw 0, 0		; parameters, one block
+var_cpcscr_text_row		equ var_cpcscr_text_col + 2
 			db 60			; capacity
 var_cpcscr_text_s:			ds 61
 var_cpcscr_text_k:			dw 0
@@ -2089,24 +2073,24 @@ p_cpcscr_enter_rs:			dw 0
 p_cpcscr_title_rs:			dw 0
 p_cpcscr_leave_rs:			dw 0
 p_cpcscr_ball_rs:			dw 0
-var_cpcscr_ball_i:			dw 0
-var_cpcscr_ball_x:			dw 0
-var_cpcscr_ball_y:			dw 0
+var_cpcscr_ball_i:			dw 0, 0, 0		; parameters, one block
+var_cpcscr_ball_x		equ var_cpcscr_ball_i + 2
+var_cpcscr_ball_y		equ var_cpcscr_ball_i + 4
 p_cpcscr_show_rs:			dw 0
 p_cpcscr_flip_rs:			dw 0
 p_cpcscr_done_rs:			dw 0
 var_cpcscr_done_n:			dw 0
 var_ballgfx_hsp:			dw 0
 p_cybsys_ask_rs:			dw 0
-var_cybsys_ask_op:			dw 0
-var_cybsys_ask_v:			dw 0
+var_cybsys_ask_op:			dw 0, 0		; parameters, one block
+var_cybsys_ask_v		equ var_cybsys_ask_op + 2
 p_cybsys_clock_rs:			dw 0
 p_cybsys_host_rs:			dw 0
 p_cybsys_byteat_rs:			dw 0
 var_cybsys_byteat_i:			dw 0
 p_cybsys_bdos_rs:			dw 0
-var_cybsys_bdos_f:			dw 0
-var_cybsys_bdos_d:			dw 0
+var_cybsys_bdos_f:			dw 0, 0		; parameters, one block
+var_cybsys_bdos_d		equ var_cybsys_bdos_f + 2
 var_cybsys_hsp:			dw 0
 tmp0:			dw 0
 tmp1:			dw 0
@@ -2138,6 +2122,8 @@ vp_arr_cybsys_b:			dw arr_cybsys_b
 lit_131:			dw 131
 lit_20:			dw 20
 lit_5:			dw 5
+lit_7:			dw 7
+lit_6:			dw 6
 lit_4:			dw 4
 llit_256:			dw 256, 0
 lit_17:			dw 17
@@ -3401,6 +3387,7 @@ kw_bssinit:
 			or a
 			sbc hl, bc
 			jr c, ntc_bs_ok
+			jr z, ntc_bs_ok		; (the stack just under them: CP/M's ntc_cpmstack = their start)
 			ld hl, (ntc_csp)
 			ld bc, -256
 			add hl, bc
@@ -3444,7 +3431,7 @@ ntc_bs_stop:
 ntc_bsa:		dw 0
 ntc_bsz:		dw 0
 ntc_bsp:		dw 0
-ntc_bstxt:		db "Not enough memory for the arrays", 0
+ntc_bstxt:		db "GURU 001", 0
 
 ;## ntc_plat_data
 ntc_curx:		db 0			; column (0 based) - counted for Tab
@@ -3453,8 +3440,8 @@ ntc_scols:		db 80			; columns
 ntc_bdosa:		db 0			; ntc_bdos: A on return
 ntc_smode:		db 2			; screen mode (Graphics on an Amstrad CPC: CP/M's console is mode 2)
 ntc_cpmtop:		dw #FFFF		; the heap's top if lower than the BDOS (Graphics on CP/M Plus: GFH_AT)
-				ds 256			; the program's real stack
-ntc_cpmstack:
+ntc_cpmstack	equ ntc_end + 256	; the program's real stack: the 256 bytes after the program's file (not in it),
+									; the arrays after them (ntc_bssfrom)
 
 ;## ntc_plat_bdos ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
@@ -3660,8 +3647,9 @@ ntc_mt1:
 
 
 ntc_end:				; the end of the program (and of its file)
+			DISPLAY "NTC memory: program ", /H, ntc_start, "-", /H, ntc_end - 1, " arrays ", /H, ntc_bss, "-", /H, ntc_free - 1, " stack ntc_cpmstack down (the platform's)"
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
-ntc_bssfrom	equ ntc_end
+ntc_bssfrom	equ ntc_end + 256		; (after the real stack: ntc_cpmstack)
 ntc_bss		equ ntc_bssfrom
 arr_bx		equ ntc_bss + 0		; 16 bytes
 arr_by		equ ntc_bss + 16		; 16 bytes

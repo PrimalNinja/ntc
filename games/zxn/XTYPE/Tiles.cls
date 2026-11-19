@@ -9,6 +9,7 @@
 ' Print near the right edge or the last row wraps and scrolls: end prints with ; and keep them
 ' off row 32 and column 40.
 Option Explicit
+Option Memory Reserved &HC000, &H2500     ' <--- NEW   the tile definitions (#C000-#DFFF) and the map (#E000-#E4FF) are in main memory: the program and its arrays kept out
 
 Public Const Cols = 40
 Public Const Rows = 32

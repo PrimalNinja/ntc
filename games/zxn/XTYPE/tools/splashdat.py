@@ -42,22 +42,7 @@ s = s.replace('            SPR #56\n            ld (spl_r56), a\n', '           
 s = s.replace('            ld hl, (spl_src)\n', '            ld a, (spl_bank)        ; the packed screen is in bank 20, in slot 7\n            SPW #57\n            ld hl, (spl_src)\n', 1)
 s = s.replace('            cp #DB\n            jr c, spu_lp\n            ret\n', '            cp #DB\n            jr c, spu_lp\n            ld a, (spl_r57)         ; slot 7 put back\n            SPW #57\n            ret\n', 1)
 s = s.replace('@spl_src:   dw 0\n', '@spl_src:   dw 0\n@spl_bank:  db 0\n@spl_r57:   db 0\n', 1)
-# 4. the bank in the NEX file (jumped over, like Pics.cls's)
-s = s.replace('\n\' the palette at brightness k', '''
-' the screens in the NEX file (bank 20: tools/splashdat.py makes build/SPLASH.DAT); it only jumps over them
-Private Sub Banks()
-#asm
-            jp spz_end
-spz_end:
-            MMU 6 7, 40
-            ORG #C000
-            INCBIN "SPLASH.DAT", 0, 16384
-            MMU 6 7, 10
-            ORG spz_end
-#endasm
-End Sub
-
-\' the palette at brightness k''', 1)
-s = s.replace('Public Sub Show(ByVal n As Integer)\n  Dim a As Integer\n  a = 0\n', 'Public Sub Show(ByVal n As Integer)\n  Dim a As Integer\n  a = 0\n  If n = 99 Then Banks\n', 1)
+# 4. the bank in the NEX file: NTC's Option SaveNex (page 20 is the Next's bank 20)
+s = s.replace('Option Explicit\n', 'Option Explicit\nOption SaveNex "SPLASH.DAT", 20     \' the packed screens (tools/splashdat.py makes build/SPLASH.DAT) in page 20 of the NEX file\n', 1)
 open(os.path.join(root, 'Splash.cls'), 'w').write(s)
 print('Splash.cls written; build/SPLASH.DAT', len(b40 + b41), 'bytes; logo', len(logo), 'plain', len(plain), 'ntc', len(ntc))

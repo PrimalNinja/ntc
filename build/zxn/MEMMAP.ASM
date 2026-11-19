@@ -25,6 +25,7 @@ NTC_PLATRSV	equ 1		; 1 = the platform's fixed areas (;@reserved) are Reserved in
 NTC_ZXIRQ	equ 1		; 1 = the interrupt handler (ntc_irq) is in the program: Frame catches up its lost ticks
 ; the ZX Spectrum Next: NTC_ZXN defined (a DEFINE - sjasmplus's IFDEF tests those, not labels)
 			DEFINE NTC_ZXN
+ZXN_MEMTOP	equ #BE00		; the top of the memory under the stack (ntc_plat_memtop): #BA00 with the FileSystem / Loader classes' DOS area, #BE00 without (20261118-1)
 ZXN_PROGPAGE	equ 0		; the Next's 8K page the program starts in (#0000): its six are ZXN_PROGPAGE .. + 5 (20261116-7: it was 16)
 ZXN_FIRSTBANK	equ 2		; first free 16K bank (page 4), above the program/screen/low banks
 ZXN_MAXBANK	equ 110		; scan range: banks 2-111 (a 2MB Next has 112 16K banks, pages 0-223; the MMU has no page past 223 - a higher page number is not RAM)
@@ -46,8 +47,8 @@ ntc_go:
 			ld sp, main_thread
 			ret
 
-			IF ($ < 49152) && (ntc_rg1_e - ntc_rg1 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg1_e - ntc_rg1 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg1_e - ntc_rg1 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -418,8 +419,8 @@ if10_e:
 			dw kw_stop
 
 ntc_rg1_e:
-			IF ($ < 49152) && (ntc_rg2_e - ntc_rg2 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg2_e - ntc_rg2 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg2_e - ntc_rg2 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -509,8 +510,8 @@ ch12_e:
 			dw p_summary_r
 
 ntc_rg2_e:
-			IF ($ < 49152) && (ntc_rg3_e - ntc_rg3 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg3_e - ntc_rg3 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg3_e - ntc_rg3 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -677,8 +678,8 @@ if14_e:
 			dw p_mainmap_r
 
 ntc_rg3_e:
-			IF ($ < 49152) && (ntc_rg4_e - ntc_rg4 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg4_e - ntc_rg4 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg4_e - ntc_rg4 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -735,8 +736,8 @@ if17_1:
 			dw p_area_r
 
 ntc_rg4_e:
-			IF ($ < 49152) && (ntc_rg5_e - ntc_rg5 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg5_e - ntc_rg5 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg5_e - ntc_rg5 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -764,8 +765,8 @@ if18_e:
 			dw p_u_r
 
 ntc_rg5_e:
-			IF ($ < 49152) && (ntc_rg6_e - ntc_rg6 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg6_e - ntc_rg6 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg6_e - ntc_rg6 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -818,8 +819,8 @@ if19_e:
 			dw p_showptr_r
 
 ntc_rg6_e:
-			IF ($ < 49152) && (ntc_rg7_e - ntc_rg7 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg7_e - ntc_rg7 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg7_e - ntc_rg7 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -949,8 +950,8 @@ p_showptr_r:		; end of showptr
 			jp ntc_xn
 
 ntc_rg7_e:
-			IF ($ < 49152) && (ntc_rg8_e - ntc_rg8 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg8_e - ntc_rg8 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg8_e - ntc_rg8 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1155,8 +1156,8 @@ fn_memory_copy:		; function copy (asm keyword), Memory.cls line 392
 
 
 ntc_rg8_e:
-			IF ($ < 49152) && (ntc_rg9_e - ntc_rg9 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg9_e - ntc_rg9 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg9_e - ntc_rg9 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1171,8 +1172,8 @@ ntc_rg9:
 ; ============================================================
 
 ntc_rg9_e:
-			IF ($ < 49152) && (ntc_rg10_e - ntc_rg10 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg10_e - ntc_rg10 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg10_e - ntc_rg10 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1184,8 +1185,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg10:
 var_n:			dw 0
 ntc_rg10_e:
-			IF ($ < 49152) && (ntc_rg11_e - ntc_rg11 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg11_e - ntc_rg11 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg11_e - ntc_rg11 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1197,8 +1198,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg11:
 var_memory_heapstart_heapstart:			dw 0
 ntc_rg11_e:
-			IF ($ < 49152) && (ntc_rg12_e - ntc_rg12 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg12_e - ntc_rg12 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg12_e - ntc_rg12 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1210,8 +1211,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg12:
 var_memory_heapend_heapend:			dw 0
 ntc_rg12_e:
-			IF ($ < 49152) && (ntc_rg13_e - ntc_rg13 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg13_e - ntc_rg13 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg13_e - ntc_rg13 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1223,8 +1224,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg13:
 var_memory_tableend_tableend:			dw 0
 ntc_rg13_e:
-			IF ($ < 49152) && (ntc_rg14_e - ntc_rg14 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg14_e - ntc_rg14 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg14_e - ntc_rg14 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1236,8 +1237,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg14:
 var_music:			dw 0
 ntc_rg14_e:
-			IF ($ < 49152) && (ntc_rg15_e - ntc_rg15 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg15_e - ntc_rg15 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg15_e - ntc_rg15 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1249,8 +1250,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg15:
 var_sprites:			dw 0
 ntc_rg15_e:
-			IF ($ < 49152) && (ntc_rg16_e - ntc_rg16 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg16_e - ntc_rg16 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg16_e - ntc_rg16 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1262,8 +1263,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg16:
 var_level:			dw 0
 ntc_rg16_e:
-			IF ($ < 49152) && (ntc_rg17_e - ntc_rg17 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg17_e - ntc_rg17 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg17_e - ntc_rg17 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1275,8 +1276,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg17:
 var_p1:			dw 0, 0
 ntc_rg17_e:
-			IF ($ < 49152) && (ntc_rg18_e - ntc_rg18 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg18_e - ntc_rg18 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg18_e - ntc_rg18 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1288,8 +1289,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg18:
 var_p2:			dw 0, 0
 ntc_rg18_e:
-			IF ($ < 49152) && (ntc_rg19_e - ntc_rg19 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg19_e - ntc_rg19 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg19_e - ntc_rg19 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1301,8 +1302,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg19:
 var_p3:			dw 0, 0
 ntc_rg19_e:
-			IF ($ < 49152) && (ntc_rg20_e - ntc_rg20 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg20_e - ntc_rg20 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg20_e - ntc_rg20 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1314,8 +1315,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg20:
 var_r:			dw 0
 ntc_rg20_e:
-			IF ($ < 49152) && (ntc_rg21_e - ntc_rg21 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg21_e - ntc_rg21 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg21_e - ntc_rg21 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1327,8 +1328,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg21:
 var_memory_pageof_pageof:			dw 0
 ntc_rg21_e:
-			IF ($ < 49152) && (ntc_rg22_e - ntc_rg22 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg22_e - ntc_rg22 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg22_e - ntc_rg22 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1340,8 +1341,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg22:
 var_memory_readword_readword:			dw 0
 ntc_rg22_e:
-			IF ($ < 49152) && (ntc_rg23_e - ntc_rg23 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg23_e - ntc_rg23 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg23_e - ntc_rg23 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1353,8 +1354,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg23:
 var_memory_largest_largest:			dw 0
 ntc_rg23_e:
-			IF ($ < 49152) && (ntc_rg24_e - ntc_rg24 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg24_e - ntc_rg24 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg24_e - ntc_rg24 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1367,8 +1368,8 @@ ntc_rg24:
 			db 40			; capacity
 var_m:			ds 41
 ntc_rg24_e:
-			IF ($ < 49152) && (ntc_rg25_e - ntc_rg25 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg25_e - ntc_rg25 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg25_e - ntc_rg25 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1381,8 +1382,8 @@ ntc_rg25:
 			db 40			; capacity
 var_memory_map_map:			ds 41
 ntc_rg25_e:
-			IF ($ < 49152) && (ntc_rg26_e - ntc_rg26 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg26_e - ntc_rg26 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg26_e - ntc_rg26 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1394,8 +1395,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg26:
 var_b:			dw 0
 ntc_rg26_e:
-			IF ($ < 49152) && (ntc_rg27_e - ntc_rg27 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg27_e - ntc_rg27 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg27_e - ntc_rg27 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1407,8 +1408,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg27:
 for6_l:			dw 0
 ntc_rg27_e:
-			IF ($ < 49152) && (ntc_rg28_e - ntc_rg28 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg28_e - ntc_rg28 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg28_e - ntc_rg28 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1420,8 +1421,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg28:
 for8_l:			dw 0
 ntc_rg28_e:
-			IF ($ < 49152) && (ntc_rg29_e - ntc_rg29 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg29_e - ntc_rg29 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg29_e - ntc_rg29 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1433,8 +1434,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg29:
 var_memory_freepages_freepages:			dw 0
 ntc_rg29_e:
-			IF ($ < 49152) && (ntc_rg30_e - ntc_rg30 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg30_e - ntc_rg30 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg30_e - ntc_rg30 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1446,8 +1447,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg30:
 p_summary_rs:			dw 0
 ntc_rg30_e:
-			IF ($ < 49152) && (ntc_rg31_e - ntc_rg31 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg31_e - ntc_rg31 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg31_e - ntc_rg31 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1459,8 +1460,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg31:
 var_summary_md:			dw 0
 ntc_rg31_e:
-			IF ($ < 49152) && (ntc_rg32_e - ntc_rg32 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg32_e - ntc_rg32 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg32_e - ntc_rg32 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1472,8 +1473,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg32:
 var_memory_ramsize_ramsize:			dw 0
 ntc_rg32_e:
-			IF ($ < 49152) && (ntc_rg33_e - ntc_rg33 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg33_e - ntc_rg33 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg33_e - ntc_rg33 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1485,8 +1486,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg33:
 p_mainmap_rs:			dw 0
 ntc_rg33_e:
-			IF ($ < 49152) && (ntc_rg34_e - ntc_rg34 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg34_e - ntc_rg34 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg34_e - ntc_rg34 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1498,8 +1499,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg34:
 var_mainmap_e:			dw 0
 ntc_rg34_e:
-			IF ($ < 49152) && (ntc_rg35_e - ntc_rg35 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg35_e - ntc_rg35 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg35_e - ntc_rg35 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1511,8 +1512,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg35:
 var_mainmap_t:			dw 0
 ntc_rg35_e:
-			IF ($ < 49152) && (ntc_rg36_e - ntc_rg36 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg36_e - ntc_rg36 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg36_e - ntc_rg36 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1524,8 +1525,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg36:
 var_mainmap_top:			dw 0
 ntc_rg36_e:
-			IF ($ < 49152) && (ntc_rg37_e - ntc_rg37 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg37_e - ntc_rg37 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg37_e - ntc_rg37 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1537,8 +1538,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg37:
 var_mainmap_hs:			dw 0
 ntc_rg37_e:
-			IF ($ < 49152) && (ntc_rg38_e - ntc_rg38 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg38_e - ntc_rg38 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg38_e - ntc_rg38 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1550,8 +1551,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg38:
 var_mainmap_he:			dw 0
 ntc_rg38_e:
-			IF ($ < 49152) && (ntc_rg39_e - ntc_rg39 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg39_e - ntc_rg39 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg39_e - ntc_rg39 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1563,8 +1564,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg39:
 var_fr:			dw 0, 0
 ntc_rg39_e:
-			IF ($ < 49152) && (ntc_rg40_e - ntc_rg40 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg40_e - ntc_rg40 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg40_e - ntc_rg40 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1576,8 +1577,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg40:
 var_memory_programstart_programstart:			dw 0
 ntc_rg40_e:
-			IF ($ < 49152) && (ntc_rg41_e - ntc_rg41 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg41_e - ntc_rg41 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg41_e - ntc_rg41 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1589,8 +1590,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg41:
 var_u_u:			dw 0, 0
 ntc_rg41_e:
-			IF ($ < 49152) && (ntc_rg42_e - ntc_rg42 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg42_e - ntc_rg42 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg42_e - ntc_rg42 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1602,8 +1603,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg42:
 var_memory_pages_pages:			dw 0
 ntc_rg42_e:
-			IF ($ < 49152) && (ntc_rg43_e - ntc_rg43 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg43_e - ntc_rg43 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg43_e - ntc_rg43 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1615,8 +1616,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg43:
 var_memory_stacktop_stacktop:			dw 0
 ntc_rg43_e:
-			IF ($ < 49152) && (ntc_rg44_e - ntc_rg44 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg44_e - ntc_rg44 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg44_e - ntc_rg44 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1628,8 +1629,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg44:
 p_area_rs:			dw 0
 ntc_rg44_e:
-			IF ($ < 49152) && (ntc_rg45_e - ntc_rg45 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg45_e - ntc_rg45 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg45_e - ntc_rg45 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1641,8 +1642,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg45:
 var_area_a:			dw 0, 0		; parameters, one block
 ntc_rg45_e:
-			IF ($ < 49152) && (ntc_rg46_e - ntc_rg46 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg46_e - ntc_rg46 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg46_e - ntc_rg46 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1655,8 +1656,8 @@ ntc_rg46:
 			db 40			; capacity
 var_area_what:			ds 41
 ntc_rg46_e:
-			IF ($ < 49152) && (ntc_rg47_e - ntc_rg47 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg47_e - ntc_rg47 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg47_e - ntc_rg47 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1668,8 +1669,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg47:
 p_u_rs:			dw 0
 ntc_rg47_e:
-			IF ($ < 49152) && (ntc_rg48_e - ntc_rg48 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg48_e - ntc_rg48 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg48_e - ntc_rg48 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1681,8 +1682,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg48:
 var_u_x:			dw 0
 ntc_rg48_e:
-			IF ($ < 49152) && (ntc_rg49_e - ntc_rg49 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg49_e - ntc_rg49 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg49_e - ntc_rg49 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1694,8 +1695,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg49:
 p_showptr_rs:			dw 0
 ntc_rg49_e:
-			IF ($ < 49152) && (ntc_rg50_e - ntc_rg50 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg50_e - ntc_rg50 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg50_e - ntc_rg50 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1708,8 +1709,8 @@ ntc_rg50:
 			db 40			; capacity
 var_showptr_what:			ds 41
 ntc_rg50_e:
-			IF ($ < 49152) && (ntc_rg51_e - ntc_rg51 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg51_e - ntc_rg51 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg51_e - ntc_rg51 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1721,8 +1722,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg51:
 var_showptr_p:			dw 0, 0
 ntc_rg51_e:
-			IF ($ < 49152) && (ntc_rg52_e - ntc_rg52 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg52_e - ntc_rg52 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg52_e - ntc_rg52 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1734,8 +1735,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg52:
 var_memory_address_address:			dw 0
 ntc_rg52_e:
-			IF ($ < 49152) && (ntc_rg53_e - ntc_rg53 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg53_e - ntc_rg53 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg53_e - ntc_rg53 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1747,8 +1748,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg53:
 tmp0:			dw 0
 ntc_rg53_e:
-			IF ($ < 49152) && (ntc_rg54_e - ntc_rg54 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg54_e - ntc_rg54 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg54_e - ntc_rg54 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1760,8 +1761,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg54:
 tmp1:			dw 0
 ntc_rg54_e:
-			IF ($ < 49152) && (ntc_rg55_e - ntc_rg55 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg55_e - ntc_rg55 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg55_e - ntc_rg55 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1773,8 +1774,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg55:
 tmp2:			dw 0
 ntc_rg55_e:
-			IF ($ < 49152) && (ntc_rg56_e - ntc_rg56 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg56_e - ntc_rg56 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg56_e - ntc_rg56 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1787,8 +1788,8 @@ ntc_rg56:
 			db 40			; capacity
 stmp0:			ds 41
 ntc_rg56_e:
-			IF ($ < 49152) && (ntc_rg57_e - ntc_rg57 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg57_e - ntc_rg57 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg57_e - ntc_rg57 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1801,8 +1802,8 @@ ntc_rg57:
 			db 40			; capacity
 stmp1:			ds 41
 ntc_rg57_e:
-			IF ($ < 49152) && (ntc_rg58_e - ntc_rg58 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg58_e - ntc_rg58 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg58_e - ntc_rg58 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1814,8 +1815,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg58:
 ltmp0:			dw 0, 0
 ntc_rg58_e:
-			IF ($ < 49152) && (ntc_rg59_e - ntc_rg59 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg59_e - ntc_rg59 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg59_e - ntc_rg59 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1827,8 +1828,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg59:
 ltmp1:			dw 0, 0
 ntc_rg59_e:
-			IF ($ < 49152) && (ntc_rg60_e - ntc_rg60 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg60_e - ntc_rg60 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg60_e - ntc_rg60 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1842,8 +1843,8 @@ ltmp2:			dw 0, 0
 
 ; numbers passed by address (read only)
 ntc_rg60_e:
-			IF ($ < 49152) && (ntc_rg61_e - ntc_rg61 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg61_e - ntc_rg61 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg61_e - ntc_rg61 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1855,8 +1856,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg61:
 lit_85:			dw 85
 ntc_rg61_e:
-			IF ($ < 49152) && (ntc_rg62_e - ntc_rg62 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg62_e - ntc_rg62 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg62_e - ntc_rg62 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1868,8 +1869,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg62:
 lit_67:			dw 67
 ntc_rg62_e:
-			IF ($ < 49152) && (ntc_rg63_e - ntc_rg63 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg63_e - ntc_rg63 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg63_e - ntc_rg63 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1881,8 +1882,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg63:
 lit_1000:			dw 1000
 ntc_rg63_e:
-			IF ($ < 49152) && (ntc_rg64_e - ntc_rg64 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg64_e - ntc_rg64 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg64_e - ntc_rg64 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1894,8 +1895,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg64:
 lit_6000:			dw 6000
 ntc_rg64_e:
-			IF ($ < 49152) && (ntc_rg65_e - ntc_rg65 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg65_e - ntc_rg65 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg65_e - ntc_rg65 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1907,8 +1908,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg65:
 lit_12000:			dw 12000
 ntc_rg65_e:
-			IF ($ < 49152) && (ntc_rg66_e - ntc_rg66 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg66_e - ntc_rg66 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg66_e - ntc_rg66 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1920,8 +1921,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg66:
 llit_0:			dw 0, 0
 ntc_rg66_e:
-			IF ($ < 49152) && (ntc_rg67_e - ntc_rg67 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg67_e - ntc_rg67 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg67_e - ntc_rg67 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1933,8 +1934,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg67:
 lit_12345:			dw 12345
 ntc_rg67_e:
-			IF ($ < 49152) && (ntc_rg68_e - ntc_rg68 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg68_e - ntc_rg68 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg68_e - ntc_rg68 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1946,8 +1947,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg68:
 lit_2:			dw 2
 ntc_rg68_e:
-			IF ($ < 49152) && (ntc_rg69_e - ntc_rg69 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg69_e - ntc_rg69 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg69_e - ntc_rg69 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1959,8 +1960,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg69:
 lit_1:			dw 1
 ntc_rg69_e:
-			IF ($ < 49152) && (ntc_rg70_e - ntc_rg70 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg70_e - ntc_rg70 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg70_e - ntc_rg70 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1972,8 +1973,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg70:
 lit_32:			dw 32
 ntc_rg70_e:
-			IF ($ < 49152) && (ntc_rg71_e - ntc_rg71 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg71_e - ntc_rg71 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg71_e - ntc_rg71 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1985,8 +1986,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg71:
 lit_33:			dw 33
 ntc_rg71_e:
-			IF ($ < 49152) && (ntc_rg72_e - ntc_rg72 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg72_e - ntc_rg72 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg72_e - ntc_rg72 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -1998,8 +1999,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg72:
 lit_16384:			dw 16384
 ntc_rg72_e:
-			IF ($ < 49152) && (ntc_rg73_e - ntc_rg73 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg73_e - ntc_rg73 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg73_e - ntc_rg73 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2011,8 +2012,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg73:
 lit_m32768:			dw -32768
 ntc_rg73_e:
-			IF ($ < 49152) && (ntc_rg74_e - ntc_rg74 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg74_e - ntc_rg74 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg74_e - ntc_rg74 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2024,8 +2025,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg74:
 llit_16:			dw 16, 0
 ntc_rg74_e:
-			IF ($ < 49152) && (ntc_rg75_e - ntc_rg75 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg75_e - ntc_rg75 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg75_e - ntc_rg75 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2037,8 +2038,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg75:
 lit_4:			dw 4
 ntc_rg75_e:
-			IF ($ < 49152) && (ntc_rg76_e - ntc_rg76 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg76_e - ntc_rg76 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg76_e - ntc_rg76 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2051,8 +2052,8 @@ ntc_rg76:
 llit_65536:			dw 0, 1
 
 ntc_rg76_e:
-			IF ($ < 49152) && (ntc_rg77_e - ntc_rg77 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg77_e - ntc_rg77 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg77_e - ntc_rg77 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2068,8 +2069,8 @@ ntc_rg77:
 
 
 ntc_rg77_e:
-			IF ($ < 49152) && (ntc_rg78_e - ntc_rg78 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg78_e - ntc_rg78 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg78_e - ntc_rg78 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2084,8 +2085,8 @@ ntc_rg78:
 ; ============================================================
 
 ntc_rg78_e:
-			IF ($ < 49152) && (ntc_rg79_e - ntc_rg79 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg79_e - ntc_rg79 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg79_e - ntc_rg79 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2097,8 +2098,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg79:
 str0:			db "ZXN", 0
 ntc_rg79_e:
-			IF ($ < 49152) && (ntc_rg80_e - ntc_rg80 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg80_e - ntc_rg80 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg80_e - ntc_rg80 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2110,8 +2111,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg80:
 str1:			db "1000", 0
 ntc_rg80_e:
-			IF ($ < 49152) && (ntc_rg81_e - ntc_rg81 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg81_e - ntc_rg81 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg81_e - ntc_rg81 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2123,8 +2124,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg81:
 str2:			db "6000", 0
 ntc_rg81_e:
-			IF ($ < 49152) && (ntc_rg82_e - ntc_rg82 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg82_e - ntc_rg82 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg82_e - ntc_rg82 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2136,8 +2137,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg82:
 str3:			db "12000", 0
 ntc_rg82_e:
-			IF ($ < 49152) && (ntc_rg83_e - ntc_rg83 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg83_e - ntc_rg83 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg83_e - ntc_rg83 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2149,8 +2150,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg83:
 str4:			db "small (64K)", 0
 ntc_rg83_e:
-			IF ($ < 49152) && (ntc_rg84_e - ntc_rg84 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg84_e - ntc_rg84 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg84_e - ntc_rg84 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2162,8 +2163,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg84:
 str5:			db "medium (128K)", 0
 ntc_rg84_e:
-			IF ($ < 49152) && (ntc_rg85_e - ntc_rg85 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg85_e - ntc_rg85 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg85_e - ntc_rg85 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2175,8 +2176,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg85:
 str6:			db "large (to 576K)", 0
 ntc_rg85_e:
-			IF ($ < 49152) && (ntc_rg86_e - ntc_rg86 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg86_e - ntc_rg86 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg86_e - ntc_rg86 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2188,8 +2189,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg86:
 str7:			db "huge (to 4MB)", 0
 ntc_rg86_e:
-			IF ($ < 49152) && (ntc_rg87_e - ntc_rg87 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg87_e - ntc_rg87 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg87_e - ntc_rg87 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2201,8 +2202,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg87:
 str8:			db 0
 ntc_rg87_e:
-			IF ($ < 49152) && (ntc_rg88_e - ntc_rg88 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg88_e - ntc_rg88 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg88_e - ntc_rg88 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2214,8 +2215,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg88:
 str9:			db "program and arrays", 0
 ntc_rg88_e:
-			IF ($ < 49152) && (ntc_rg89_e - ntc_rg89 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg89_e - ntc_rg89 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg89_e - ntc_rg89 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2227,8 +2228,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg89:
 str10:			db "page tables", 0
 ntc_rg89_e:
-			IF ($ < 49152) && (ntc_rg90_e - ntc_rg90 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg90_e - ntc_rg90 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg90_e - ntc_rg90 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2240,8 +2241,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg90:
 str11:			db "free", 0
 ntc_rg90_e:
-			IF ($ < 49152) && (ntc_rg91_e - ntc_rg91 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg91_e - ntc_rg91 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg91_e - ntc_rg91 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2253,8 +2254,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg91:
 str12:			db "window (pages)", 0
 ntc_rg91_e:
-			IF ($ < 49152) && (ntc_rg92_e - ntc_rg92 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg92_e - ntc_rg92 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg92_e - ntc_rg92 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2266,8 +2267,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg92:
 str13:			db "heap (Alloc, List)", 0
 ntc_rg92_e:
-			IF ($ < 49152) && (ntc_rg93_e - ntc_rg93 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg93_e - ntc_rg93 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg93_e - ntc_rg93 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2279,8 +2280,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg93:
 str14:			db "Option Memory Reserved", 0
 ntc_rg93_e:
-			IF ($ < 49152) && (ntc_rg94_e - ntc_rg94 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg94_e - ntc_rg94 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg94_e - ntc_rg94 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2292,8 +2293,8 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 ntc_rg94:
 str15:			db "stack and spare", 0
 ntc_rg94_e:
-			IF ($ < 49152) && (ntc_rg95_e - ntc_rg95 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg95_e - ntc_rg95 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg95_e - ntc_rg95 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2306,8 +2307,8 @@ ntc_rg95:
 str16:			db "000", 0
 
 ntc_rg95_e:
-			IF ($ < 49152) && (ntc_rg96_e - ntc_rg96 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg96_e - ntc_rg96 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg96_e - ntc_rg96 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2322,8 +2323,8 @@ ntc_rg96:
 ; ============================================================
 
 ntc_rg96_e:
-			IF ($ < 49152) && (ntc_rg97_e - ntc_rg97 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg97_e - ntc_rg97 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg97_e - ntc_rg97 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2346,8 +2347,8 @@ ntc_csp:		dw 0			; caller SP, for kw_stop (and the normal mode stack)
 ntc_ip:			dw 0			; normal mode: thread position while out of the thread
 
 ntc_rg97_e:
-			IF ($ < 49152) && (ntc_rg98_e - ntc_rg98 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg98_e - ntc_rg98 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg98_e - ntc_rg98 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2361,8 +2362,8 @@ ntc_rg98:
 ntc_ticks:		dw 0			; interrupt count (normal mode, platform handler)
 
 ntc_rg98_e:
-			IF ($ < 49152) && (ntc_rg99_e - ntc_rg99 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg99_e - ntc_rg99 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg99_e - ntc_rg99 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2376,8 +2377,8 @@ ntc_rg99:
 ntc_gnlo:		db 0			; ntc_getn: low byte
 
 ntc_rg99_e:
-			IF ($ < 49152) && (ntc_rg100_e - ntc_rg100 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg100_e - ntc_rg100 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg100_e - ntc_rg100 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2391,8 +2392,8 @@ ntc_rg100:
 ntc_nmode:		db 0			; 1 = running in normal mode (waits let interrupts in)
 
 ntc_rg100_e:
-			IF ($ < 49152) && (ntc_rg101_e - ntc_rg101 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg101_e - ntc_rg101 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg101_e - ntc_rg101 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2408,8 +2409,8 @@ ntc_sgnq:		db 0			; quotient sign (bit 7)
 ntc_sgnr:		db 0			; remainder sign (bit 7)
 
 ntc_rg101_e:
-			IF ($ < 49152) && (ntc_rg102_e - ntc_rg102 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg102_e - ntc_rg102 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg102_e - ntc_rg102 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2423,8 +2424,8 @@ ntc_rg102:
 ntc_lead:		db 0			; printint: digit seen
 
 ntc_rg102_e:
-			IF ($ < 49152) && (ntc_rg103_e - ntc_rg103 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg103_e - ntc_rg103 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg103_e - ntc_rg103 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2438,8 +2439,8 @@ ntc_rg103:
 ntc_sptr:		dw 0			; printbuf: text pointer
 
 ntc_rg103_e:
-			IF ($ < 49152) && (ntc_rg104_e - ntc_rg104 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg104_e - ntc_rg104 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg104_e - ntc_rg104 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2453,8 +2454,8 @@ ntc_rg104:
 ntc_ivar:		dw 0			; inputint / inkey: dest var
 
 ntc_rg104_e:
-			IF ($ < 49152) && (ntc_rg105_e - ntc_rg105 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg105_e - ntc_rg105 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg105_e - ntc_rg105 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2471,8 +2472,8 @@ ntc_hookpend:	db 0			; 1 = an interrupt came, the hook runs at the next safe poi
 ntc_hook:		dw 0			; the hook Sub's call stub
 
 ntc_rg105_e:
-			IF ($ < 49152) && (ntc_rg106_e - ntc_rg106 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg106_e - ntc_rg106 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg106_e - ntc_rg106 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2486,8 +2487,8 @@ ntc_rg106:
 ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrint)
 
 ntc_rg106_e:
-			IF ($ < 49152) && (ntc_rg107_e - ntc_rg107 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg107_e - ntc_rg107 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg107_e - ntc_rg107 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2507,8 +2508,8 @@ ntc_stop_back:
 			ret
 
 ntc_rg107_e:
-			IF ($ < 49152) && (ntc_rg108_e - ntc_rg108 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg108_e - ntc_rg108 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg108_e - ntc_rg108 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2525,8 +2526,8 @@ kw_waitkey:
 			jp ntc_plat_getkey
 
 ntc_rg108_e:
-			IF ($ < 49152) && (ntc_rg109_e - ntc_rg109 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg109_e - ntc_rg109 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg109_e - ntc_rg109 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2552,8 +2553,8 @@ ntc_xn:
 			ret
 
 ntc_rg109_e:
-			IF ($ < 49152) && (ntc_rg110_e - ntc_rg110 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg110_e - ntc_rg110 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg110_e - ntc_rg110 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2572,8 +2573,8 @@ kw_goto_iffalse_n:
 			jp ntc_xn
 
 ntc_rg110_e:
-			IF ($ < 49152) && (ntc_rg111_e - ntc_rg111 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg111_e - ntc_rg111 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg111_e - ntc_rg111 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2592,8 +2593,8 @@ kw_goto_iftrue_n:
 			jp ntc_xn
 
 ntc_rg111_e:
-			IF ($ < 49152) && (ntc_rg112_e - ntc_rg112 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg112_e - ntc_rg112 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg112_e - ntc_rg112 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2616,8 +2617,8 @@ kw_goto_ifzero_n:
 			jp ntc_xn
 
 ntc_rg112_e:
-			IF ($ < 49152) && (ntc_rg113_e - ntc_rg113 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg113_e - ntc_rg113 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg113_e - ntc_rg113 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2698,8 +2699,8 @@ ntc_for_end_n:
 			jp ntc_xn
 
 ntc_rg113_e:
-			IF ($ < 49152) && (ntc_rg114_e - ntc_rg114 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg114_e - ntc_rg114 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg114_e - ntc_rg114 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2724,8 +2725,8 @@ kw_forupv_n:
 			jp ntc_for_gt_n
 
 ntc_rg114_e:
-			IF ($ < 49152) && (ntc_rg115_e - ntc_rg115 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg115_e - ntc_rg115 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg115_e - ntc_rg115 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2756,8 +2757,8 @@ ntc_n1l_nc_n:
 			jp ntc_for_le_n
 
 ntc_rg115_e:
-			IF ($ < 49152) && (ntc_rg116_e - ntc_rg116 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg116_e - ntc_rg116 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg116_e - ntc_rg116 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2791,8 +2792,8 @@ ntc_n1v_nc_n:
 			jp ntc_for_le_n
 
 ntc_rg116_e:
-			IF ($ < 49152) && (ntc_rg117_e - ntc_rg117 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg117_e - ntc_rg117 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg117_e - ntc_rg117 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2816,8 +2817,8 @@ kw_vtov:
 			ret
 
 ntc_rg117_e:
-			IF ($ < 49152) && (ntc_rg118_e - ntc_rg118 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg118_e - ntc_rg118 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg118_e - ntc_rg118 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2838,8 +2839,8 @@ kw_ztov:
 			ret
 
 ntc_rg118_e:
-			IF ($ < 49152) && (ntc_rg119_e - ntc_rg119 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg119_e - ntc_rg119 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg119_e - ntc_rg119 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2869,8 +2870,8 @@ ntc_ftov_t:
 ; ============================================================
 
 ntc_rg119_e:
-			IF ($ < 49152) && (ntc_rg120_e - ntc_rg120 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg120_e - ntc_rg120 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg120_e - ntc_rg120 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2901,8 +2902,8 @@ kw_add:
 			ret
 
 ntc_rg120_e:
-			IF ($ < 49152) && (ntc_rg121_e - ntc_rg121 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg121_e - ntc_rg121 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg121_e - ntc_rg121 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2929,8 +2930,8 @@ kw_addl:
 			ret
 
 ntc_rg121_e:
-			IF ($ < 49152) && (ntc_rg122_e - ntc_rg122 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg122_e - ntc_rg122 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg122_e - ntc_rg122 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2960,8 +2961,8 @@ kw_sublv:
 			ret
 
 ntc_rg122_e:
-			IF ($ < 49152) && (ntc_rg123_e - ntc_rg123 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg123_e - ntc_rg123 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg123_e - ntc_rg123 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -2989,8 +2990,8 @@ kw_4x:
 			ret
 
 ntc_rg123_e:
-			IF ($ < 49152) && (ntc_rg124_e - ntc_rg124 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg124_e - ntc_rg124 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg124_e - ntc_rg124 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3022,8 +3023,8 @@ ntc_mul_skip:
 			ret
 
 ntc_rg124_e:
-			IF ($ < 49152) && (ntc_rg125_e - ntc_rg125 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg125_e - ntc_rg125 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg125_e - ntc_rg125 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3044,8 +3045,8 @@ kw_mulvl:
 			jp ntc_mul
 
 ntc_rg125_e:
-			IF ($ < 49152) && (ntc_rg126_e - ntc_rg126 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg126_e - ntc_rg126 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg126_e - ntc_rg126 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3136,8 +3137,8 @@ ntc_div_store:
 			ret
 
 ntc_rg126_e:
-			IF ($ < 49152) && (ntc_rg127_e - ntc_rg127 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg127_e - ntc_rg127 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg127_e - ntc_rg127 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3162,8 +3163,8 @@ ntc_divvl:
 			jp ntc_div
 
 ntc_rg127_e:
-			IF ($ < 49152) && (ntc_rg128_e - ntc_rg128 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg128_e - ntc_rg128 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg128_e - ntc_rg128 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3195,8 +3196,8 @@ kw_andvv:
 			ret
 
 ntc_rg128_e:
-			IF ($ < 49152) && (ntc_rg129_e - ntc_rg129 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg129_e - ntc_rg129 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg129_e - ntc_rg129 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3274,8 +3275,8 @@ ntc_cmp_ne_f:
 			ret
 
 ntc_rg129_e:
-			IF ($ < 49152) && (ntc_rg130_e - ntc_rg130 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg130_e - ntc_rg130 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg130_e - ntc_rg130 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3296,8 +3297,8 @@ kw_scpltvl:
 			jp ntc_cmp_slt
 
 ntc_rg130_e:
-			IF ($ < 49152) && (ntc_rg131_e - ntc_rg131 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg131_e - ntc_rg131 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg131_e - ntc_rg131 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3317,8 +3318,8 @@ kw_scplevl:
 			jp ntc_cmp_sle
 
 ntc_rg131_e:
-			IF ($ < 49152) && (ntc_rg132_e - ntc_rg132 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg132_e - ntc_rg132 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg132_e - ntc_rg132 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3338,8 +3339,8 @@ kw_scpgtvl:
 			jp ntc_cmp_sgt
 
 ntc_rg132_e:
-			IF ($ < 49152) && (ntc_rg133_e - ntc_rg133 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg133_e - ntc_rg133 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg133_e - ntc_rg133 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3359,8 +3360,8 @@ kw_cpeqvl:
 			jp ntc_cmp_eq
 
 ntc_rg133_e:
-			IF ($ < 49152) && (ntc_rg134_e - ntc_rg134 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg134_e - ntc_rg134 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg134_e - ntc_rg134 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3384,8 +3385,8 @@ kw_cpnevl:
 ; ============================================================
 
 ntc_rg134_e:
-			IF ($ < 49152) && (ntc_rg135_e - ntc_rg135 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg135_e - ntc_rg135 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg135_e - ntc_rg135 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3417,8 +3418,8 @@ ntc_strcpy_loop:
 			ret
 
 ntc_rg135_e:
-			IF ($ < 49152) && (ntc_rg136_e - ntc_rg136 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg136_e - ntc_rg136 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg136_e - ntc_rg136 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3459,8 +3460,8 @@ ntc_strcat_loop:
 			ret
 
 ntc_rg136_e:
-			IF ($ < 49152) && (ntc_rg137_e - ntc_rg137 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg137_e - ntc_rg137 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg137_e - ntc_rg137 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3483,8 +3484,8 @@ ntc_printbuf:
 			jp ntc_plat_putc
 
 ntc_rg137_e:
-			IF ($ < 49152) && (ntc_rg138_e - ntc_rg138 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg138_e - ntc_rg138 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg138_e - ntc_rg138 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3516,8 +3517,8 @@ ntc_pz_ctl:
 			jp ntc_plat_newline
 
 ntc_rg138_e:
-			IF ($ < 49152) && (ntc_rg139_e - ntc_rg139 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg139_e - ntc_rg139 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg139_e - ntc_rg139 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3535,8 +3536,8 @@ kw_printstrvar:
 			jp ntc_printbuf
 
 ntc_rg139_e:
-			IF ($ < 49152) && (ntc_rg140_e - ntc_rg140 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg140_e - ntc_rg140 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg140_e - ntc_rg140 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3605,8 +3606,8 @@ ntc_ia_last:
 ntc_pow10:		dw 10000, 1000, 100, 10, 0
 
 ntc_rg140_e:
-			IF ($ < 49152) && (ntc_rg141_e - ntc_rg141 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg141_e - ntc_rg141 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg141_e - ntc_rg141 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3633,8 +3634,8 @@ ntc_pi_done:
 			jp ntc_printbuf
 
 ntc_rg141_e:
-			IF ($ < 49152) && (ntc_rg142_e - ntc_rg142 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg142_e - ntc_rg142 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg142_e - ntc_rg142 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3654,8 +3655,8 @@ kw_printnl0:
 			jp ntc_plat_newline
 
 ntc_rg142_e:
-			IF ($ < 49152) && (ntc_rg143_e - ntc_rg143 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg143_e - ntc_rg143 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg143_e - ntc_rg143 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3672,8 +3673,8 @@ kw_printnl:
 			jp ntc_plat_newline
 
 ntc_rg143_e:
-			IF ($ < 49152) && (ntc_rg144_e - ntc_rg144 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg144_e - ntc_rg144 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg144_e - ntc_rg144 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3698,8 +3699,8 @@ ntc_inkey_got:
 			ret
 
 ntc_rg144_e:
-			IF ($ < 49152) && (ntc_rg145_e - ntc_rg145 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg145_e - ntc_rg145 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg145_e - ntc_rg145 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3718,8 +3719,8 @@ kw_scrinit:
 			jp ntc_plat_mode
 
 ntc_rg145_e:
-			IF ($ < 49152) && (ntc_rg146_e - ntc_rg146 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg146_e - ntc_rg146 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg146_e - ntc_rg146 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3736,8 +3737,8 @@ kw_cls:
 			jp ntc_plat_cls
 
 ntc_rg146_e:
-			IF ($ < 49152) && (ntc_rg147_e - ntc_rg147 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg147_e - ntc_rg147 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg147_e - ntc_rg147 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3754,8 +3755,8 @@ kw_frame:
 			jp ntc_plat_frame
 
 ntc_rg147_e:
-			IF ($ < 49152) && (ntc_rg148_e - ntc_rg148 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg148_e - ntc_rg148 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg148_e - ntc_rg148 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3786,8 +3787,8 @@ ntc_gn_max:
 			jp (ix)
 
 ntc_rg148_e:
-			IF ($ < 49152) && (ntc_rg149_e - ntc_rg149 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg149_e - ntc_rg149 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg149_e - ntc_rg149 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3826,8 +3827,8 @@ ntc_sn_end:
 			ret
 
 ntc_rg149_e:
-			IF ($ < 49152) && (ntc_rg150_e - ntc_rg150 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg150_e - ntc_rg150 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg150_e - ntc_rg150 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3870,8 +3871,8 @@ ntc_sr_skip:
 			jp ntc_strncpy
 
 ntc_rg150_e:
-			IF ($ < 49152) && (ntc_rg151_e - ntc_rg151 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg151_e - ntc_rg151 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg151_e - ntc_rg151 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3913,8 +3914,8 @@ ntc_sm_n:
 			jp ntc_strncpy
 
 ntc_rg151_e:
-			IF ($ < 49152) && (ntc_rg152_e - ntc_rg152 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg152_e - ntc_rg152 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg152_e - ntc_rg152 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3970,8 +3971,8 @@ ntc_hx_next:
 			ret
 
 ntc_rg152_e:
-			IF ($ < 49152) && (ntc_rg153_e - ntc_rg153 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg153_e - ntc_rg153 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg153_e - ntc_rg153 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -3992,8 +3993,8 @@ ntc_ldst:		dw 0
 ntc_lix:		dw 0
 
 ntc_rg153_e:
-			IF ($ < 49152) && (ntc_rg154_e - ntc_rg154 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg154_e - ntc_rg154 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg154_e - ntc_rg154 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -4015,8 +4016,8 @@ kw_l_mov:
 			ret
 
 ntc_rg154_e:
-			IF ($ < 49152) && (ntc_rg155_e - ntc_rg155 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg155_e - ntc_rg155 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg155_e - ntc_rg155 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -4046,8 +4047,8 @@ kw_l_itol:
 			ret
 
 ntc_rg155_e:
-			IF ($ < 49152) && (ntc_rg156_e - ntc_rg156 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg156_e - ntc_rg156 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg156_e - ntc_rg156 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -4084,8 +4085,8 @@ kw_l_add:
 			ret
 
 ntc_rg156_e:
-			IF ($ < 49152) && (ntc_rg157_e - ntc_rg157 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg157_e - ntc_rg157 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg157_e - ntc_rg157 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -4122,8 +4123,8 @@ kw_l_sub:
 			ret
 
 ntc_rg157_e:
-			IF ($ < 49152) && (ntc_rg158_e - ntc_rg158 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg158_e - ntc_rg158 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg158_e - ntc_rg158 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -4174,8 +4175,8 @@ ntc_lcm_nov:
 			jp (ix)
 
 ntc_rg158_e:
-			IF ($ < 49152) && (ntc_rg159_e - ntc_rg159 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg159_e - ntc_rg159 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg159_e - ntc_rg159 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -4198,8 +4199,8 @@ ntc_lceq:
 			ret
 
 ntc_rg159_e:
-			IF ($ < 49152) && (ntc_rg160_e - ntc_rg160 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg160_e - ntc_rg160 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg160_e - ntc_rg160 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -4227,8 +4228,8 @@ ntc_lcne_f:
 			ret
 
 ntc_rg160_e:
-			IF ($ < 49152) && (ntc_rg161_e - ntc_rg161 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg161_e - ntc_rg161 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg161_e - ntc_rg161 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -4254,8 +4255,8 @@ ntc_lcle:
 			ret
 
 ntc_rg161_e:
-			IF ($ < 49152) && (ntc_rg162_e - ntc_rg162 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg162_e - ntc_rg162 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg162_e - ntc_rg162 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -4284,8 +4285,8 @@ ntc_lcgt_f:
 			ret
 
 ntc_rg162_e:
-			IF ($ < 49152) && (ntc_rg163_e - ntc_rg163 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg163_e - ntc_rg163 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg163_e - ntc_rg163 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -4390,8 +4391,8 @@ ntc_lta_last:
 ntc_lpow10:		dd 1000000000, 100000000, 10000000, 1000000, 100000, 10000, 1000, 100, 10, 0
 
 ntc_rg163_e:
-			IF ($ < 49152) && (ntc_rg164_e - ntc_rg164 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg164_e - ntc_rg164 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg164_e - ntc_rg164 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -4414,8 +4415,8 @@ ntc_lpr_back:
 			jp ntc_printbuf
 
 ntc_rg164_e:
-			IF ($ < 49152) && (ntc_rg165_e - ntc_rg165 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg165_e - ntc_rg165 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg165_e - ntc_rg165 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -4437,8 +4438,8 @@ ntc_font:		ds 95 * 8
 ; ============================================================
 
 ntc_rg165_e:
-			IF ($ < 49152) && (ntc_rg166_e - ntc_rg166 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg166_e - ntc_rg166 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg166_e - ntc_rg166 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -4455,8 +4456,8 @@ ntc_rg166:
 ntc_buf:		ds NTC_BUFSIZE
 
 ntc_rg166_e:
-			IF ($ < 49152) && (ntc_rg167_e - ntc_rg167 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg167_e - ntc_rg167 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg167_e - ntc_rg167 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -4581,8 +4582,8 @@ mem_chk_bad:
 			jp mem_err
 
 ntc_rg167_e:
-			IF ($ < 49152) && (ntc_rg168_e - ntc_rg168 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg168_e - ntc_rg168 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg168_e - ntc_rg168 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -4843,8 +4844,8 @@ mem_putback:
 			ret
 
 ntc_rg168_e:
-			IF ($ < 49152) && (ntc_rg169_e - ntc_rg169 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg169_e - ntc_rg169 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg169_e - ntc_rg169 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -5090,8 +5091,8 @@ mem_largest:
 			ret
 
 ntc_rg169_e:
-			IF ($ < 49152) && (ntc_rg170_e - ntc_rg170 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg170_e - ntc_rg170 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg170_e - ntc_rg170 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -5212,8 +5213,8 @@ mem_cw_hi:
 			ret
 
 ntc_rg170_e:
-			IF ($ < 49152) && (ntc_rg171_e - ntc_rg171 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg171_e - ntc_rg171 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg171_e - ntc_rg171 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -5250,8 +5251,8 @@ ZXN_PAPER		equ #02			; RRRGGGBB: blue
 ZXN_INK			equ #FC			; yellow
 
 ntc_rg171_e:
-			IF ($ < 49152) && (ntc_rg172_e - ntc_rg172 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg172_e - ntc_rg172 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg172_e - ntc_rg172 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -5359,8 +5360,8 @@ ntc_nl_do:
 			jp (ix)
 
 ntc_rg172_e:
-			IF ($ < 49152) && (ntc_rg173_e - ntc_rg173 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg173_e - ntc_rg173 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg173_e - ntc_rg173 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -5622,8 +5623,8 @@ ntc_zxfont:
 			db #76, #DC, #00, #00, #00, #00, #00, #00	; 126 ~
 
 ntc_rg173_e:
-			IF ($ < 49152) && (ntc_rg174_e - ntc_rg174 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg174_e - ntc_rg174 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg174_e - ntc_rg174 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -5678,8 +5679,8 @@ ntc_plat_cls:
 			jp (ix)
 
 ntc_rg174_e:
-			IF ($ < 49152) && (ntc_rg175_e - ntc_rg175 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg175_e - ntc_rg175 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg175_e - ntc_rg175 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -5834,8 +5835,8 @@ ntc_keymapy:								; Symbol Shift: the symbols on the keys (+ the 128's ~ | \ {
 			db " ", 0, ".", ",", "*", 0, 0, 0
 
 ntc_rg175_e:
-			IF ($ < 49152) && (ntc_rg176_e - ntc_rg176 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg176_e - ntc_rg176 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg176_e - ntc_rg176 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -5945,8 +5946,8 @@ ntc_fr_done:
 			jp (ix)
 
 ntc_rg176_e:
-			IF ($ < 49152) && (ntc_rg177_e - ntc_rg177 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg177_e - ntc_rg177 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg177_e - ntc_rg177 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -5991,8 +5992,8 @@ ntc_plat_irqon:
 			jp (ix)
 
 ntc_rg177_e:
-			IF ($ < 49152) && (ntc_rg178_e - ntc_rg178 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg178_e - ntc_rg178 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg178_e - ntc_rg178 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -6162,8 +6163,8 @@ ntc_irq_jp:						; takes it as the end of the interrupt - in IM 1 the same as re
 ntc_irqn:		db 1			; the ticks this interrupt counted (1-6)
 
 ntc_rg178_e:
-			IF ($ < 49152) && (ntc_rg179_e - ntc_rg179 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg179_e - ntc_rg179 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg179_e - ntc_rg179 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -6190,8 +6191,8 @@ ntc_ex_wait:
 			jr ntc_ex_wait
 
 ntc_rg179_e:
-			IF ($ < 49152) && (ntc_rg180_e - ntc_rg180 + $ > 47616)	; fwdref-ok
-			ds 49152 - $		; Option Memory Reserved #BA00-#BFFF: round it
+			IF ($ < 49152) && (ntc_rg180_e - ntc_rg180 + $ > 48640)	; fwdref-ok
+			ds 49152 - $		; Option Memory Reserved #BE00-#BFFF: round it
 			ENDIF
 			IF ($ < 62464) && (ntc_rg180_e - ntc_rg180 + $ > 57344)	; fwdref-ok
 			ds 62464 - $		; Option Memory Reserved #E000-#F3FF: round it
@@ -6202,16 +6203,24 @@ ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg180:
 ;## ntc_plat_memtop
-; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
-; use: #BA00 (the FileSystem class's DOS area #BA00-#BDFF, then the stack to
-; #C000). Called on the real stack (call / ret), only by the Memory class.
+; ntc_plat_memtop - HL = the first byte the program's arrays and the Memory class's heap in
+; main memory must not use. ZXN_MEMTOP (the compiler's): #BA00 with the FileSystem or Loader
+; class (their DOS area #BA00-#BDFF, then the stack to #C000), #BE00 without (20261118-1). A
+; program that runs on over the stack has its arrays in #C000-#FFFF, where the build has
+; already checked them against what is there: the top is then #FD00 (the start-up stub).
+; (20261118-1: it was #BA00 always, so such a program stopped at its start with GURU 001.)
+; Called on the real stack (call / ret).
 ntc_plat_memtop:
-			ld hl, #BA00
+			IF ntc_free > #C000		; fwdref-ok
+			ld hl, #FD00
+			ELSE
+			ld hl, ZXN_MEMTOP
+			ENDIF
 			ret
 
 
 ntc_rsvtab:				; Option Memory Reserved / Paged starts (the Memory class's heap stops at them), 0 ends
-			dw 47616, 64768, 57344, 0
+			dw 48640, 64768, 57344, 0
 ntc_avtab:				; Option Memory Available: start, end pairs (lowest first), 0 ends - the heap is the first that ends above the program
 			dw 0
 
@@ -6273,13 +6282,13 @@ glyph_75			equ ntc_font + 680		; "u"
 glyph_76			equ ntc_font + 688		; "v"
 glyph_79			equ ntc_font + 712		; "y"
 			DISPLAY "NTC memory: program ", /H, ntc_start, "-", /H, ntc_end - 1, " arrays ", /H, ntc_bss, "-", /H, ntc_free - 1, " stack #C000 down (the platform's)"
-			DISPLAY "NTC memory: Reserved #BA00-#BFFF (platform zxn)"
+			DISPLAY "NTC memory: Reserved #BE00-#BFFF (platform zxn)"
 			DISPLAY "NTC memory: Reserved #FD00-#FFFF (platform zxn)"
 			DISPLAY "NTC memory: Reserved #E000-#F3FF (platform zxn (the text screen))"
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 ntc_bssfrom	equ ntc_end
-			IF (ntc_bssfrom < 49152) && (ntc_bssfrom + ntc_bss_size > 47616)	; fwdref-ok
-ntc_bss		equ 49152		; after Option Memory Reserved #BA00-#BFFF
+			IF (ntc_bssfrom < 49152) && (ntc_bssfrom + ntc_bss_size > 48640)	; fwdref-ok
+ntc_bss		equ 49152		; after Option Memory Reserved #BE00-#BFFF
 			ELSEIF (ntc_bssfrom < 62464) && (ntc_bssfrom + ntc_bss_size > 57344)	; fwdref-ok
 ntc_bss		equ 62464		; after Option Memory Reserved #E000-#F3FF
 			ELSEIF (ntc_bssfrom < 65536) && (ntc_bssfrom + ntc_bss_size > 64768)	; fwdref-ok
@@ -6292,7 +6301,7 @@ ntc_bss_size	equ 0
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ntc_memtab	equ ntc_free		; the Memory class's tables
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 47616) || (ntc_bss >= 49152), "the program (or its arrays) reaches into the platform's reserved #BA00-#BFFF (platform zxn: Option Memory Available frees it)"
+			ASSERT (ntc_free <= 48640) || (ntc_bss >= 49152), "the program (or its arrays) reaches into the platform's reserved #BE00-#BFFF (platform zxn: Option Memory Available frees it)"
 			ASSERT (ntc_free <= 64768) || (ntc_bss >= 65536), "the program (or its arrays) reaches into the platform's reserved #FD00-#FFFF (platform zxn: Option Memory Available frees it)"
 			ASSERT (ntc_free <= 57344) || (ntc_bss >= 62464), "the program (or its arrays) reaches into the platform's reserved #E000-#F3FF (platform zxn (the text screen): Option Memory Available frees it)"
 

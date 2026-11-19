@@ -12,7 +12,7 @@ run() { # name expected-grep files...
   local n=$1 e=$2; shift 2
   if ! python3 mdbuild.py "$@" --out=t/md/$n.md --log >t/md/$n.build 2>&1; then echo "FAIL $n (build)"; tail -5 t/md/$n.build; fail=1; return; fi
   o=$(timeout 300 python3 mdrun.py t/md/$n.md --frames=20000 --untilend --log 2>&1)
-  if echo "$o" | grep -q "$e"; then echo "ok   $n"; else echo "FAIL $n"; echo "$o" | tail -4; fail=1; fi
+  if echo "$o" | tr '\n' ' ' | grep -q "$e"; then echo "ok   $n"; else echo "FAIL $n"; echo "$o" | tail -4; fail=1; fi
 }
 run md_test "157 tests, 0 failed" $P/md_test/Main.bas $P/md_test/Counter.cls
 run vb_test "64 tests, 0 failed" $P/vb_test.bas
@@ -33,4 +33,6 @@ if python3 mdbuild.py mdpad/Main.bas --out=t/md/pad.md --log >t/md/pad.build 2>&
   o=$(timeout 300 python3 mdrun.py t/md/pad.md --frames=420 --log --pad=40:X,100:Y,160:Z,220:M,280:A,340:XYZ,400:- 2>&1 | grep -a "^pad" | tr '\n' ' ')
   if [ "$o" == "pad 256 pad 256 pad 512 pad 512 pad 1024 pad 1024 pad 2048 pad 2048 pad 64 pad 64 pad 1792 pad 1792 " ]; then echo "ok   pad6"; else echo "FAIL pad6: $o"; fail=1; fi
 else echo "FAIL pad6 (build)"; tail -5 t/md/pad.build; fail=1; fi
+# the Vdp calls for games (Sat, Copy, Display, the scroll modes) and the Z80 and Keys classes
+run classes "sat ok vdp ok z80 ok poke ok keys ok end" md/Classes.bas md/Prog.cls
 if [ $fail == 0 ]; then echo "ALL PASS (md)"; fi

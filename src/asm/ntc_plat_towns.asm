@@ -24,6 +24,11 @@
 ;   $010000-        the program: start, threads, keywords, strings
 ;   -$0AFFFF        the real stack (ntc_csp: the library's calls), top down
 ;   $0B0000-$0B03FF the boot sector (it holds the GDT: left where it is)
+;   (the end of the program to $9F000, and the end of the high data to the top of RAM: free;
+;    the Memory class (lib/towns/Memory.cls) hands them out)
+;   $100000-        the high data: the program's section .ntchigh, if any (the
+;                   boot sector reads it to $A0000 a track at a time and copies it
+;                   up in protected mode)
 ;   NTC_TWLOG test builds: the console's transcript from $0A0000
 ;
 ; The console is drawn on the planar screen the ROM boots with (640 x 400,
@@ -66,7 +71,12 @@ NTC_FONT	equ 0xCB000			; the 8 x 16 font: 16 bytes a character
 			mov ds, ax
 			mov ss, ax
 			mov sp, 0xFFF0
-			mov si, (NTC_TWBYTES + 1023) / 1024		; sectors to read
+			mov eax, section..ntchend.start	; sectors to read: the program, then its high data
+			sub eax, section..ntchigh.start
+			add eax, 1023
+			shr eax, 10
+			add ax, NTC_TWLOWS
+			mov si, ax
 			xor cx, cx					; cylinder
 			mov dx, 0x0002				; dh = side 0, dl = sector 2
 ntc_ipl_rd:
@@ -76,6 +86,13 @@ ntc_ipl_rd:
 			jbe ntc_ipl_n
 			mov bx, si
 ntc_ipl_n:
+			mov ax, [ntc_ipl_low]		; the program's sectors: not past its end in one read
+			test ax, ax
+			jz ntc_ipl_n2
+			cmp bx, ax
+			jbe ntc_ipl_n2
+			mov bx, ax
+ntc_ipl_n2:
 			push si
 			push cx
 			push dx
@@ -92,11 +109,52 @@ ntc_ipl_n:
 			pop cx
 			pop si
 			jc ntc_ipl_rd				; (an error: again)
+			cmp word [ntc_ipl_low], 0
+			jz ntc_ipl_up				; the high data: from $A0000 up to its place
 			mov ax, bx
 			shl ax, 6					; 1024 bytes = $40 paragraphs a sector
 			add [ntc_ipl_seg], ax
+			sub [ntc_ipl_low], bx
+			jnz ntc_ipl_next
+			mov word [ntc_ipl_seg], 0xA000	; the program read: the high data comes through $A0000
+			jmp ntc_ipl_next
+ntc_ipl_up:
+			cli
+			pushad
+			push ds
+			push es
+			movzx ecx, bx
+			shl ecx, 8					; dwords
+			mov edi, [ntc_ipl_dst]
+			mov eax, ecx
+			shl eax, 2
+			add [ntc_ipl_dst], eax
+			lgdt [ntc_ipl_gdtr]
+			mov eax, cr0				; protected mode for the copy (the code segment stays as it is)
+			or al, 1
+			mov cr0, eax
+			jmp short ntc_ipl_pm1
+ntc_ipl_pm1:
+			mov ax, 0x10
+			mov ds, ax
+			mov es, ax
+			mov esi, 0xA0000
+			cld
+			a32 rep movsd
+			mov eax, cr0
+			and al, 0xFE
+			mov cr0, eax
+			jmp short ntc_ipl_pm2
+ntc_ipl_pm2:
+			pop es
+			pop ds
+			popad
+ntc_ipl_next:
 			sub si, bx
 			jz ntc_ipl_pm
+			add dl, bl
+			cmp dl, 9
+			jb ntc_ipl_rd
 			mov dl, 1
 			xor dh, 1
 			jnz ntc_ipl_rd
@@ -109,6 +167,8 @@ ntc_ipl_pm:
 			mov cr0, eax
 			jmp dword 0x08:ntc_tw_entry
 ntc_ipl_seg:	dw NTC_TWCODE >> 4
+ntc_ipl_low:	dw NTC_TWLOWS
+ntc_ipl_dst:	dd NTC_TWHIGH
 ntc_ipl_gdtr:	dw 0x2F
 			dd 0xB0000 + ntc_ipl_gdt
 ntc_ipl_gdt:	db 0, 0, 0, 0, 0, 0, 0, 0
@@ -117,12 +177,35 @@ ntc_ipl_gdt:	db 0, 0, 0, 0, 0, 0, 0, 0
 			db 0xFF, 0xFF, 0, 0, 0, 0xFA, 0xCF, 0		; $18: ring 3 code, flat
 			db 0xFF, 0xFF, 0, 0, 0, 0xF2, 0xCF, 0		; $20: ring 3 data, flat
 			db 0x67, 0, NTC_TSS & 255, NTC_TSS >> 8, 0, 0x89, 0, 0	; $28: the TSS
-			times 1024-($-$$) db 0
+			times 1008-($-$$) db 0
+			; the disc's facts, for test/townsbuild.js to check (the boot sector's last 16 bytes)
+			db "NTCT"
+			dd NTC_TWLOWS								; the program's sectors (after this one)
+			dd section..ntchigh.start					; the high data's place in the file (it is loaded to NTC_TWHIGH),
+			dd section..ntchend.start					; and its end there
 
 			section .ntccode vstart=0x10000 follows=.ntcboot align=4
+			section .ntcram vstart=0x1000 follows=.ntccode align=1	; (as the compiler's, ;@ramorg)
+			section .ntchigh vstart=NTC_TWHIGH follows=.ntcram align=1024
+			section .ntchend follows=.ntchigh align=1
+			section .ntccode
 			bits 32
 ntc_tw_code0:
 NTC_TWBYTES	equ ((ntc_romend - ntc_tw_code0 + 3) / 4) * 4 + (ntc_ramend - ntc_ram)
+NTC_TWLOWS	equ (NTC_TWBYTES + 1023) / 1024
+; the high data: a program's section .ntchigh (#asm: incbin), loaded to $100000 on (a 2 MB
+; machine has up to $1FFFFF): it starts on the disc's next sector after the program
+NTC_TWHIGH	equ 0x100000
+; NTC_HIGHFILE label, "FILE": a file in the high data, label = its address there. In #asm:
+;     NTC_HIGHFILE gd_data, "GAME.DAT"        then   mov dword [edi], gd_data
+%macro NTC_HIGHFILE 2
+			section .ntchigh
+			align 4, db 0
+%1:
+			incbin %2
+			align 4, db 0
+			section .ntccode
+%endmacro
 
 ;## ntc_tw_boot ntc_plat_data ntc_data ntc_plat_screen
 ; ring 0, 32 bits: the variables' image to where they live, the TSS and the IDT, then ring 3
@@ -261,6 +344,12 @@ ntc_wrapped:	db 0				; 1 = the last character wrapped to the next line
 ntc_ticks:		dw 0				; frames since the start
 ntc_vbl:		dw 0				; frames (ntc_plat_frame waits for it to move)
 ntc_tw_kflag:	db 0				; the keyboard: the event's flags byte
+ntc_tw_kqr:		db 0				; the characters' queue: where the next is read,
+ntc_tw_kqw:		db 0				; and written
+ntc_tw_kq:		times 16 db 0
+ntc_tw_held:	times 128 db 0		; a byte a key number: 1 while the key is held
+ntc_tw_brk:		dd 0				; the Memory class: the next free byte under $9F000 (0: not set up),
+ntc_tw_hbrk:	dd 0				; and above the high data
 			align 2, db 0
 ;@rom
 
@@ -421,42 +510,73 @@ ntc_lg_full:
 ; The keyboard is read at its ports (no interrupt): $602 bit 0 = a byte is waiting, $600 = the
 ; byte. A key event is 2 bytes: flags ($80 always, $10 = released, $04 = Shift held, $08 =
 ; Ctrl held), then the key's number ($00-$7F).
-; ntc_plat_scankey - eax = a key press waiting (its character; the cursor keys $F0 up, $F1
-; down, $F2 left, $F3 right), or 0. Keeps every other register
-ntc_plat_scankey:
-			push edx
+; ntc_tw_keypoll - every event waiting taken in: ntc_tw_held (a byte a key number: 1 while it is
+; held - the Keys class) and, for a press with a character, the character into a queue of 16
+; (Inkey, Input). Keeps every register. (20261119-1: before, only Inkey read the port, so a
+; game reading the keys held had to read it too and each took the other's bytes.)
+ntc_tw_keypoll:
+			push eax
 			push ebx
-ntc_sk_lp:
+			push edx
+ntc_kp_lp:
 			mov edx, 0x602
 			in al, dx
 			test al, 1
-			jz ntc_sk_none
+			jz ntc_kp_e
 			mov edx, 0x600
 			in al, dx
 			test al, 0x80
-			jz ntc_sk_code
+			jz ntc_kp_code
 			mov [ntc_tw_kflag], al		; the first byte: the flags
-			jmp ntc_sk_lp
-ntc_sk_code:
+			jmp ntc_kp_lp
+ntc_kp_code:
 			movzx eax, al
+			and eax, 0x7F
 			mov bl, [ntc_tw_kflag]
 			test bl, 0x10
-			jnz ntc_sk_lp				; a release
+			jz ntc_kp_press
+			mov byte [ntc_tw_held + eax], 0
+			jmp ntc_kp_lp
+ntc_kp_press:
+			mov byte [ntc_tw_held + eax], 1
 			cmp eax, 0x60
-			jae ntc_sk_lp
+			jae ntc_kp_lp
 			test bl, 0x04
-			jz ntc_sk_tab
+			jz ntc_kp_tab
 			add eax, 0x60				; Shift: the second table
-ntc_sk_tab:
-			movzx eax, byte [ntc_tw_keys + eax]
-			test eax, eax
-			jz ntc_sk_lp				; a key with no character (Shift, Ctrl, ...)
-			jmp ntc_sk_e
-ntc_sk_none:
+ntc_kp_tab:
+			mov al, [ntc_tw_keys + eax]
+			test al, al
+			jz ntc_kp_lp				; a key with no character (Shift, Ctrl, ...)
+			movzx ebx, byte [ntc_tw_kqw]
+			mov [ntc_tw_kq + ebx], al
+			inc ebx
+			and ebx, 15
+			cmp bl, [ntc_tw_kqr]
+			je ntc_kp_lp				; the queue is full: the character is dropped
+			mov [ntc_tw_kqw], bl
+			jmp ntc_kp_lp
+ntc_kp_e:
+			pop edx
+			pop ebx
+			pop eax
+			ret
+
+; ntc_plat_scankey - eax = a key press waiting (its character; the cursor keys $F0 up, $F1
+; down, $F2 left, $F3 right), or 0. Keeps every other register
+ntc_plat_scankey:
+			call ntc_tw_keypoll
 			xor eax, eax
+			push ebx
+			movzx ebx, byte [ntc_tw_kqr]
+			cmp bl, [ntc_tw_kqw]
+			je ntc_sk_e
+			mov al, [ntc_tw_kq + ebx]
+			inc ebx
+			and ebx, 15
+			mov [ntc_tw_kqr], bl
 ntc_sk_e:
 			pop ebx
-			pop edx
 			ret
 
 ; ntc_plat_getkey - wait for a key: eax = its code
@@ -483,6 +603,89 @@ ntc_tw_keys:
 			db 0x4D, 0x3C, 0x3E, 0x3F, 0x5F, 0x20, 0x2A, 0x2F, 0x2B, 0x2D, 0x37, 0x38, 0x39, 0x3D, 0x34, 0x35
 			db 0x36, 0x00, 0x31, 0x32, 0x33, 0x0D, 0x30, 0x2E, 0x00, 0x00, 0x00, 0x7F, 0x00, 0xF0, 0x00, 0xF2
 			db 0xF1, 0xF3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+
+;## ntc_tw_mem ntc_plat_data
+; The Memory class (lib/towns/Memory.cls). Two pools the program does not use:
+;   low:  from the end of the program (the next 4K edge) to $9F000 (the exception record and a
+;         test build's transcript are above it; the real stack comes down from $B0000)
+;   high: from the end of the high data (the next 4K edge; $100000 with none) to the top of the
+;         machine's RAM (port $5E8: its megabytes)
+; ntc_tw_alloc - eax = bytes, ebx = 0 low / 1 high: eax = the block's address (a 4 byte edge),
+; or 0 when there is not that much left. Keeps the other registers
+ntc_tw_alloc:
+			push ecx
+			push edx
+			push esi
+			call ntc_tw_memset
+			add eax, 3
+			and eax, ~3
+			lea esi, [ntc_tw_brk + ebx * 4]
+			mov ecx, [esi]				; the block
+			mov edx, 0x9F000
+			test ebx, ebx
+			jz ntc_al_top
+			mov edx, [ntc_tw_htop]
+ntc_al_top:
+			sub edx, ecx				; what is left
+			jb ntc_al_none
+			cmp eax, edx
+			ja ntc_al_none
+			add eax, ecx
+			mov [esi], eax
+			mov eax, ecx
+			jmp ntc_al_e
+ntc_al_none:
+			xor eax, eax
+ntc_al_e:
+			pop esi
+			pop edx
+			pop ecx
+			ret
+; ntc_tw_left - ebx = 0 low / 1 high: eax = the bytes left in that pool
+ntc_tw_left:
+			call ntc_tw_memset
+			mov eax, 0x9F000
+			test ebx, ebx
+			jz ntc_lf_top
+			mov eax, [ntc_tw_htop]
+ntc_lf_top:
+			sub eax, [ntc_tw_brk + ebx * 4]
+			jae ntc_lf_e
+			xor eax, eax
+ntc_lf_e:
+			ret
+; the pools' starts and the high pool's top, the first time
+ntc_tw_memset:
+			cmp dword [ntc_tw_brk], 0
+			jne ntc_ms_e
+			push eax
+			push edx
+			mov eax, ntc_romend + 3 + 0xFFF
+			and eax, ~3
+			add eax, ntc_ramend - ntc_ram
+			and eax, ~0xFFF
+			mov [ntc_tw_brk], eax
+			mov eax, section..ntchend.start		; (a section's start is its place in the file)
+			sub eax, section..ntchigh.start
+			add eax, NTC_TWHIGH + 0xFFF
+			and eax, ~0xFFF
+			mov [ntc_tw_hbrk], eax
+			mov edx, 0x5E8				; the machine's RAM in megabytes
+			in al, dx
+			and eax, 0x7F
+			cmp eax, 1
+			ja ntc_ms_mb
+			mov eax, 1
+ntc_ms_mb:
+			shl eax, 20
+			mov [ntc_tw_htop], eax
+			pop edx
+			pop eax
+ntc_ms_e:
+			ret
+;@ram
+ntc_tw_htop:	dd 0
+;@rom
 
 ;## ntc_plat_frame ntc_plat_data
 ; ntc_plat_frame - wait for the next frame interrupt (the vertical blank). Keeps every register

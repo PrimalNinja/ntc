@@ -73,7 +73,19 @@ if (bufPrg.slice(0, 4).toString('latin1') !== 'IPL4')
 	process.stderr.write('ERR the boot sector does not start with IPL4: the FM Towns would not boot it\n');
 	process.exit(1);
 }
+// the boot sector's facts (its last 16 bytes: "NTCT", the program's sectors, the high data's place in
+// the file and its end): the high data (section .ntchigh, NTC_HIGHFILE) must fit the machine's RAM
+var strHigh = '';
+if (bufPrg.slice(1008, 1012).toString('latin1') === 'NTCT')
+{
+	var intHighBytes = bufPrg.readUInt32LE(1020) - bufPrg.readUInt32LE(1016);		// (places in the file)
+	if (intHighBytes > 0)
+	{
+		strHigh = ', ' + intHighBytes + ' of them high data (loaded from $100000: a ' + Math.ceil((0x100000 + intHighBytes) / 1048576) + ' MB machine)';
+		if (intHighBytes > 0x100000) { process.stderr.write('WARN the high data is ' + intHighBytes + ' bytes: past a 2 MB machine\'s RAM (the Marty and most FM Towns have 2 MB)\n'); }
+	}
+}
 var bufDisc = Buffer.alloc(DISC_SIZE, 0);
 bufPrg.copy(bufDisc, 0);
 fs.writeFileSync(strOut, bufDisc);
-console.log(strOut + ': ' + bufPrg.length + ' bytes of program on a ' + DISC_SIZE + ' byte disc');
+console.log(strOut + ': ' + bufPrg.length + ' bytes of program on a ' + DISC_SIZE + ' byte disc' + strHigh);

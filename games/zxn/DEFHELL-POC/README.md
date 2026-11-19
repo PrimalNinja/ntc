@@ -87,8 +87,9 @@ The panel's bottom line: **LV** the level, **POW** the power level and the P tow
 - **The sprite slots:** the enemies 2-25 (in a boss level 2-13; the boss 14-25), the pickups
   26-31, the guard 32, the humanoids 34-43, the explosions 44-51, the scanner window 52, the
   Stargate 53, and the bullets and lasers 54-127 (`Bul.cls`, in Z80).
-- **Memory:** the sprite patterns and the tiles are loaded from bank 5 and bank 47 (game.json's
-  `bank5`, `gfxbank` and `banks`), so they don't take the program's RAM.
+- **Memory:** the sprite patterns and the tiles are in a data file, `build/DEFHELL.DAT`, that NTC
+  puts in the NEX file's pages 46 and 47 (`Option SaveNex` in `GfxData.cls`; game.json's
+  `gfxpage`), so they don't take the program's RAM.
 
 It runs at 44-50 frames a second in the emulator. It hasn't been run on real hardware yet.
 
@@ -114,12 +115,9 @@ It runs at 44-50 frames a second in the emulator. It hasn't been run on real har
   2. If you change the mountains or the stars: `python3 tools/land.py`.
   3. `node build.js path/to/ntc/src`: the tiles and sprites, the project, the `.asm` and the
      `.NEX`.
-- **IDE:** open `DEFHELL.json` in NTC BASIC's IDE (`ntc.html`) and **Save .asm**. Before running
-  `sjasmplus DEFHELL.asm`, change its line `SAVENEX BANK 5, 8, 9, 10` to:
-
-  `SAVENEX BANK 5, 8, 9, 10, 47`
-
-  That's the only difference from what `build.js` makes.
+- **IDE:** open `DEFHELL.json` in NTC BASIC's IDE (`ntc.html`) and **Save .asm**, then
+  `sjasmplus DEFHELL.asm` with `build/DEFHELL.DAT` next to it. Nothing has to be changed by hand:
+  it is what `build.js` makes.
 - **Running it:** copy `DEFHELL.NEX` to the SD card and run it from the browser.
 
 ## Screenshots

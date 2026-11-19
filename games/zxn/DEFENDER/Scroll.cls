@@ -1,17 +1,20 @@
-' Scroll - NTC build: the copper scrolls Layer 2 sideways from line 160 down (the terrain) and
-' not above it (the scanner). Show sets the scroll for the next frame; Upload (straight after
-' Frame) hands the list to the copper.
+' Scroll - NTC build: the copper scrolls Layer 2 sideways in three bands: the scanner (lines 0-43)
+' not at all, the sky and its stars (44-158) slowly, the terrain (159 down) with the camera.
+' Show sets the two scrolls for the next frame; Upload (straight after Frame) hands the list to
+' the copper.
 ' (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
 Option Explicit
 
 Private cop(15) As Byte
 
-Public Sub Show(ByVal sx As Integer)
+Public Sub Show(ByVal stars As Integer, ByVal sx As Integer)     ' <--- CHANGED (Main.bas gives two scrolls: the stars', the terrain's)
   cop(0) = &H80 : cop(1) = 0                ' line 0:
-  cop(2) = &H16 : cop(3) = 0                '   no scroll
-  cop(4) = &H80 : cop(5) = 160              ' line 160:
-  cop(6) = &H16 : cop(7) = sx And 255       '   the terrain's scroll
-  cop(8) = &HFF : cop(9) = &HFF             ' the end
+  cop(2) = &H16 : cop(3) = 0                '   no scroll (the scanner)
+  cop(4) = &H80 : cop(5) = 44               ' <--- NEW   line 44:
+  cop(6) = &H16 : cop(7) = stars And 255    ' <--- NEW     the stars' scroll
+  cop(8) = &H80 : cop(9) = 159              ' line 159:
+  cop(10) = &H16 : cop(11) = sx And 255     '   the terrain's scroll
+  cop(12) = &HFF : cop(13) = &HFF           ' the end
 End Sub
 
 Public Sub Upload()
@@ -33,7 +36,7 @@ Public Sub Upload()
             out (c), a
             inc b
             ld hl, {cop}
-            ld e, 10
+            ld e, 14                ; <--- CHANGED (was 10: the list is 14 bytes now)
 sc_lp:
             ld a, (hl)
             out (c), a

@@ -18,7 +18,7 @@ came; `Main.bas` is the working one, with the changes marked `NTC:`.
 | `Key(n)`, `Joy(n)` | Functions of the same names: his key numbers mapped to the Next's keys (`Keys.Down`), the joystick (`Keys.Joystick`) turned into his bit layout |
 | `Return value` in Functions | the value assigned to the function's name |
 | `(sx >> 8)` | `(sx \ 256)` (NTC has no `>>`) |
-| `Open` / `Get #1` / `Close` for `DEFENDER.SPR` | `FileSystem.Load` into a buffer. The Next build of NTC has no file support yet, so it always uses his built-in sprites; the file is used where files work |
+| `Open` / `Get #1` / `Close` for `DEFENDER.SPR` | `Loader.Load` into a buffer (NTC's Loader class: it reads a file from the program's own folder). With `DEFENDER.SPR` (4608 bytes: the palette, 16 patterns) next to the NEX it is used; without it the built-in set is (`SprData.cls`, made by `tools/sprdata.js` from the pictures drawn in that file) |
 | `Dim` inside the main loop | moved to the top |
 
 **To work right:**

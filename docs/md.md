@@ -125,7 +125,11 @@ Each method is one `#asm` block, so each is a keyword (one thread long and its a
 | Class | Members |
 |---|---|
 | `Vdp` | `Color index, value` (&H0BGR), `Colors addr&, first, count`, `Tiles addr&, first, count` (32 bytes each), `Cell plane, x, y, value`, `Fill plane, x, y, w, h, value`, `ScrollX plane, x`, `ScrollY plane, y`, `Backdrop index`, `TextPalette p`, `LoadFont first, fg, bg`, `TextFont first`, `Sprite n, x, y, size, value`, `Hide n`, `HideAll`, `Update`; constants `Palette`, `FlipX`, `FlipY`, `Front`, `Size8`, `Size16`, `Size24`, `Size32`, `PlaneA`, `PlaneB` |
+| `Vdp` (20261119-1, for games) | `Sat()` (the sprite table's address in RAM, for `#asm` that writes many sprites), `Copy addr&, vaddr, n` (n words to any VRAM address), `Display on`, `ScrollMode m` (`ScrollWhole`, `ScrollCell`, `ScrollLine`), `ScrollRow plane, row, x`, `ScrollLineX plane, line, x` |
 | `Pad` | `Read(n)`; constants `Up` ... `Mode` |
+| `Keys` | the pads with the other machines' calls: `Joystick(n)` as `JoyUp` ... `JoyFire1` (B), `JoyFire2` (C), `JoyFire3` (A), `JoyStart`; `Down(key)` is always False (no keyboard) |
+| `Z80` | the second processor: `Load addr&, n` (a program to its RAM, started), `Poke a, v`, `Peek(a)`, `Stop` |
+| `Pcm` | music on the YM2612's DAC, played by the Z80: `Init data&` (songs made by `tools/md/dpcm.js`, on a 32K edge of the ROM), `Play n, loop`, `Quiet`. The player is `tools/md/z80pcm.asm` |
 | `Psg` | `Play channel, period, slide, volume, frames` (3 tones, the noise; a slide a frame, a fade), `Stop channel`, `Quiet`, `Busy(channel)`, `Update` (once a frame) |
 | `StdIO` | the console, as on every platform |
 | `System` | the same members as everywhere: `Platform` = "MD", `TicksPerSecond` = 60 ... |

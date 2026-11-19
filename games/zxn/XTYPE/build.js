@@ -88,19 +88,10 @@ if (r.errors.length)
 }
 var bdir = path.join(here, 'build');
 if (!fs.existsSync(bdir)) fs.mkdirSync(bdir);
-// (1.1) more banks in the NEX file than NTC puts there: game.json's "banks" (the story and the
-// pictures, put there by Data.cls from build/NAME.DAT) added to the SAVENEX BANK line
+// (the data files, build/XTYPE.DAT and build/SPLASH.DAT, are in the NEX file by the classes' own
+// Option SaveNex lines: nothing is added to the assembler here any more. A variant's "banks" are
+// not used.)
 var asm = r.asm;
-if (cfg.banks)
-{
-	var _m = asm.match(/SAVENEX BANK [0-9, ]+/);
-	if (!_m) { console.log('no SAVENEX BANK line in the assembler: the banks not added'); process.exit(1); }
-	var line = _m[0];
-	var order = [5, 2, 0, 1, 3, 4, 6, 7];
-	var all = line.replace('SAVENEX BANK ', '').split(',').map(function(x) { return parseInt(x, 10); }).concat(cfg.banks).filter(function(b, i, a) { return a.indexOf(b) === i; });
-	all.sort(function(a, b) { var ia = order.indexOf(a), ib = order.indexOf(b); if (ia < 0) ia = 8 + a; if (ib < 0) ib = 8 + b; return ia - ib; });
-	asm = asm.replace(line, 'SAVENEX BANK ' + all.join(', '));
-}
 fs.writeFileSync(path.join(bdir, name + '.asm'), asm);
 console.log('build/' + name + '.asm');
 

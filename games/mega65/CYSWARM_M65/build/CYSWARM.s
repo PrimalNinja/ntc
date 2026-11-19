@@ -167,13 +167,18 @@ ntc_m65_bkd:
 			jmp ntc_plat_exit_stop
 ntc_m65_bktx:	db "BRK - the program stopped", 0
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 NTC_WINHOLE	equ 0		; 1 = the program is built round an Option Reserve range over the window $4000-$7FFF
+NTC_WINPAGED	equ 0		; 1 = page 0 code may sit under the window (Option Memory Paged, not Reserved): the Memory class never hands out page 1 (main RAM's own $4000-$7FFF) when the code reaches past $4000
 NTC_BUFSIZE	equ 2048		; the library's buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer
+NTC_ISLN	equ 1		; interrupt classes (Option Class Interrupt): the slots ntc_isl has (8 bytes each)
+NTC_INTS	equ 1		; 0 = the platform never lets interrupts in (;@ints 0: ntc_xn's safe point has no ei)
+NTC_PLATRSV	equ 0		; 1 = the platform's fixed areas (;@reserved) are Reserved in the memory map: the build goes round them (the old top-of-RAM asserts are off)
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: $C000, Plus: block 1 from common memory)
 NTC_RS		macro			; the real stack: the thread position kept in ntc_ip
 			tsx
@@ -11028,7 +11033,7 @@ kw_bs_pl:
 kw_bs_stop:
 			jsr ntc_plat_newline
 			jmp ntc_plat_exit_stop
-kw_bs_txt:	db "Not enough memory for the arrays", 0
+kw_bs_txt:	db "GURU 001", 0
 ; z_p0 = start, z_a = bytes: zero them, then rts (the thread)
 ntc_zerofill_b:
 			lda #0

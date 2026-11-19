@@ -2573,8 +2573,9 @@ that it was in banks 8, 9, 10, and before 20261116-6 page 2 was the Next's bank 
 from then is now 20 higher, `Loaded 2` -> `Loaded 22`). In `#asm`, `ZXN_PROGPAGE` is the Next's 8K
 page the program starts in.
 
-`#C000-#FFFF` is main memory too: a program too big for `#0040-#B9FF` steps over the stack
-(`#BA00-#BFFF`) and runs on there. What is kept out of it is only what is really there: the text
+`#C000-#FFFF` is main memory too: a program too big for `#0040-#BDFF` steps over the stack
+(`#BE00-#BFFF`) and runs on there. With the `FileSystem` or the `Loader` class their DOS area
+(`#BA00-#BDFF`) is stepped over as well; a program with neither has it (20261118-1). What is kept out of it is only what is really there: the text
 and its font (`#E000-#F3FF`, when the program has text), Layer 2's drawing window (`#C000-#DFFF`,
 with the Graphics class), all of it with the FileSystem class (the DOS switches its own bank in
 there during a file call), and `#FD00-#FFFF` (the start-up stub).

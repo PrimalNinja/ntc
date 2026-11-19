@@ -1,0 +1,48 @@
+diff --git a/src/main_cui/command/townscommand.cpp b/src/main_cui/command/townscommand.cpp
+index e5fee3f..8e3e5ca 100644
+--- a/src/main_cui/command/townscommand.cpp
++++ b/src/main_cui/command/townscommand.cpp
+@@ -245,6 +245,7 @@ TownsCommandInterpreter::TownsCommandInterpreter()
+ 
+ 
+ 	primaryCmdMap["GAMEPORT"]=CMD_GAMEPORT;
++	primaryCmdMap["PADSET"]=CMD_PADSET;
+ 	primaryCmdMap["TOGGLE_HOST_MOUSE_CURSOR"]=CMD_TOGGLE_HOST_MOUSE_CURSOR;
+ 	primaryCmdMap["TOGGLEMOUSE"]=CMD_TOGGLE_HOST_MOUSE_CURSOR;
+ 
+@@ -1974,6 +1975,23 @@ void TownsCommandInterpreter::Execute(TownsThread &thr,FMTownsCommon &towns,clas
+ 	case CMD_GAMEPORT:
+ 		Execute_Gameport(towns,outside_world,cmd);
+ 		break;
++	case CMD_PADSET:
++		if(3<=cmd.argv.size())
++		{
++			unsigned int port=cpputil::Atoi(cmd.argv[1].c_str())&1;
++			unsigned int b=cpputil::Atoi(cmd.argv[2].c_str());
++			auto &p=towns.gameport.state.ports[port];
++			p.device=TownsGamePort::GAMEPAD;
++			p.up=(0!=(b&1));
++			p.down=(0!=(b&2));
++			p.left=(0!=(b&4));
++			p.right=(0!=(b&8));
++			p.button[0]=(0!=(b&16));
++			p.button[1]=(0!=(b&32));
++			p.run=(0!=(b&64));
++			p.pause=(0!=(b&128));
++		}
++		break;
+ 	case CMD_TOGGLE_HOST_MOUSE_CURSOR:
+ 		outside_world->ToggleMouseCursor();
+ 		break;
+diff --git a/src/main_cui/command/townscommand.h b/src/main_cui/command/townscommand.h
+index 197712d..c055813 100644
+--- a/src/main_cui/command/townscommand.h
++++ b/src/main_cui/command/townscommand.h
+@@ -216,6 +216,7 @@ public:
+ 		CMD_SAVE_STATE_MEM_AT,
+ 
+ 		CMD_GAMEPORT,
++		CMD_PADSET, // NTC: PADSET port bits (1 up 2 down 4 left 8 right 16 A 32 B 64 RUN 128 SELECT)
+ 
+ 		CMD_TOGGLE_HOST_MOUSE_CURSOR,
+ 

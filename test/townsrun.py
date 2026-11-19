@@ -10,6 +10,8 @@
 # was given (the transcript a test build keeps from $0A0000). --shot saves a picture.
 # --keys types text at a time: \n = Return (the emulator always ends typed text with Return).
 # --freq=N sets the emulated CPU's speed in MHz (the emulator's own default when left out).
+# --pad=SECONDS:bits,... holds the pad in port 1 (1 up, 2 down, 4 left, 8 right, 16 A, 32 B, 64 RUN,
+# 128 SELECT; 0 lets go). It needs Tsugaru with test/tsugaru-padset.patch (a PADSET console command).
 # --anykey presses a key when the transcript ends with "Press a key".
 # An exception in the program (a test build) is reported: EXCEPTION and the two words the CPU
 # pushed.
@@ -45,6 +47,12 @@ def main():
 			shot = os.path.abspath(a[7:])
 		elif a == '--log':
 			want_log = True
+		elif a.startswith('--pad='):
+			# --pad=SECONDS:bits,...   the pad in port 1 at a time: 1 up, 2 down, 4 left, 8 right, 16 A, 32 B, 64 RUN, 128 SELECT
+			for item in a[6:].split(','):
+				tm, bits = item.split(':', 1)
+				keys.append((float(tm), '!PADSET 0 ' + bits))
+			keys.sort()
 		elif a == '--anykey':
 			anykey = True
 		elif a.startswith('--freq='):

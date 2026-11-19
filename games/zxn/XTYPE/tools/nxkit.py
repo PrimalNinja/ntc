@@ -264,11 +264,15 @@ class Gfx:
         L = ["' GfxData - %s's sprites and tiles (made by tools/art.py with tools/nxkit.py: don't edit)." % game,
              "' %d sprite patterns (4 bit, 16 x 16), %d sprite palette rows, %d tiles (4 bit, 8 x 8: the font is" % (len(s.pats), len(s.rows), len(s.tiles)),
              "' tiles 32-126) and the tilemap's palette rows, in banks %d (the patterns) and %d (the tiles at #0000," % (bank, bank + 1),
-             "' the sprite palette at #2000, the tilemap palette at #2200) of the NEX file (INCBIN %s)." % dat,
+             "' the sprite palette at #2000, the tilemap palette at #2200) of the NEX file (Option SaveNex %s)." % dat,
              "' Load: the patterns to the sprite RAM, both palettes, the tiles to bank 5 + #0000 (#C000, where",
              "' Tiles.Init points the tilemap's tiles). S_NAME is a sprite's first pattern, P_NAME its palette",
              "' offset (for Spr.Put's flags), T_NAME a tile.",
-             "' (c) 2026 Cyborg Unicorn Pty Ltd", "Option Explicit", ""]
+             "' (c) 2026 Cyborg Unicorn Pty Ltd", "Option Explicit",
+             # (NTC's Option SaveNex puts the data file in the NEX file's pages: nothing is assembled into a
+             # bank by hand, and build.js adds nothing to the SAVENEX line. The file must start at datoff 0.)
+             'Option SaveNex "%s", %d, %d      \' the data file in pages %d and %d of the NEX file (a page is the Next\'s 16K bank of the same number)' % (dat, bank, bank + 1, bank, bank + 1), ""]
+        assert datoff == 0, 'Option SaveNex takes the file from its start'
         for nm, first, fr, w, h, row in s.names:
             L.append('Public Const S_%s = %d' % (nm, first))
             if fr > 1: L.append('Public Const S_%s_N = %d' % (nm, fr))
@@ -292,10 +296,7 @@ class Gfx:
         L += asm_reg(0x43, '#20') + asm_pal('gd_p1', '#E000')
         L += asm_reg(0x43, '#30') + asm_pal('gd_p2', '#E200')
         L += asm_reg(0x43, '0') + asm_reg(0x57, 11)
-        L += ["            jp gd_end", "gd_end:"]
-        for k in range(2):
-            L += ["            MMU 6 7, %d" % ((bank + k) * 2), "            ORG #C000", '            INCBIN "%s", %d, 16384' % (dat, datoff + k * 16384)]
-        L += ["            MMU 6 7, 10", "            ORG gd_end", "#endasm", "End Sub"]
+        L += ["#endasm", "End Sub"]
         open(path, 'w').write('\n'.join(L) + '\n')
     def sheet(s, path, scale=3):
         """every pattern in its colours (a preview), 16 a row"""
