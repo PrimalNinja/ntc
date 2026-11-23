@@ -6,6 +6,12 @@
 			org 0
 
 NTC_RAMEND	equ $01000000		; the end of the RAM the variables and arrays are in (;@ramend)
+NTC_A16ADD	equ 0		; (;@a16) added to a 16 bit address once sign extended: where the RAM's 64K is (0: $FF8000 on, the Mega Drive)
+NTC_A16		macro			; an address register loaded from a 16 bit address (movea.w): to the RAM it means
+			ifne NTC_A16ADD
+			adda.l #NTC_A16ADD, \1
+			endif
+			endm
 ;## ntc_md_vectors ntc_ti89_boot
 ; (the 68k backend requires this section be named ntc_md_vectors - the generic
 ;  "68k start" slot. On AMS there is no program-owned vector table; this is just
@@ -1945,6 +1951,7 @@ kw_cpnevl:
 kw_lptrtov8:
 			move.l (sp)+, d0
 			movea.w d0, a0
+			NTC_A16 a0
 			moveq #0, d0
 			move.b (a0), d0
 			movea.l (sp)+, a0
@@ -1958,6 +1965,7 @@ kw_ltolptr8:
 			move.l (sp)+, d0
 			move.l (sp)+, d1
 			movea.w d1, a0
+			NTC_A16 a0
 			move.b d0, (a0)
 			rts
 
@@ -1969,6 +1977,7 @@ kw_vtolptr8:
 			move.w (a1), d0
 			move.l (sp)+, d1
 			movea.w d1, a0
+			NTC_A16 a0
 			move.b d0, (a0)
 			rts
 

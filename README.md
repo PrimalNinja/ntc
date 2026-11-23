@@ -1,4 +1,4 @@
-# NTC - Native Threaded Code v20261119
+# NTC - Native Threaded Code
 
 (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
 
@@ -1292,6 +1292,23 @@ ROMs in `NTC_TOWNSROM`), types text, saves a picture and prints a `--log` build'
 SONG0.PCM ...` turns up to 5 songs (8-bit unsigned mono PCM) into the data `Pcm.Init` takes on the FM
 Towns and the X68000. `node tools/md/dpcm.js --out=MUSIC.DAT [--rate=12000] SONG0.PCM ...` does it for
 the Mega Drive (`tools/md/z80pcm.asm` is its Z80 player, already inside `lib/md/Pcm.cls`).
+
+### ngbuild.js, ncdbuild.js, ngrun.py, ngregress.sh - the Neo Geo (neogeo, neocd)
+
+`node test/ngbuild.js Main.bas [More.cls ...] --out=GAME.neo` compiles, assembles (vasm: `NTC_VASM`;
+sjasmplus for the Z80's sound driver: `NTC_SJASM`) and packs a cartridge; `node test/ncdbuild.js`
+writes a Neo Geo CD disc (.cue) the same way. `python3 test/ngrun.py GAME.neo` runs a cartridge on
+the Geolith libretro core (`NTC_NGCORE`) with NTC's stand-in BIOS (`test/ngbios.s`): pad buttons by
+a script, pictures, the console's text, the sound. `bash test/ngregress.sh` runs the self tests and
+the library classes' tests (`test/neogeo/`). `docs/neogeo.md` has it all.
+
+### tools/neogeo/ngtiles.js, ngpcm.js - tiles and sounds for the Neo Geo
+
+`node tools/neogeo/ngtiles.js --out=NAME --sprites=A.png --backdrop=P.png --fix=F.png` turns PNG
+pictures into the C ROM's sprite tiles, the palettes `Vdp.Colors` / `Vdp.Back` take, and fix layer
+tiles in the S ROM beside NTC's font. `node tools/neogeo/ngpcm.js --out=NAME --samples=HIT.wav
+SONG0.wav ...` turns WAV files into the V ROM (samples as ADPCM-A, songs as ADPCM-B) and the sound
+driver's two tables. `docs/neogeo.md` section 4.
 
 ### m65build.py, m65run.py, m65regress.sh - the MEGA65 (m65)
 

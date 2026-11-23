@@ -12987,6 +12987,15 @@ function ntcCompile(input_a, objOptions_a)
 	if (blnM68k)
 	{
 		arrAsm.push('NTC_RAMEND\tequ ' + String(objPlat.ramend || '$01000000') + '\t\t; the end of the RAM the variables and arrays are in (;@ramend)');
+		if (!blnX86)		// (20261123-2: vasm's macro, not for the 80386's nasm - with it every towns program failed to assemble)
+		{
+			arrAsm.push('NTC_A16ADD\tequ ' + String(objPlat.a16 || '0') + '\t\t; (;@a16) added to a 16 bit address once sign extended: where the RAM\'s 64K is (0: $FF8000 on, the Mega Drive)');
+			arrAsm.push('NTC_A16\t\tmacro\t\t\t; an address register loaded from a 16 bit address (movea.w): to the RAM it means');
+			arrAsm.push(strIndent + 'ifne NTC_A16ADD');
+			arrAsm.push(strIndent + 'adda.l #NTC_A16ADD, \\1');
+			arrAsm.push(strIndent + 'endif');
+			arrAsm.push(strIndent + 'endm');
+		}
 		arrAsm.push('@@MDVECTORS@@');		// the platform's vectors and header (at 0), put in after linking
 	}
 	if (blnM65)

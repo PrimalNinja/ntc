@@ -898,6 +898,7 @@ kw_cpnevl:
 kw_lptrtov8:
 			move.l (sp)+, d0
 			movea.w d0, a0
+			NTC_A16 a0
 			moveq #0, d0
 			move.b (a0), d0
 			movea.l (sp)+, a0
@@ -909,6 +910,7 @@ kw_lptrtov8:
 kw_vptrtov8:
 			movea.l (sp)+, a0
 			movea.w (a0), a0
+			NTC_A16 a0
 			moveq #0, d0
 			move.b (a0), d0
 			movea.l (sp)+, a0
@@ -920,6 +922,7 @@ kw_vptrtov8:
 kw_lptrtov:
 			move.l (sp)+, d0
 			movea.w d0, a0
+			NTC_A16 a0
 			movea.l (sp)+, a1
 			move.w (a0), (a1)
 			rts
@@ -929,6 +932,7 @@ kw_lptrtov:
 kw_vptrtov:
 			movea.l (sp)+, a0
 			movea.w (a0), a0
+			NTC_A16 a0
 			movea.l (sp)+, a1
 			move.w (a0), (a1)
 			rts
@@ -939,6 +943,7 @@ kw_ltovptr8:
 			move.l (sp)+, d0
 			movea.l (sp)+, a0
 			movea.w (a0), a0
+			NTC_A16 a0
 			move.b d0, (a0)
 			rts
 
@@ -949,6 +954,7 @@ kw_vtovptr8:
 			move.w (a1), d0
 			movea.l (sp)+, a0
 			movea.w (a0), a0
+			NTC_A16 a0
 			move.b d0, (a0)
 			rts
 
@@ -958,6 +964,7 @@ kw_ltolptr8:
 			move.l (sp)+, d0
 			move.l (sp)+, d1
 			movea.w d1, a0
+			NTC_A16 a0
 			move.b d0, (a0)
 			rts
 
@@ -968,6 +975,7 @@ kw_vtolptr8:
 			move.w (a1), d0
 			move.l (sp)+, d1
 			movea.w d1, a0
+			NTC_A16 a0
 			move.b d0, (a0)
 			rts
 
@@ -977,6 +985,7 @@ kw_ltovptr:
 			move.l (sp)+, d0
 			movea.l (sp)+, a0
 			movea.w (a0), a0
+			NTC_A16 a0
 			move.w d0, (a0)
 			rts
 
@@ -986,6 +995,7 @@ kw_vtovptr:
 			movea.l (sp)+, a1
 			movea.l (sp)+, a0
 			movea.w (a0), a0
+			NTC_A16 a0
 			move.w (a1), (a0)
 			rts
 
@@ -995,6 +1005,7 @@ kw_ltolptr:
 			move.l (sp)+, d0
 			move.l (sp)+, d1
 			movea.w d1, a0
+			NTC_A16 a0
 			move.w d0, (a0)
 			rts
 
@@ -1004,6 +1015,7 @@ kw_vtolptr:
 			movea.l (sp)+, a1
 			move.l (sp)+, d1
 			movea.w d1, a0
+			NTC_A16 a0
 			move.w (a1), (a0)
 			rts
 
@@ -1473,6 +1485,7 @@ kw_callp:
 kw_callv:
 			movea.l (sp)+, a0
 			movea.w (a0), a0
+			NTC_A16 a0
 			jmp (a0)
 
 ;## kw_inp
@@ -2280,6 +2293,7 @@ kw_strjoin:
 			movea.l (sp)+, a4			; dest
 			movea.l (sp)+, a0			; descriptor
 			movea.w (a0), a2			; base (RAM)
+			NTC_A16 a2
 			move.w 6(a0), d3			; count
 			move.w 10(a0), d5			; element size
 			movea.l (sp)+, a3			; sep
@@ -2781,6 +2795,7 @@ ntc_paddr:
 ntc_pa_tail:					; d0.w = element number, a0 = descriptor
 			move.w 10(a0), d1
 			movea.w (a0), a0
+			NTC_A16 a0
 			muls.w d1, d0
 			adda.l d0, a0
 			jmp (a6)

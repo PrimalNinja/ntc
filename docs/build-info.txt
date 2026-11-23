@@ -37,6 +37,84 @@ Packaging rule (what goes in the archive) - READ THIS BEFORE ZIPPING
 History (newest first)
 ======================
 
+20261123-2
+  - JOINED: this build is 20261119-1 with the other line's two builds on top (that line went
+    20261117-2 -> 20261120-1 -> 20261123-1: the Neo Geo cartridge, then the Neo Geo CD). Their
+    entries are below as they were written. Nothing else differed between the two lines (the
+    bundled library of 20261123-1 was compared file by file).
+  - FOR GAMES on the Neo Geo (cartridge and CD), lib/neogeo: the supporting classes.
+    Vdp (TIANLONG's and SILK TO STEEL's, the same class in both, made NTC's own): the game's
+    128 sprites through a table in RAM in the X68000's form, a backdrop of sprites in four
+    scrolled bands, the palettes, the fix layer's cells. New in it: Sprite (as the X68000's),
+    Strip / Place / Shrink / Join / Hide (any sprite straight), Rgb, Backdrop, TextPalette,
+    TextBase.
+    Keys (Joystick(n) with the other machines' bits; D and Select added). Pcm (songs: Play,
+    Quiet, Volume; samples: Sample, SampleOff, SampleVolume). Psg (the SSG: Reg, Tone, Noise,
+    Off, Quiet). Fm (Reg, Key, Quiet). Cdda (the CD's audio tracks: Play, Quiet). Sound (Send:
+    a byte to the Z80's driver; the four go through it).
+  - Sound driver (src/asm/neogeo_sound_z80.asm): $50 r v and $51 r v - an FM register on the
+    YM2610's first / second port. Nothing else changed in it.
+  - NEW tools/neogeo/ngtiles.js: PNG pictures to the C ROM's tiles, the palettes, a backdrop's
+    224 tiles and palettes, fix tiles in the S ROM beside NTC's font. NEW tools/neogeo/ngpcm.js:
+    WAV files to the V ROM (ADPCM-A samples, ADPCM-B songs) and the driver's two tables. Both
+    plain node, nothing to install.
+  - NEW test/ngregress.sh, test/neogeo/ (Classes.bas, Dat.cls, Sound.bas, mkassets.js): 13 self
+    tests by their transcripts, the tools, the classes by transcript, picture and sound, a CD
+    disc built.
+  - docs/neogeo.md (the classes, the tools, the tests), docs/targets.md, README.
+  - RUN on Geolith with the stand-in BIOS: test/ngregress.sh, all pass. NOT run: anything with
+    SNK's BIOS or on a real Neo Geo; the Neo Geo CD at all (no emulator for it here), so Cdda
+    is untested; Vdp.Shrink and Vdp.TextBase have no test.
+  - FIXED (it came in with 20261120-1): every towns program failed to assemble. The compiler
+    wrote the 68000's NTC_A16 macro (vasm's) into the 80386's file too, and nasm refused it.
+    It is now left out for the 80386.
+  - md, x68000, towns: their test programs (vb_test, vb_test9, vb_test_long, the sieve, each
+    one's Classes test) assemble to the same bytes as 20261119-1. Their emulators were not
+    here for this build, so their three regressions were not run again.
+  - The Z80 platforms' output is unchanged.
+
+20261123-1
+  - NEW platform neocd: the Neo Geo CD (src/asm/ntc_plat_neocd.asm, ;@base neogeo: only the
+    CD's own - the vectors (the CD BIOS's CD interrupt handlers, VBlank on levels 1 and 2), the
+    variables at $0F8000-$107FFF (no 64K mirror on the CD: ;@a16 $100000), VBlank calling the
+    BIOS's SYSTEM_IO). Its classes are neogeo's. DRAFT: built, NOT yet run.
+  - NEW test/ncdbuild.js: compiles for neocd and writes the disc: a .cue, track 1 an ISO 9660
+    file system (IPL.TXT, .PRG, .FIX, .SPR, .Z80, .PCM) as MODE1/2352 sectors with EDC and ECC,
+    then CD audio tracks from WAV files. --crom turns a .neo's C ROM into a .SPR.
+  - Sound driver (src/asm/neogeo_sound_z80.asm): $40 t / $41 - CD audio requests for the CD
+    BIOS at the Z80's $FEF8 (played round and round by the BIOS). Nothing else changed in it.
+  - test/ngbuild.js: its functions exported (ncdbuild.js uses them); run as before.
+  - test/gen.js: neocd in the platform list. docs/neogeo.md section 7, docs/targets.md.
+
+20261120-1
+  - neogeo: the platform made to run (it was a draft that only assembled). A program is a
+    cartridge (.neo: P, S, M1, V, C ROMs) the BIOS starts: the cartridge's vectors and the
+    Neo Geo header (USER, the jump entries written out as 6 byte jmps, the security code, the
+    soft DIPs with the program's name), request 0 / 1 back to the BIOS, the game on 2 / 3 in
+    user mode. The console on the fix layer (40 x 28), the pads (both, Start and Select from
+    REG_STATUS_B) read in the VBlank interrupt, Frame, Ticks (59.19 a second), the watchdog.
+    The variables' RAM at $100000-$10BFFF.
+  - Compiler and 68000 library: ";@a16" in a platform header. The compiler writes NTC_A16ADD
+    and the NTC_A16 macro; the library has NTC_A16 after its 15 movea.w address loads, so a
+    16 bit address is the Neo Geo's RAM (sign extended, + $110000: the RAM's mirror). Empty
+    on md, x68000, towns, ti89: their output is unchanged.
+  - NEW: src/asm/neogeo_sound_z80.asm - NTC's Z80 sound driver for the M1 ROM: bytes from
+    the 68000 through REG_SOUND (each answered with a count), the SSG's registers, ADPCM-B
+    songs (looped) and ADPCM-A samples from tables in the ROM.
+  - NEW: lib/neogeo/Pad.cls (Read, Up ... D, Start, SelectKey); lib/neogeo/StdIO.cls and
+    System.cls.
+  - NEW: test/ngbuild.js (compile, assemble, pack the .neo; --srom --crom --vrom --mrom
+    --songs --samples --ngh --log), test/ngrun.py (the Geolith libretro core with no window:
+    pads by a script, pictures, the fix layer as text, RAM, sound at the core's rate, a --log
+    build's transcript), test/ngbios.s (NTC's stand-in AES BIOS for testing; ngbuild.js makes
+    test/ngsys/aes.zip from it and the sprites' shrink table it works out). docs/neogeo.md.
+  - The header's NGH number defaults to 3100 (was $999, which Geolith takes for V-Liner, with
+    the pads read another way: Start and Select were never seen).
+  - RUN on Geolith with the stand-in BIOS: the self test (36 tests), hello, sieve, vb_test,
+    3, 4, 6, 7, 8, 9, 12, vb_test_long (the same output as md); TIANLONG and SILK TO STEEL
+    whole. NOT run with SNK's BIOS or on a real Neo Geo.
+  - The Z80 platforms' output is unchanged.
+
 20261119-1
   - FOR GAMES on the FM Towns, the X68000 and the Mega Drive: the supporting classes, lifted
     from TIANLONG (the first game on the FM Towns and the X68000) and made NTC's own. Each

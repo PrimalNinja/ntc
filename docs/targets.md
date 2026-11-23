@@ -39,7 +39,8 @@ vasm / vasm6502 **on your machine** — the cloud box only lacks those assembler
 | `md` | 68000 | ROM + 64K work RAM | VDP | stable (games shipped; assembles with vasm on your machine) |
 | `m65` | 45GS02 | MEGA65, large RAM | native | stable (assembles with vasm6502 on your machine) |
 | `pcw16` | Z80 | 1MB in 64×16K blocks, 4 quarters (Rosanne) | Rosanne OS | draft |
-| `neogeo` | 68000 (+Z80 sound) | cartridge, SP=thread in user mode | fix-layer | draft (assembles with vasm on your machine) |
+| `neogeo` | 68000 (+Z80 sound) | cartridge (.neo), SP=thread in user mode, RAM at `$100000` | fix-layer | stable (two games shipped; run on the Geolith core with NTC's stand-in BIOS: `docs/neogeo.md`) |
+| `neocd` | 68000 (+Z80 sound) | CD (.cue: IPL.TXT and its files, CD audio tracks), SP=thread in user mode, variables at `$0F8000` | fix-layer | draft (builds discs; not yet run: `docs/neogeo.md` section 7) |
 | `ti83` | Z80 | flat, program at `#9D95` | TI-OS (`_PutС`), 16×8 | draft |
 | `ti89` | 68000 | AMS, nostub | direct LCD | skeleton (assembles with vasm on your machine) |
 | `trs80` | Z80 | flat, program `~#5200`, screen `#3C00` | direct video, 64×16 | draft |
@@ -60,7 +61,7 @@ The deciding split is **bitmap vs tile/sprite**, because it sets the whole drawi
 | Family | Platforms |
 |---|---|
 | Bitmap | `cpc` (native), `pcw16`, PCW 8256, `trs80`, `system80`, `ti83`, `ti89`, Sharp G850, `m65` |
-| Tile/sprite | `sc3000`, `colecovision`, `md`, `neogeo` |
+| Tile/sprite | `sc3000`, `colecovision`, `md`, `neogeo`, `neocd` |
 | Both | `msx` (TMS9918 tiles **and** V9938 bitmap+sprites), `zxn` (Layer 2 **and** HW sprites + tilemap) |
 
 The TMS9918 "screen 2" is a *constrained* pseudo-bitmap (colour is per-8-pixels), so
@@ -80,7 +81,8 @@ see the gaps). Measured by capability, not method count.
 | `zxn` | `Graphics` (10) | **hardware sprites / Layer 2 / 256-col not classed** - big gap vs the silicon |
 | `cpm`, `cyborgos`, `cyborgoshh` | (inherited `Graphics`) | CyborgOS really draws via the **Pi/RVDU streamer**, not a per-platform class |
 | `colecovision` | **none** | identical video to `sc3000` (TMS9918A, `#BE`/`#BF`) - the SC-3000 `VDP` class drops straight on |
-| `m65`, `pcw16`, `neogeo`, `ti83`, `ti89`, `trs80`, `system80` | **none** | console only so far; graphics is the next layer |
+| `neogeo`, `neocd` | `Vdp`, `Keys`, `Pad`, `Pcm`, `Psg`, `Fm`, `Cdda`, `Sound` | sprites (a table of 128, any sprite straight), a backdrop of sprites in four scrolled bands, palettes, the fix layer's cells; ADPCM music and samples, the SSG, FM registers (`docs/neogeo.md` section 3) |
+| `m65`, `pcw16`, `ti83`, `ti89`, `trs80`, `system80` | **none** | console only so far; graphics is the next layer |
 
 ### Known gaps (library, not hardware)
 
@@ -90,7 +92,7 @@ see the gaps). Measured by capability, not method count.
   but aren't shipped classes (BOUNCE drove sprites through a *project* class, not the library).
 - `cyborgos` graphics completeness isn't in this table - its path is the Pi/RVDU streamer
   (`streamer/`, `pi-bridge.md`).
-- The recent targets (`pcw16`, `neogeo`, `ti83`, `ti89`, `trs80`, `system80`) are console-only; the
+- The recent targets (`pcw16`, `ti83`, `ti89`, `trs80`, `system80`) are console-only; the
   normalised display layer (below) is how they get graphics without hand-rolling each one.
 
 ## 4. The normalised display model (plan)

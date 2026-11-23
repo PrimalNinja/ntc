@@ -6,7 +6,7 @@ var strLib = read('asm/ntc_lib_gen.asm') + '\n' + read('asm/ntc_lib_cpc.asm') + 
 var strLib68k = read('asm/ntc_lib_68k.asm');		// the 68000's keyword library (md)
 var strLibX86 = read('asm/ntc_lib_x86.asm');		// the 80386's keyword library (towns)
 var strLibM65 = read('asm/ntc_lib_m65.asm');		// the 45GS02's keyword library (m65)
-var arrPlat = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'cyborgos', 'cyborgoshh', 'baremetal', 'test', 'zxn', 'zxndot', 'zxndotl', 'msx', 'msxcard', 'msx9990', 'msxdos', 'sc3000', 'colecovision', 'cpc9990', 'cpccard', 'md', 'm65', 'pcw16', 'neogeo', 'ti83', 'ti89', 'x68000', 'towns', 'trs80', 'system80'];
+var arrPlat = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'cyborgos', 'cyborgoshh', 'baremetal', 'test', 'zxn', 'zxndot', 'zxndotl', 'msx', 'msxcard', 'msx9990', 'msxdos', 'sc3000', 'colecovision', 'cpc9990', 'cpccard', 'md', 'm65', 'pcw16', 'neogeo', 'neocd', 'ti83', 'ti89', 'x68000', 'towns', 'trs80', 'system80'];
 // a platform built on another: ";@base cpm" in asm/ntc_plat_<platform>.asm - its text is its own
 // file (the ;@ header, anything of its own) followed by the base's, less the base's ;@ lines it
 // has its own of and less the base's sections it has its own of (the same ;## name: its own
