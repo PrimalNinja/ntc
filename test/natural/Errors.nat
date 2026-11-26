@@ -1,0 +1,17 @@
+Option Flavour Natural
+#ntc
+Dim score As Integer
+#endntc
+add 5 score
+rotate 90 door
+set score to
+if points is above 3 say "x" end
+if closed say "y" end
+leave
+say 3 + 4
+name say is door 1
+else
+count from 1 to 3 end
+with
+repeat 3 say "z" end
+if score is over 3

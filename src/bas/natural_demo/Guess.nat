@@ -1,0 +1,17 @@
+Option Flavour Natural
+' Guess.nat - guess the number. (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
+#ntc
+Randomize 1234      ' the same number every run: take this line out for a real game
+#endntc
+pick secret from 1 to 100
+set tries to 0
+say "I am thinking of a number from 1 to 100."
+forever
+  ask "Your guess" into guess
+  add 1 to tries
+  if guess is below secret say "Too low." end
+  if guess is above secret say "Too high." end
+  if guess is equal to secret leave end
+end
+say "You got it in" tries "tries."
+if tries is at most 5 say "That was quick." else say "Well done." end

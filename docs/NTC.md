@@ -264,6 +264,12 @@ Files (ES5, no node, no Python):
 | `asm/ntc_plat_sc3000.asm` | Sega SC-3000 cartridge ROM: TMS9918 console, keyboard matrix, 2K RAM |
 | `asm/ntc_plat_cpccard.asm`, `ntc_plat_cpc9990.asm` | `cpc` with the console on an MSX V9938 card (AMSDAP, &FF88) or a V9990 (&FF60) |
 | `asm/ntc_lib_vdp.asm` | the video chip consoles and the VDP / V9990 classes' engines |
+| `asm/ntc_lib_cpc.asm`, `ntc_lib_msx.asm`, `ntc_lib_nxt.asm`, `ntc_lib_dot.asm`, `ntc_lib_ep.asm` | a Z80 machine's own library parts: the CPC's banks and the paging manager, the MSX's mapper, the Next's MMU and DOS calls, a dot command's pages, the Enterprise's segments |
+| `asm/ntc_plat_zxn.asm`, `ntc_plat_zxndot.asm`, `ntc_plat_zxndotl.asm`, `ntc_plat_msxdos.asm`, `ntc_plat_colecovision.asm`, `ntc_plat_ep128.asm`, `ntc_plat_cyborgos.asm`, `ntc_plat_cyborgoshh.asm`, `ntc_plat_baremetal.asm` | the other Z80 platforms (docs/targets.md has every platform in one table); `ntc_plat_pcw16.asm`, `ntc_plat_ti83.asm`, `ntc_plat_trs80.asm`, `ntc_plat_system80.asm` are drafts |
+| `asm/ntc_lib_68k.asm` with `ntc_plat_md.asm`, `ntc_plat_x68000.asm`, `ntc_plat_neogeo.asm`, `ntc_plat_neocd.asm`, `ntc_plat_amiga.asm` (`ntc_plat_ti89.asm` a skeleton) | the 68000: A7 the thread in user mode (docs/md.md, x68000.md, neogeo.md, amiga.md) |
+| `asm/ntc_lib_m65.asm` with `ntc_plat_m65.asm`, `ntc_plat_c64reu.asm` | the 45GS02 (the MEGA65) and the 6502 (a Commodore 64 with an REU: the thread in the REU, run through windows in page 1) (docs/m65.md, c64reu.md) |
+| `asm/ntc_lib_x86.asm` with `ntc_plat_towns.asm` | the 80386 (the FM Towns): ESP the thread in ring 3, nasm (docs/towns.md) |
+| `asm/neogeo_sound_z80.asm` | the Neo Geo's Z80 sound driver (not threaded code) |
 | `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is), `FileSystem.cls` (files), `Memory.cls` (RAM pages, heap), `List.cls` (linked lists); the CPC platforms also `Graphics.cls` and `Keys.cls` (keys held down, joysticks) |
 | `../docs/requirements.md` | What you need to use NTC, rebuild its generated files and run the tests; the targets it builds for |
 | `../docs/userguide.md` | Language reference: every keyword by topic, with an example and its VB5 / VB6 differences |
@@ -529,6 +535,14 @@ keeps them all), the declarations and the DATA table at the top, `End`, the DEF 
 and helpers at the end. A line using something unsupported throws inside pass 2: the line
 becomes `' WARNING: ...` (its number kept when something jumps to it) and a warning - flavours
 return `warnings`, ntcPrep passes them on, ntcCompile adds them to its own.
+
+The Natural flavour (`js/ntc_flavour_natural.js`, `ntcFlavourNatural`) turns near-English
+sentences into VB5 text: `with sprite 1 rotate 90` is `Sprite.Rotate 1, 90`, with `set` / `add` /
+`if` / `count` / `while` and the like built in. A file starting `Option Flavour Natural` (or named
+`.nat`) is natural all through, with `#ntc` ... `#endntc` for plain NTC BASIC; a plain file can
+hold `#natural` ... `#endnatural` parts. The project's classes are the vocabulary (`turn left` is
+`Robot.TurnLeft`), and `to square using size ... end` makes a word of your own. Examples in
+`src/bas/natural_demo/`; `docs/natural_flavour.md`.
 
 ### Project explorer (GUI)
 

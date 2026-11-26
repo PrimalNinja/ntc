@@ -1,0 +1,43 @@
+PI11 DISK - Pi volumes (random access records)
+----------------------------------------------
+  ok    OPEN disk
+  ok    VOLUMES
+    OK 0
+
+  ok    NEW PIDEMO
+  ok    MOUNT PIDEMO P
+  ok    OPEN P:TEST.DAT new
+    OK 0 0 0
+  ok    WRITE records 0 and 1 (256 bytes)
+  ok    SIZE says 2 records, 256 bytes
+  ok    READ record 1
+  ok      128 bytes, the second half of what was written
+  ok    READ records 0 and 1 in one request (READ h 0 2)
+  ok      256 bytes, the same
+  ok    WRITE record 4, leaving a gap (records 2 and 3)
+  ok    SIZE says 5 records, 640 bytes
+  ok    READ record 3 (in the gap)
+  ok      128 zeros
+  ok    READ record 9 (past the end) gives none
+  ok    CLOSE the file
+  ok    FIND P:*.*
+    OK 1
+TEST.DAT 640
+  ok      one file
+  ok    REN P:NEW.DAT P:TEST.DAT
+  ok    MKDIR P:SUB
+  ok    FIND shows NEW.DAT and SUB
+NEW.DAT 640
+SUB <DIR>
+  ok    FREE P
+    OK 29038668 (kilobytes free on the Pi)
+  ok    a path that leaves the volume is refused
+    ERR a path must stay in its volume
+  ok    RMDIR P:SUB
+  ok    ERA P:NEW.DAT (1 file gone)
+  ok    UNMOUNT P
+  ok    DROP PIDEMO YES
+
+28 ok, 0 failed - ALL PASS
+
+--- ended  bytes to the Pi 1164, from the Pi 1075, Pi ROM writes 0  (cplink2)

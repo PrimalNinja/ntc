@@ -12,6 +12,7 @@ eval(fs.readFileSync(D + 'js/ntc_compiler.js', 'utf8').replace('function ntcComp
 eval(fs.readFileSync(D + 'js/ntc_flavour_js.js', 'utf8'));
 eval(fs.readFileSync(D + 'js/ntc_flavour_php.js', 'utf8'));
 eval(fs.readFileSync(D + 'js/ntc_flavour_loco.js', 'utf8'));
+eval(fs.readFileSync(D + 'js/ntc_flavour_natural.js', 'utf8'));
 
 // AMSDOS / CP/M names: 8 characters at most
 var arrPrograms = [

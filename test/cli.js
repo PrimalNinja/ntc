@@ -7,6 +7,7 @@ eval(fs.readFileSync(require('path').join(__dirname, '..', 'src', 'js', 'ntc_com
 eval(fs.readFileSync(require('path').join(__dirname, '..', 'src', 'js', 'ntc_flavour_js.js'),'utf8'));
 eval(fs.readFileSync(require('path').join(__dirname, '..', 'src', 'js', 'ntc_flavour_php.js'),'utf8'));
 eval(fs.readFileSync(require('path').join(__dirname, '..', 'src', 'js', 'ntc_flavour_loco.js'),'utf8'));
+eval(fs.readFileSync(require('path').join(__dirname, '..', 'src', 'js', 'ntc_flavour_natural.js'),'utf8'));
 var args=process.argv.slice(2), opts={}, files=[];
 var mapFile=null;
 args.forEach(function(a){ if(a==="--turbo")opts.turbo=true; else if(a.indexOf("--platform=")===0)opts.platform=a.substr(11); else if(a.indexOf("--amsdos=")===0)opts.amsdos=a.substr(9); else if(a.indexOf("--name=")===0)opts.name=a.substr(7); else if(a.indexOf("--library=")===0)opts.library=a.substr(10); else if(a.indexOf("--flavour=")===0)opts.flavour=a.substr(10); else if(a==="--vb"){opts.showvb=true;} else if(a==='--nocomments')opts.sourcecomments=false; else if(a.indexOf('--const=')===0){var kv=a.substr(8).split('='); opts.consts=opts.consts||{}; opts.consts[kv[0]]=(kv.length>1)?(isNaN(kv[1])?kv[1]:Number(kv[1])):-1;} else if(a.indexOf('--org=')===0)opts.org=a.substr(6); else if(a==='--layout')opts.showlayout=true; else if(a.indexOf('--map=')===0)mapFile=a.substr(6); else files.push({name:a.replace(/^.*\//,''),text:fs.readFileSync(a,'utf8')}); });

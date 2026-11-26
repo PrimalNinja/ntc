@@ -16,7 +16,7 @@ NTC_PLATRSV	equ 0
 NTC_ISLN	equ 16		; (the ROM serves up to 16 interrupt classes)
 NTC_ROM_N	equ 325			; numbers in the index
 NTC_ROM_COUNT	equ 1			; ROMs in the set (NTCCPC.ROM)
-NTC_ROM_SET	equ #2C20		; the set's stamp (its ROMs find each other by it)
+NTC_ROM_SET	equ #955C		; the set's stamp (its ROMs find each other by it)
 MEM_WIN		equ #4000
 MEM_BADPAGE	equ -2
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
@@ -5878,7 +5878,7 @@ mem_putback:
 			call mem_sel
 			pop hl
 			ret
-;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank ntc_dot_bank @shared @far
+;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank ntc_dot_bank ntc_ep_bank @shared @far
 mem_start:
 			ld a, (mem_init)
 			or a
@@ -7991,6 +7991,7 @@ lst_rs_cend:
 ;## ntc_nxt_bank ntc_mem @far
 ;## ntc_msx_bank ntc_mem @far
 ;## ntc_dot_bank ntc_mem @far
+;## ntc_ep_bank ntc_mem @far
 ;## ntc_plat_data
 ;## ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ntc_plat_putc:

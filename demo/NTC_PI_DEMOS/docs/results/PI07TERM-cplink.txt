@@ -1,0 +1,18 @@
+PI07 TERM - a shell on the Pi, the CPC its terminal
+---------------------------------------------------
+  ok    OPEN term
+<9ffa-4d518563895a/scratchpad/pidemos/NTC_PI_DEMOS# echo CPC-$((6*7))
+CPC-42
+<9ffa-4d518563895a/scratchpad/pidemos/NTC_PI_DEMOS# 
+  ok    the shell wrote something
+  ok    the command's answer CPC-42 came back
+exit
+exit
+
+    event: EXIT 0
+
+  ok    the shell ended (EXIT, the channel closed)
+
+4 ok, 0 failed - ALL PASS
+
+--- ended  bytes to the Pi 201, from the Pi 335, Pi ROM writes 0  (cplink)

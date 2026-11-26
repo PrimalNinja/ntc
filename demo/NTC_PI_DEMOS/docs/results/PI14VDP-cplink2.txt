@@ -1,0 +1,17 @@
+PI14 VDP - sprites on the Pi's HDMI (hwlib's Pi class)
+------------------------------------------------------
+  ok    HELLO (the link is alive before Pi.cls takes it)
+    150 frames in 334 ticks (300 a second)
+  ok    CHANS shows the vdp channel
+  ok    STATE 0: ball 0 is on the Pi
+    OK 0 156 60 1 1
+  ok    STATE 11: ball 11 is on the Pi
+    OK 11 186 171 2 1
+  ok    STATE 0 again
+    OK 0 168 84 0 1
+  ok      ball 0 has moved
+
+6 ok, 0 failed - ALL PASS
+Running on: any key ends it.
+
+--- ended  bytes to the Pi 4800, from the Pi 2591, Pi ROM writes 0  (cplink2)

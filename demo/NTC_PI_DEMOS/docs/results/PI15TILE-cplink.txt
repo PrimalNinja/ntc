@@ -1,0 +1,15 @@
+PI15 TILES - the vdp's tile layer, tiles from the store
+-------------------------------------------------------
+  ok    OPEN store
+  ok    4 tiles put in the store as GRAPHICS/V9990/TILES
+    100 frames in 223 ticks (300 a second)
+  ok    STATE 0: the ball is on the Pi
+    OK 0 218 142 0 1
+  ok    INFO
+    OK v9990 256 212 125 512 832 60 32x26
+  ok    STATE 0 again: it has moved
+
+5 ok, 0 failed - ALL PASS
+Running on: any key ends it.
+
+--- ended  bytes to the Pi 4144, from the Pi 2005, Pi ROM writes 0  (cplink)

@@ -194,6 +194,8 @@ function ntcCompile(input_a, objOptions_a)
 								// variables are a RAM block with 16 bit addresses), then x86Text turns the compiler's own
 								// 68000 lines and vasm data lines into nasm's. The library (asm/ntc_lib_x86.asm) is nasm
 	var blnM65 = false;			// the platform's CPU is a 45GS02 (;@cpu 45gs02: m65): 6502 stubs, thread words - 1 (vasm)
+	var blnWin = false;			// the platform's CPU is a plain 6502 (;@cpu 6502: c64reu). It rides the 45GS02 path (blnM65 is true
+								// too): the thread is in the REU and runs through a 128 byte window in page 1 (winLayout)
 	var arrRamOut = [];			// 68000: the RAM block's lines (variables, temps), after the ROM
 	var blnRomDrop = false;		// Library: ROM: its start code is last, the arrays start on it (holeLayout)
 	var objNoTurboLine = null;
@@ -3512,11 +3514,11 @@ function ntcCompile(input_a, objOptions_a)
 		}
 		else
 		{
-			arrCode_a.push(strIndent + 'dew z_p1');
+			arrCode_a.push(strIndent + 'NTC_DEW z_p1');
 			arrCode_a.push(strIndent + 'ldy #0');
 			arrCode_a.push(strIndent + 'lda (z_p1),y\t\t; the destination\'s capacity');
 			arrCode_a.push(strIndent + 'tax');
-			arrCode_a.push(strIndent + 'inw z_p1');
+			arrCode_a.push(strIndent + 'NTC_INW z_p1');
 		}
 		arrCode_a.push(strIndent + 'ldy #0');
 		arrCode_a.push(strIndent + 'cpx #0');
@@ -3702,7 +3704,7 @@ function ntcCompile(input_a, objOptions_a)
 						arrCode.push(strIndent + 'ldy #0');
 						arrCode.push(strIndent + 'tya');
 						arrCode.push(strIndent + 'sta (z_p0),y');
-						arrCode.push(strIndent + 'inw z_p0');
+						arrCode.push(strIndent + 'NTC_INW z_p0');
 						arrCode.push(strIndent + 'lda z_a');
 						arrCode.push(strIndent + 'bne ' + strBody + '_cm_' + cleanLabel(objLocal.id));
 						arrCode.push(strIndent + 'dec z_a+1');
@@ -3747,6 +3749,17 @@ function ntcCompile(input_a, objOptions_a)
 				}
 			}
 		}
+		if (blnWin)
+		{
+			arrCode.push(strIndent + 'NTC_POS\t\t\t\t; the return point (a thread position)');
+			arrCode.push(strIndent + 'stx ' + strRs);
+			arrCode.push(strIndent + 'sty ' + strRs + '+1');
+			arrCode.push(strIndent + 'ldx #<' + strBody);
+			arrCode.push(strIndent + 'ldy #>' + strBody);
+			arrCode.push(strIndent + 'jmp ntc_goxy');
+		}
+		else
+		{
 		arrCode.push(strIndent + 'tsx\t\t\t\t; the return point');
 		arrCode.push(strIndent + 'stx ' + strRs);
 		arrCode.push(strIndent + 'tsy');
@@ -3756,6 +3769,7 @@ function ntcCompile(input_a, objOptions_a)
 		arrCode.push(strIndent + 'ldy #>(' + strBody + '-1)');
 		arrCode.push(strIndent + 'tys');
 		arrCode.push(strIndent + 'rts');
+		}
 
 		arrCode.push(strBody + '_r:\t\t; end of ' + objProc_a.id);
 		for (intI = 0; intI < arrParams.length; intI++)
@@ -3810,10 +3824,18 @@ function ntcCompile(input_a, objOptions_a)
 			}
 		}
 		arrCode.push(strIndent + 'ldx ' + strRs + '\t\t; back to the caller\'s thread');
+		if (blnWin)
+		{
+			arrCode.push(strIndent + 'ldy ' + strRs + '+1');
+			arrCode.push(strIndent + 'jmp ntc_goxy');
+		}
+		else
+		{
 		arrCode.push(strIndent + 'txs');
 		arrCode.push(strIndent + 'ldy ' + strRs + '+1');
 		arrCode.push(strIndent + 'tys');
 		arrCode.push(strIndent + 'rts');
+		}
 
 		arrProcStubs = arrProcStubs.concat(arrCode);
 	}
@@ -9540,7 +9562,7 @@ function ntcCompile(input_a, objOptions_a)
 	function readMemory(objRec_a)
 	{
 		var arrMatch = String(objRec_a.value).match(/^(small|cpcexpansion|heap\s+main|heap\s+pages)\b[ \t,]*(.*)$/i);
-		var blnCpc = platIs('cpc') || (objOptions.platform === 'cpcmin') || (objOptions.platform === 'cpcfw') || (objOptions.platform === 'zxn') || (objOptions.platform === 'zxndotl') || (objOptions.platform === 'msxdos') || (objOptions.platform === 'cyborgos');
+		var blnCpc = platIs('cpc') || (objOptions.platform === 'cpcmin') || (objOptions.platform === 'cpcfw') || (objOptions.platform === 'zxn') || (objOptions.platform === 'zxndotl') || (objOptions.platform === 'msxdos') || (objOptions.platform === 'cyborgos') || (objOptions.platform === 'ep128');		// (20261125-1: ep128 - the Enterprise's segments)
 		var intMax = 0;
 		var strWord = '';
 
@@ -10725,6 +10747,690 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			return strL_a;
 		}).join('\n');
+	}
+
+	var objWinStats = null;
+	// Option Lot Name = Class, Class ... (the 6502 with an REU): the REU past the kernel's 32K is
+	// lots of 96K. A lot named here is a code lot: 64K for its classes' threads, 32K for their
+	// workspace (their call stubs, variables and strings), which is in the C64's memory while
+	// the lot is the one running. objLots: the lots in order (lot 1 first); objClassLot: class -> lot
+	var arrLots = [];
+	var objClassLot = {};
+	function scanLots(arrFiles_a)
+	{
+		arrLots = [];
+		objClassLot = {};
+		arrFiles_a.forEach(function(objFile_a)
+		{
+			var blnHit = false;
+			var arrL = String(objFile_a.text).split('\n').map(function(strL_a, intN_a)
+			{
+				var arrM = /^\s*option\s+lot\s+([A-Za-z_]\w*)\s*=\s*([^']+?)\s*('.*)?$/i.exec(strL_a.replace(/\r$/, ''));
+
+				if (!arrM)
+				{
+					if (/^\s*option\s+lot\b/i.test(strL_a))
+					{
+						arrErrors.push({ file: objFile_a.name, line: intN_a + 1, msg: 'Option Lot Name = Class, Class ...' });
+						blnHit = true;
+						return '\' ' + strL_a;
+					}
+					return strL_a;
+				}
+				blnHit = true;
+				if (arrLots.some(function(obj_a) { return obj_a.name.toLowerCase() === arrM[1].toLowerCase(); }))
+				{
+					arrErrors.push({ file: objFile_a.name, line: intN_a + 1, msg: 'Option Lot ' + arrM[1] + ' is given twice' });
+				}
+				else
+				{
+					arrLots.push({ name: arrM[1], classes: [] });
+					arrM[2].split(',').forEach(function(strC_a)
+					{
+						var strC = strC_a.trim().toLowerCase();
+
+						if (!/^[a-z_]\w*$/.test(strC))
+						{
+							arrErrors.push({ file: objFile_a.name, line: intN_a + 1, msg: 'Option Lot ' + arrM[1] + ': "' + strC_a.trim() + '" is not a class name' });
+						}
+						else if (objClassLot[strC])
+						{
+							arrErrors.push({ file: objFile_a.name, line: intN_a + 1, msg: 'Option Lot ' + arrM[1] + ': ' + strC_a.trim() + ' is in a lot already (a class is in one lot)' });
+						}
+						else
+						{
+							objClassLot[strC] = arrLots.length;
+							arrLots[arrLots.length - 1].classes.push(strC);
+						}
+					});
+				}
+				return '\' ' + strL_a;		// (the line is done with: a comment to the parser)
+			});
+
+			if (blnHit)
+			{
+				objFile_a.text = arrL.join('\n');
+			}
+		});
+	}
+
+	// the 6502 with an REU (blnWin): the threads (the main one and every Sub's, between
+	// "; Main Thread" and the end of the last Sub's) are taken out of the program and put after
+	// its end as the pieces the windows show: a piece is 64 bytes, ends with kw_wnext (the next
+	// piece) and never has a keyword cut from its arguments. They are assembled for their own
+	// addresses (rorg NTC_THR_ORG: where they are in their lot). The platform's start code puts
+	// them into the REU; after that the memory is the arrays' (ntc_end is before it). A --split
+	// build keeps them in files of their own instead.
+	// With Option Lot: each lot's classes' threads are a blob of their own, and their call stubs,
+	// goto stubs, variables and strings are taken out too and made the lot's workspace (rorg
+	// NTC_WS_ORG). A call into a lot from outside it goes through an entry (p_name_e) in the
+	// kernel. objWinStats: per lot { pieces, bytes, pad, loops, cross }
+	function winLayout(strAsm_a)
+	{
+		var arrIn = [];
+		var arrOut = [];
+		var arrKeep = [];
+		var intFrom = -1;
+		var intTo = -1;
+		var intLib = -1;
+		var intI = 0;
+		var intJ = 0;
+		var intL = 0;
+		var strL = '';
+		var arrM_ = null;
+		var strIndent = '\t\t\t';
+		var WIN = 64;		// a piece's bytes
+		var intLots = arrLots.length;
+		var arrThread = [];		// per lot: its thread lines
+		var arrWs = [];			// per lot: { stubs, strings, vars } lines
+		var objLabelLot = {};	// a thread label -> its lot
+		var objStrLot = {};		// strN -> lot (lots only)
+		var objStrSeen = {};	// strN -> { lot: true }
+		var arrTake = [];		// per input line: the lot it is moved to (-1: stays)
+		var arrKind = [];
+		var intCur = 0;
+		var objEntry = {};		// a lot proc called from outside its lot: name -> index
+		var arrEntry = [];
+		var arrCut = [];
+		var arrBlob = [];		// { label, kind, lot }
+		var strOwn = '';
+
+		if (!blnWin)
+		{
+			return strAsm_a;
+		}
+		arrIn = strAsm_a.split('\n');
+		for (intI = 0; intI < arrIn.length; intI++)
+		{
+			if ((intFrom < 0) && (arrIn[intI] === '; Main Thread'))
+			{
+				intFrom = intI - 1;
+			}
+			if ((intFrom >= 0) && (intTo < 0) && (arrIn[intI] === '; (the end of the threads)'))
+			{
+				intTo = intI;
+			}
+			if ((intTo >= 0) && (intLib < 0) && /^; Keyword library/.test(arrIn[intI]))
+			{
+				intLib = intI - 1;
+			}
+		}
+		if ((intFrom < 0) || (intTo < 0))
+		{
+			arrErrors.push({ file: '', line: 0, msg: 'the threads were not found in the program (winLayout)' });
+			return strAsm_a;
+		}
+		if (intLib < 0)
+		{
+			intLib = arrIn.length;
+		}
+		// the lot of a name made from a class's: p_<class>_..., var_<class>_...
+		function nameLot(strName_a)
+		{
+			var arrN = /^(?:p|var)_([a-z0-9]+)_/.exec(strName_a);
+
+			if (arrN && objClassLot[arrN[1]])
+			{
+				return objClassLot[arrN[1]];
+			}
+			// (a class name with _ in it)
+			return Object.keys(objClassLot).reduce(function(intR_a, strC_a)
+			{
+				return ((strName_a.indexOf('p_' + strC_a + '_') === 0) || (strName_a.indexOf('var_' + strC_a + '_') === 0)) ? objClassLot[strC_a] : intR_a;
+			}, 0);
+		}
+		// the words of a dw line (a thread line is one keyword and its arguments)
+		function words(strL_a)
+		{
+			var strT = strL_a.replace(/;.*$/, '').replace(/^\s*dw\s+/, '');
+			var intDepth = 0;
+			var intC = 1;
+			var intK = 0;
+
+			for (intK = 0; intK < strT.length; intK++)
+			{
+				if (strT[intK] === '(') { intDepth++; }
+				if (strT[intK] === ')') { intDepth--; }
+				if ((strT[intK] === ',') && (intDepth === 0)) { intC++; }
+			}
+			return intC;
+		}
+		// a lot's thread lines cut into pieces. Loops and small Subs are kept whole: a label
+		// that a later line comes back to (the label itself, its _go / _gs stub, a Sub's own
+		// _r) starts a span that ends at the last such line; a span that fits a piece but not
+		// what is left of this one starts a new piece, so going round it never fetches.
+		function cut(arrLines_a)
+		{
+			var arrThr = [];
+			var arrPiece = [];
+			var arrPend = [];
+			var objDef = {};
+			var objLast = {};
+			var arrSize = [];
+			var arrSpan = [];
+			var objPieceOf = {};
+			var arrLoopRef = [];
+			var intUsed = 0;
+			var intPieces = 0;
+			var intBytes = 0;
+			var intPad = 0;
+			var intN = 0;
+			var intK = 0;
+			var intQ = 0;
+			var intNeed = 0;
+			var intSum = 0;
+			var intLoops = 0;
+			var intCross = 0;
+			var strT = '';
+			var arrD = null;
+
+			function endPiece()
+			{
+				arrPiece.push(strIndent + 'dw kw_wnext-1\t\t; the next piece');
+				if (intUsed + 2 < WIN)
+				{
+					arrPiece.push(strIndent + 'ds ' + (WIN - intUsed - 2));
+					intPad += WIN - intUsed - 2;
+				}
+				arrThr = arrThr.concat(arrPiece);
+				arrPiece = [];
+				intUsed = 0;
+				intPieces++;
+			}
+			for (intK = 0; intK < arrLines_a.length; intK++)
+			{
+				strT = arrLines_a[intK];
+				arrSize[intK] = /^\s+dw\s/.test(strT) ? words(strT) * 2 : 0;
+				arrD = /^([A-Za-z_]\w*):\s*(;.*)?$/.exec(strT);
+				if (arrD)
+				{
+					objDef[arrD[1]] = intK;
+				}
+			}
+			for (intK = 0; intK < arrLines_a.length; intK++)
+			{
+				if (arrSize[intK] > 0)
+				{
+					arrLines_a[intK].replace(/;.*$/, '').replace(/^\s*dw\s+/, '').split(',').forEach(function(strT_a)
+					{
+						var strN = strT_a.trim().replace(/-1$/, '').replace(/_(go|gs|rt|r)$/, '');
+
+						if ((objDef[strN] !== undefined) && (objDef[strN] < intK))
+						{
+							objLast[strN] = intK;
+						}
+					});
+				}
+			}
+			Object.keys(objLast).forEach(function(strLab_a)
+			{
+				intSum = 0;
+				for (intQ = objDef[strLab_a]; intQ <= objLast[strLab_a]; intQ++)
+				{
+					intSum += arrSize[intQ];
+				}
+				arrSpan[objDef[strLab_a]] = Math.max(arrSpan[objDef[strLab_a]] || 0, intSum);
+				arrLoopRef.push({ def: objDef[strLab_a], ref: objLast[strLab_a] });
+			});
+			for (intK = 0; intK < arrLines_a.length; intK++)
+			{
+				strT = arrLines_a[intK];
+				if (arrSpan[intK] && (arrSpan[intK] <= WIN - 2))
+				{
+					intNeed = Math.max(intNeed, arrSpan[intK]);
+				}
+				if (/^\s+dw\s/.test(strT))
+				{
+					intN = arrSize[intK];
+					if (intN > WIN - 2)
+					{
+						arrErrors.push({ file: '', line: 0, msg: 'a keyword with ' + (intN / 2) + ' words does not fit a 64 byte piece: ' + strT.trim() });
+					}
+					if ((intUsed + intN + 2 > WIN) || ((intUsed > 0) && (intNeed > 0) && (intUsed + intNeed + 2 > WIN)))
+					{
+						endPiece();		// (the labels and comments before this line go with it)
+					}
+					intNeed = 0;
+					arrPiece = arrPiece.concat(arrPend);
+					arrPend = [];
+					arrPiece.push(strT);
+					objPieceOf[intK] = intPieces;
+					intUsed += intN;
+					intBytes += intN;
+				}
+				else if (/^\s*(;.*)?$/.test(strT) || /^[A-Za-z_]\w*:\s*(;.*)?$/.test(strT))
+				{
+					arrPend.push(strT);
+				}
+				else
+				{
+					arrErrors.push({ file: '', line: 0, msg: 'a line in the thread the REU window cannot take: ' + strT.trim() });
+				}
+			}
+			arrLoopRef.forEach(function(obj_a)
+			{
+				// the piece of a label is the piece of the first keyword at or after it
+				for (intQ = obj_a.def; (intQ < arrLines_a.length) && (objPieceOf[intQ] === undefined); intQ++) { }
+				intLoops++;
+				if (objPieceOf[intQ] !== objPieceOf[obj_a.ref])
+				{
+					intCross++;
+				}
+			});
+			arrPiece = arrPiece.concat(arrPend);
+			if (intUsed > 0)
+			{
+				endPiece();
+			}
+			else
+			{
+				arrThr = arrThr.concat(arrPiece);
+			}
+			return { lines: arrThr, pieces: intPieces, bytes: intBytes, pad: intPad, loops: intLoops, cross: intCross };
+		}
+
+		for (intL = 0; intL <= intLots; intL++)
+		{
+			arrThread[intL] = [];
+			arrWs[intL] = { stubs: [], strings: [], vars: [] };
+		}
+		for (intI = 0; intI < arrIn.length; intI++)
+		{
+			arrTake[intI] = -1;
+			arrKind[intI] = '';
+		}
+		// ---- the threads, by lot: a Sub's body starts at its label p_<class>_<name>:
+		intCur = 0;
+		for (intI = intFrom; intI < intTo; intI++)
+		{
+			strL = arrIn[intI];
+			arrM_ = /^(p_\w+):\s*(;.*)?$/.exec(strL);
+			if (arrM_)
+			{
+				intCur = nameLot(arrM_[1]);
+			}
+			arrM_ = /^([A-Za-z_]\w*):\s*(;.*)?$/.exec(strL);
+			if (arrM_)
+			{
+				objLabelLot[arrM_[1]] = intCur;
+			}
+			arrThread[intCur].push(strL);
+		}
+		if (intLots > 0)
+		{
+			// ---- the stubs, variables and strings after the threads, by lot. A stub block is
+			// from its first label to the next block's; a string variable's capacity byte is the
+			// line before its label
+			intCur = 0;
+			strOwn = '';
+			for (intI = intTo + 1; intI < intLib; intI++)
+			{
+				strL = arrIn[intI];
+				if (/^; =====/.test(strL) || /^;/.test(strL) && (strOwn === ''))
+				{
+					strOwn = '';
+					continue;
+				}
+				arrM_ = /^([A-Za-z_]\w*):/.exec(strL);
+				if (arrM_)
+				{
+					if (/^p_\w+_c$/.test(arrM_[1]))
+					{
+						strOwn = 'stub';
+						intCur = nameLot(arrM_[1]);
+					}
+					else if (/_(go|gs)$/.test(arrM_[1]) && (objLabelLot[arrM_[1].replace(/_(go|gs)$/, '')] !== undefined))
+					{
+						strOwn = 'stub';
+						intCur = objLabelLot[arrM_[1].replace(/_(go|gs)$/, '')];
+					}
+					else if (/^str\d+$/.test(arrM_[1]))
+					{
+						strOwn = 'str:' + arrM_[1];
+						intCur = 0;
+					}
+					else if (/^(var_\w+|p_\w+_rs)$/.test(arrM_[1]) && /^\w+:\s+(dw|ds|db)\b/.test(strL))
+					{
+						strOwn = 'var';
+						intCur = nameLot(arrM_[1]);
+						if ((intCur > 0) && /^\s+db\s+\d+\s*;\s*capacity/.test(arrIn[intI - 1]))
+						{
+							arrTake[intI - 1] = intCur;
+							arrKind[intI - 1] = 'vars';
+						}
+					}
+					else if (/_rs$/.test(arrM_[1]) && (objLabelLot[arrM_[1].replace(/_rs$/, '')] !== undefined) && /^\w+:\s+(dw|ds|db)\b/.test(strL))
+					{
+						strOwn = 'var';
+						intCur = objLabelLot[arrM_[1].replace(/_rs$/, '')];
+					}
+					else if ((strOwn !== 'stub') || /^\w+:\s+(dw|ds|db)\b/.test(strL))
+					{
+						strOwn = '';		// (a kernel variable, a temporary ...)
+					}
+				}
+				else if ((strOwn === 'var') || (/^str:/.test(strOwn) && !/^\s+db\b/.test(strL)))
+				{
+					strOwn = '';			// (one line each; a string's text may run on)
+				}
+				if (strOwn === 'stub')
+				{
+					arrTake[intI] = intCur;
+					arrKind[intI] = 'stubs';
+				}
+				else if (strOwn === 'var')
+				{
+					arrTake[intI] = intCur;
+					arrKind[intI] = 'vars';
+				}
+				else if (/^str:/.test(strOwn))
+				{
+					arrTake[intI] = -2;		// (its lot is settled below)
+					arrKind[intI] = strOwn.slice(4);
+				}
+			}
+			// ---- a string is its lot's when only that lot's lines name it
+			function seen(strLine_a, intLot_a)
+			{
+				var arrS = strLine_a.replace(/;.*$/, '').match(/\bstr\d+\b/g);
+
+				(arrS || []).forEach(function(strS_a)
+				{
+					objStrSeen[strS_a] = objStrSeen[strS_a] || {};
+					objStrSeen[strS_a][intLot_a] = true;
+				});
+			}
+			for (intL = 0; intL <= intLots; intL++)
+			{
+				arrThread[intL].forEach(function(str_a) { seen(str_a, intL); });
+			}
+			for (intI = 0; intI < arrIn.length; intI++)
+			{
+				if ((intI >= intFrom) && (intI < intTo))
+				{
+					continue;
+				}
+				if (arrTake[intI] === -2)
+				{
+					continue;				// (the string's own line)
+				}
+				seen(arrIn[intI], (arrTake[intI] > 0) ? arrTake[intI] : 0);
+			}
+			for (intI = intTo + 1; intI < intLib; intI++)
+			{
+				if (arrTake[intI] === -2)
+				{
+					var arrLotsOf = Object.keys(objStrSeen[arrKind[intI]] || {});
+
+					if ((arrLotsOf.length === 1) && (arrLotsOf[0] !== '0'))
+					{
+						arrTake[intI] = parseInt(arrLotsOf[0], 10);
+						objStrLot[arrKind[intI]] = arrTake[intI];
+						arrKind[intI] = 'strings';
+					}
+					else
+					{
+						arrTake[intI] = -1;
+						arrKind[intI] = '';
+					}
+				}
+			}
+			for (intI = intTo + 1; intI < intLib; intI++)
+			{
+				if (arrTake[intI] > 0)
+				{
+					arrWs[arrTake[intI]][arrKind[intI]].push(arrIn[intI]);
+				}
+			}
+			// ---- calls and names across lots. A lot's Sub named from outside the lot (or by
+			// AddressOf anywhere) is reached through its entry in the kernel; nothing else of a
+			// lot can be named from outside it: it is not in memory then
+			function entry(strProc_a, intLot_a)
+			{
+				if (objEntry[strProc_a] === undefined)
+				{
+					if (arrWs[intLot_a].stubs.some(function(strS_a, intK_a, arrS_a)
+					{
+						// a pla in the stub before its NTC_POS: it takes a parameter or gives a result
+						var intAt = arrS_a.indexOf(arrS_a.filter(function(str_a) { return str_a.indexOf(strProc_a + '_c:') === 0; })[0]);
+						var intK2 = 0;
+
+						if (intK_a !== intAt) { return false; }
+						for (intK2 = intAt; (intK2 < arrS_a.length) && !/^\s+NTC_POS\b/.test(arrS_a[intK2]); intK2++)
+						{
+							if (/^\s+pla\b/.test(arrS_a[intK2]) || /^\s+NTC_POP\b/.test(arrS_a[intK2])) { return true; }
+						}
+						return false;
+					}))
+					{
+						arrErrors.push({ file: '', line: 0, msg: 'lot ' + arrLots[intLot_a - 1].name + ': ' + strProc_a.replace(/^p_/, '') + ' is called from outside its lot, so it can take no parameters and give no result (pass them through a class that is in no lot)' });
+					}
+					objEntry[strProc_a] = arrEntry.length;
+					arrEntry.push({ proc: strProc_a, lot: intLot_a });
+					arrThread[intLot_a].push(strProc_a + '_t:');
+					arrThread[intLot_a].push(strIndent + 'dw ' + strProc_a + '_c-1, ntc_lot_ret-1, ' + (arrEntry.length - 1) + '\t\t; called from outside the lot');
+					if (arrEntry.length === 65)
+					{
+						arrErrors.push({ file: '', line: 0, msg: 'more than 64 Subs of lots are called from outside their lot' });
+					}
+				}
+				return strProc_a + '_e';
+			}
+			function across(strLine_a, intLot_a, blnThread_a)
+			{
+				var strCode = strLine_a.replace(/;.*$/, '');
+				var strRest = strLine_a.slice(strCode.length);
+
+				strCode = strCode.replace(/\b(p_\w+)_c\b(-1)?/g, function(strAll_a, strProc_a, strM1_a)
+				{
+					var intTo_a = nameLot(strProc_a);
+
+					// a lot's own stubs and variables name its Subs directly; a thread names them
+					// directly for a call inside the lot; anything else (another lot, the kernel,
+					// AddressOf's cell) gets the entry
+					if ((intTo_a === 0) || ((intTo_a === intLot_a) && (strM1_a || !blnThread_a)) || (!blnThread_a && (intLot_a !== 0)))
+					{
+						return strAll_a;
+					}
+					return entry(strProc_a, intTo_a) + (strM1_a || '');
+				});
+				(strCode.match(/\b(var_\w+|p_\w+_rs|str\d+)\b/g) || []).forEach(function(strN_a)
+				{
+					var intOf = /^str/.test(strN_a) ? (objStrLot[strN_a] || 0) : nameLot(strN_a);
+
+					if ((intOf > 0) && (intOf !== intLot_a))
+					{
+						arrErrors.push({ file: '', line: 0, msg: (intLot_a ? 'lot ' + arrLots[intLot_a - 1].name : 'the program outside the lots') + ' uses ' + strN_a.replace(/^var_/, '') + ', which is in lot ' + arrLots[intOf - 1].name + ': a lot\'s variables are in memory only while it runs (keep shared ones in a class that is in no lot)' });
+					}
+				});
+				return strCode + strRest;
+			}
+			for (intL = 0; intL <= intLots; intL++)
+			{
+				// (entry() adds lines to a lot's thread: the loop runs to the length before them)
+				intJ = arrThread[intL].length;
+				for (intI = 0; intI < intJ; intI++)
+				{
+					arrThread[intL][intI] = across(arrThread[intL][intI], intL, true);
+				}
+			}
+			for (intL = 1; intL <= intLots; intL++)
+			{
+				['stubs', 'vars'].forEach(function(strK_a)
+				{
+					arrWs[intL][strK_a] = arrWs[intL][strK_a].map(function(str_a) { return across(str_a, intL, false); });
+				});
+			}
+			for (intI = 0; intI < arrIn.length; intI++)
+			{
+				if ((arrTake[intI] <= 0) && (arrTake[intI] !== -2) && ((intI < intFrom) || (intI > intTo)) && (intI < intLib))
+				{
+					arrIn[intI] = across(arrIn[intI], 0, false);
+				}
+			}
+			// ---- a kernel Sub can be called from a lot's thread: its stub keeps the caller's
+			// lot and puts it back (ntc_wlot; the window in use is let go when it changes)
+			for (intI = intTo + 1; intI < intLib; intI++)
+			{
+				if ((arrTake[intI] > 0) || (arrTake[intI] === -2))
+				{
+					continue;
+				}
+				arrM_ = /^\s+stx (p_\w+)_rs\s*$/.exec(arrIn[intI]);
+				if (arrM_ && /^\s+sty p_\w+_rs\+1\s*$/.test(arrIn[intI + 1] || '') && /^\s+NTC_POS\b/.test(arrIn[intI - 1] || ''))
+				{
+					arrIn[intI + 1] += '\n' + strIndent + 'NTC_LOTIN ' + arrM_[1] + '_rl';
+					arrKeep.push(arrM_[1] + '_rl:\t\t\tdb 0');
+				}
+				arrM_ = /^\s+ldx (p_\w+)_rs\b/.exec(arrIn[intI]);
+				if (arrM_ && /^\s+ldy p_\w+_rs\+1\s*$/.test(arrIn[intI + 1] || '') && /^p_\w+_r:/.test(arrIn[intI - 1] || ''))
+				{
+					arrIn[intI] = strIndent + 'NTC_LOTOUT ' + arrM_[1] + '_rl\n' + arrIn[intI];
+				}
+			}
+		}
+
+		objWinStats = [];
+		for (intL = 0; intL <= intLots; intL++)
+		{
+			arrCut[intL] = cut(arrThread[intL]);
+			objWinStats.push(arrCut[intL]);
+		}
+		// ---- the program without what was taken out; the lots' tables where the threads were
+		for (intI = 0; intI < arrIn.length; intI++)
+		{
+			if ((intI >= intFrom) && (intI <= intTo))
+			{
+				if (intI === intFrom)
+				{
+					arrOut.push('; ============================================================');
+					arrOut.push('; The lots (the 6502 with an REU): lot 0 is the kernel\'s 32K, lots 1 on are 96K each');
+					arrOut.push('; (64K of thread, 32K of workspace). ntc_lot_bh / ntc_lot_bb: where each starts in');
+					arrOut.push('; the REU (the high byte, the bank). The blobs: what goes into the REU at the start');
+					arrOut.push('; ============================================================');
+					arrOut.push('NTC_LOTS\t\tequ ' + intLots);
+					arrOut.push('NTC_NOTEH\t\tequ ' + ((intLots > 0) ? '$7F' : '$FF') + '\t\t; NTC\'s own notes in the REU: this page of lot 0');
+					arrOut.push('NTC_THR_ORG\tequ $0100\t\t; a lot\'s thread starts here in it');
+					// (an REU's banks are a power of two: one too small for the lots shows bank 0 again
+					// at the highest power of two in the last bank they need)
+					arrOut.push('NTC_REUTOP\tequ ' + ((intLots > 0) ? Math.pow(2, Math.floor(Math.log2((0x8000 + intLots * 0x18000 - 1) >> 16))) : 0) + '\t\t\t; the bank that tells whether the REU is big enough for the lots (0: no lots)');
+					if (intLots > 0)
+					{
+						arrOut.push(strIndent + 'ifnd NTC_WS_ORG');
+						arrOut.push('NTC_WS_ORG\tequ $8000\t\t; where the running lot\'s workspace is in the C64 (test/c64build.js sets it:');
+						arrOut.push(strIndent + 'endif\t\t\t\t; as high as the biggest workspace lets it be)');
+						arrOut.push('NTC_BSSTOP\tequ NTC_WS_ORG\t; the arrays end below it');
+					}
+					else
+					{
+						arrOut.push('NTC_BSSTOP\tequ $D000');
+					}
+					var arrBh = ['$00'];
+					var arrBb = ['0'];
+					for (intL = 1; intL <= intLots; intL++)
+					{
+						arrBh.push((((0x8000 + (intL - 1) * 0x18000) >> 8) & 255) ? '$80' : '$00');
+						arrBb.push(String((0x8000 + (intL - 1) * 0x18000) >> 16));
+					}
+					arrOut.push('ntc_lot_bh:\t\tdb ' + arrBh.join(', '));
+					arrOut.push('ntc_lot_bb:\t\tdb ' + arrBb.join(', '));
+					arrBlob.push({ label: 'ntc_thr', kind: 'thread', lot: 0 });
+					for (intL = 1; intL <= intLots; intL++)
+					{
+						arrBlob.push({ label: 'ntc_thr' + intL, kind: 'thread', lot: intL });
+						arrBlob.push({ label: 'ntc_ws' + intL, kind: 'workspace', lot: intL });
+					}
+					arrOut.push('; a blob: where it is in the file\'s memory, its length, where it goes in the REU (low, high, bank)');
+					arrOut.push('ntc_blob_n:\t\tdb ' + arrBlob.length);
+					arrOut.push('ntc_blobs:');
+					arrBlob.forEach(function(obj_a)
+					{
+						var intBase = (obj_a.lot === 0) ? 0 : 0x8000 + (obj_a.lot - 1) * 0x18000;
+						var intAt = intBase + ((obj_a.kind === 'thread') ? 0x0100 : 0x10000);
+
+						arrOut.push(strIndent + 'dw ' + obj_a.label + '_from, ' + obj_a.label + '_to-' + obj_a.label + '_from');
+						arrOut.push(strIndent + 'db ' + (intAt & 255) + ', ' + ((intAt >> 8) & 255) + ', ' + (intAt >> 16) + '\t\t; ' + obj_a.kind + ', lot ' + obj_a.lot);
+					});
+					if (intLots > 0)
+					{
+						arrOut.push('; each lot\'s workspace: its length, where its variables start in it, their length');
+						arrOut.push('ntc_lot_wsz:\tdw 0' + arrLots.map(function(obj_a, intK_a) { return ', ntc_ws' + (intK_a + 1) + '_end-NTC_WS_ORG'; }).join(''));
+						arrOut.push('ntc_lot_vof:\tdw 0' + arrLots.map(function(obj_a, intK_a) { return ', ntc_ws' + (intK_a + 1) + '_vars-NTC_WS_ORG'; }).join(''));
+						arrOut.push('ntc_lot_vsz:\tdw 0' + arrLots.map(function(obj_a, intK_a) { return ', ntc_ws' + (intK_a + 1) + '_end-ntc_ws' + (intK_a + 1) + '_vars'; }).join(''));
+						arrOut.push('; the entries: a lot\'s Sub called from outside it. Its lot, its start thread, the caller kept');
+						arrOut.push('ntc_ent_lot:\tdb ' + (arrEntry.map(function(obj_a) { return obj_a.lot; }).join(', ') || '0'));
+						arrOut.push('ntc_ent_lo:\t\tdb ' + (arrEntry.map(function(obj_a) { return '<' + obj_a.proc + '_t'; }).join(', ') || '0'));
+						arrOut.push('ntc_ent_hi:\t\tdb ' + (arrEntry.map(function(obj_a) { return '>' + obj_a.proc + '_t'; }).join(', ') || '0'));
+						arrOut.push('ntc_ent_sv:\t\tds ' + Math.max(1, arrEntry.length) * 4);
+						arrEntry.forEach(function(obj_a, intK_a)
+						{
+							arrOut.push(obj_a.proc + '_e:' + strIndent + 'lda #' + intK_a);
+							arrOut.push(strIndent + 'jmp ntc_lot_enter');
+						});
+						arrKeep.forEach(function(str_a) { arrOut.push(str_a); });
+					}
+				}
+				continue;
+			}
+			if (arrTake[intI] > 0)
+			{
+				continue;
+			}
+			arrOut.push(arrIn[intI]);
+		}
+		arrOut.push('');
+		arrOut.push('; ============================================================');
+		arrOut.push('; The threads' + (intLots ? ' and the lots\' workspaces' : '') + '. They go into the REU at the start; this memory is then the arrays\'.');
+		arrOut.push('; The threads: ' + arrCut[0].pieces + ' pieces of 64 bytes (' + arrCut[0].bytes + ' bytes of thread)' + (intLots ? ' in the kernel' : ''));
+		arrOut.push('; Loops and Subs: ' + (arrCut[0].loops - arrCut[0].cross) + ' in one piece, ' + arrCut[0].cross + ' over more than one (three pieces at a time are in the windows)');
+		for (intL = 1; intL <= intLots; intL++)
+		{
+			arrOut.push('; Lot ' + intL + ' (' + arrLots[intL - 1].name + ': ' + arrLots[intL - 1].classes.join(', ') + '): ' + arrCut[intL].pieces + ' pieces (' + arrCut[intL].bytes + ' bytes of thread); loops and Subs ' + (arrCut[intL].loops - arrCut[intL].cross) + ' in one piece, ' + arrCut[intL].cross + ' over more');
+		}
+		arrOut.push('; ============================================================');
+		arrBlob.forEach(function(obj_a)
+		{
+			arrOut.push(strIndent + 'db "NTC!BLB>"\t\t; (test/c64build.js --split cuts the file here) blob: ' + obj_a.kind + ' lot ' + obj_a.lot);
+			arrOut.push(obj_a.label + '_from:');
+			if (obj_a.kind === 'thread')
+			{
+				arrOut.push(strIndent + 'rorg NTC_THR_ORG');
+				arrOut = arrOut.concat(arrCut[obj_a.lot].lines);
+				arrOut.push(strIndent + 'rend');
+			}
+			else
+			{
+				arrOut.push(strIndent + 'rorg NTC_WS_ORG');
+				arrOut = arrOut.concat(arrWs[obj_a.lot].stubs);
+				arrOut = arrOut.concat(arrWs[obj_a.lot].strings);
+				arrOut.push(obj_a.label + '_vars:');
+				arrOut = arrOut.concat(arrWs[obj_a.lot].vars);
+				arrOut.push(obj_a.label + '_end:');
+				arrOut.push(strIndent + 'rend');
+			}
+			arrOut.push(obj_a.label + '_to:');
+		});
+		return arrOut.join('\n');
 	}
 
 	function holeLayout(strAsm_a)
@@ -12219,6 +12925,14 @@ function ntcCompile(input_a, objOptions_a)
 		while (arrQueue.length > 0)
 		{
 			objItem = arrQueue.pop();
+			if ((String(objPlat.head || '').length > 0) && (objItem.name === objPlat.head))
+			{
+				continue;		// (20261125-1) ;@head's section is before the org already
+			}
+			if ((String(objPlat.boot || '').length > 0) && (objItem.name === objPlat.boot))
+			{
+				continue;		// (20261125-1) ;@boot's section is in the start code already: never linked a second time
+			}
 			if (blnHookUsed && (objItem.name === 'ntc_xn'))
 			{
 				objItem.name = 'ntc_xnh';	// the window that also runs the Interrupt hook
@@ -12311,7 +13025,8 @@ function ntcCompile(input_a, objOptions_a)
 	readPlatform();
 	blnX86 = (String(objPlat.cpu || '').toLowerCase() === 'x86');
 	blnM68k = (String(objPlat.cpu || '') === '68000') || blnX86;
-	blnM65 = (String(objPlat.cpu || '').toLowerCase() === '45gs02');
+	blnWin = (String(objPlat.cpu || '').toLowerCase() === '6502');
+	blnM65 = (String(objPlat.cpu || '').toLowerCase() === '45gs02') || blnWin;
 	if ((objOptions.org === null) || (objOptions.org === undefined))
 	{
 		objOptions.org = findOrg(arrFiles) || objPlat.org;
@@ -12366,6 +13081,7 @@ function ntcCompile(input_a, objOptions_a)
 		objDefinesIn.ntc_term_pos = -1;
 	}
 	blnDeprecated = arrFiles.some(function(objFile_a) { return activeLines(objFile_a.text).some(function(objLine_a) { return /^\s*option\s+deprecated\s*$/i.test(String(objLine_a.text).replace(/'.*$/, '')); }); });
+	scanLots(arrFiles);
 	scanPages(arrFiles);
 	arrFiles = addOverlayMembers(arrFiles);
 	objMemory = findMemory(arrFiles, true);
@@ -12962,6 +13678,12 @@ function ntcCompile(input_a, objOptions_a)
 	}
 	if (String(objOptions.org).replace(/\s/g, '').length > 0)
 	{
+		if (String(objPlat.head || '').length > 0)
+		{
+			// (20261125-1) ;@head name: the section of that name goes before the program's org - a file
+			// header the loader wants in front (it has its own org, just under the program's)
+			arrAsm.push('@@HEAD@@');
+		}
 		arrAsm.push(strIndent + 'org ' + ((blnM68k || blnM65) ? String(objOptions.org).replace(/^#/, '$') : objOptions.org));
 		arrAsm.push('');
 	}
@@ -13022,6 +13744,12 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push('; MSX-DOS 2 / Nextor: NTC_MSXDOS defined (the Memory class\'s mapper: asm/ntc_lib_msx.asm)');
 		arrAsm.push(strIndent + 'DEFINE NTC_MSXDOS');
 	}
+	if (String(objOptions.platform).toLowerCase() === 'ep128')
+	{
+		// (20261125-1) the Enterprise: the Memory class's pages are the segments taken from EXOS at the start
+		arrAsm.push('; the Enterprise: NTC_EP128 defined (the Memory class\'s segments: asm/ntc_lib_ep.asm)');
+		arrAsm.push(strIndent + 'DEFINE NTC_EP128');
+	}
 	if (String(objOptions.platform).toLowerCase() === 'zxn')
 	{
 		arrAsm.push('; the ZX Spectrum Next: NTC_ZXN defined (a DEFINE - sjasmplus\'s IFDEF tests those, not labels)');
@@ -13064,7 +13792,102 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push(strIndent + 'endm');
 		}
 	}
-	if (blnM65)
+	if (blnWin)
+	{
+		// the 6502 with an REU: the same macros for a thread in the windows ($0100-$01BF) and the
+		// real stack above them ($01C0-$01FF); the 45GS02 only instructions as macros
+		arrAsm.push('NTC_C64\t\tequ 1\t\t; the plain 6502: the thread comes through the REU windows (asm/ntc_lib_m65.asm)');
+		arrAsm.push('NTC_RS\t\tmacro\t\t\t; the real stack: the thread position kept in ntc_ip');
+		arrAsm.push(strIndent + 'tsx');
+		arrAsm.push(strIndent + 'stx ntc_ip');
+		arrAsm.push(strIndent + 'ldx #$FF');
+		arrAsm.push(strIndent + 'txs');
+		arrAsm.push(strIndent + 'endm');
+		arrAsm.push('NTC_TS\t\tmacro\t\t\t; back to the thread (A is kept)');
+		arrAsm.push(strIndent + 'ldx ntc_ip');
+		arrAsm.push(strIndent + 'txs');
+		arrAsm.push(strIndent + 'endm');
+		arrAsm.push('NTC_POP\t\tmacro\t\t\t; the next thread word into the base page word \\1');
+		arrAsm.push(strIndent + 'pla');
+		arrAsm.push(strIndent + 'sta \\1');
+		arrAsm.push(strIndent + 'pla');
+		arrAsm.push(strIndent + 'sta \\1+1');
+		arrAsm.push(strIndent + 'endm');
+		arrAsm.push('NTC_POS\t\tmacro\t\t\t; the thread position (the next word\'s) into Y:X. Uses A');
+		arrAsm.push(strIndent + 'tsx');
+		arrAsm.push(strIndent + 'inx');
+		arrAsm.push(strIndent + 'txa');
+		arrAsm.push(strIndent + 'and #$3F');
+		arrAsm.push(strIndent + 'ora ntc_wb');
+		arrAsm.push(strIndent + 'tax');
+		arrAsm.push(strIndent + 'ldy ntc_wb+1');
+		arrAsm.push(strIndent + 'endm');
+		arrAsm.push('NTC_INW\t\tmacro\t\t\t; the base page word \\1 + 1 (no register used)');
+		arrAsm.push(strIndent + 'inc \\1');
+		arrAsm.push(strIndent + 'bne ntc_iw\\@');
+		arrAsm.push(strIndent + 'inc \\1+1');
+		arrAsm.push('ntc_iw\\@:');
+		arrAsm.push(strIndent + 'endm');
+		arrAsm.push('NTC_DEW\t\tmacro\t\t\t; the base page word \\1 - 1 (no register used)');
+		arrAsm.push(strIndent + 'inc \\1');
+		arrAsm.push(strIndent + 'dec \\1');
+		arrAsm.push(strIndent + 'bne ntc_dw\\@');
+		arrAsm.push(strIndent + 'dec \\1+1');
+		arrAsm.push('ntc_dw\\@:');
+		arrAsm.push(strIndent + 'dec \\1');
+		arrAsm.push(strIndent + 'endm');
+		arrAsm.push('NTC_MULGO\tmacro\t\t\t; NTC_MULP = NTC_MULA * NTC_MULB (ntc_mulsw). Uses A');
+		arrAsm.push(strIndent + 'lda #<ntc_mg\\@');
+		arrAsm.push(strIndent + 'sta ntc_mret');
+		arrAsm.push(strIndent + 'lda #>ntc_mg\\@');
+		arrAsm.push(strIndent + 'sta ntc_mret+1');
+		arrAsm.push(strIndent + 'jmp ntc_mulsw');
+		arrAsm.push('ntc_mg\\@:');
+		arrAsm.push(strIndent + 'endm');
+		arrAsm.push('NTC_LOTIN\tmacro\t\t\t; a kernel Sub\'s start: the caller\'s lot kept in \\1, the kernel\'s the one running');
+		arrAsm.push(strIndent + 'lda ntc_wlot');
+		arrAsm.push(strIndent + 'sta \\1');
+		arrAsm.push(strIndent + 'beq ntc_li\\@');
+		arrAsm.push(strIndent + 'lda #0');
+		arrAsm.push(strIndent + 'sta ntc_wlot');
+		arrAsm.push(strIndent + 'sta ntc_wb+1\t\t; (the window in use is another lot\'s: let go)');
+		arrAsm.push('ntc_li\\@:');
+		arrAsm.push(strIndent + 'endm');
+		arrAsm.push('NTC_LOTOUT\tmacro\t\t\t; its end: the caller\'s lot back');
+		arrAsm.push(strIndent + 'lda \\1');
+		arrAsm.push(strIndent + 'beq ntc_lo\\@');
+		arrAsm.push(strIndent + 'sta ntc_wlot');
+		arrAsm.push(strIndent + 'lda #0');
+		arrAsm.push(strIndent + 'sta ntc_wb+1');
+		arrAsm.push('ntc_lo\\@:');
+		arrAsm.push(strIndent + 'endm');
+		arrAsm.push('NTC_MULGO16\tmacro\t\t\t; the same, 16 bits each (ntc_mulsw16). Uses A');
+		arrAsm.push(strIndent + 'lda #<ntc_mh\\@');
+		arrAsm.push(strIndent + 'sta ntc_mret');
+		arrAsm.push(strIndent + 'lda #>ntc_mh\\@');
+		arrAsm.push(strIndent + 'sta ntc_mret+1');
+		arrAsm.push(strIndent + 'jmp ntc_mulsw16');
+		arrAsm.push('ntc_mh\\@:');
+		arrAsm.push(strIndent + 'endm');
+	}
+	if (blnM65 && !blnWin)
+	{
+		// the 45GS02's own instructions, as the macros the plain 6502 has code for
+		arrAsm.push('NTC_INW\t\tmacro');
+		arrAsm.push(strIndent + 'inw \\1');
+		arrAsm.push(strIndent + 'endm');
+		arrAsm.push('NTC_DEW\t\tmacro');
+		arrAsm.push(strIndent + 'dew \\1');
+		arrAsm.push(strIndent + 'endm');
+		arrAsm.push('NTC_MULGO\tmacro\t\t\t; (the hardware multiplier has the product at once)');
+		arrAsm.push(strIndent + 'endm');
+		arrAsm.push('NTC_MULGO16\tmacro');
+		arrAsm.push(strIndent + 'endm');
+		arrAsm.push('NTC_MULA\tequ $D770\t\t; the hardware multiplier: A, B, the product');
+		arrAsm.push('NTC_MULB\tequ $D774');
+		arrAsm.push('NTC_MULP\tequ $D778');
+	}
+	if (blnM65 && !blnWin)
 	{
 		// the 45GS02: the switch to the real stack (for jsr) and back, and taking a word off the
 		// thread, defined before any use (asm/ntc_lib_m65.asm, the platform classes' #asm)
@@ -13173,6 +13996,15 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push('ntc_bk_cold:');
 	}
 	arrAsm.push(strIndent + 'di');
+	if (String(objPlat.boot || '').length > 0)
+	{
+		// (20261125-1) ;@boot name: the platform's own start code - the section of that name is put
+		// here, at the program's very start (so it is in the first bytes loaded, whatever the
+		// program's size), and runs on into the rest of the start code. It is not linked anywhere
+		// else: what it needs later it keeps in itself. Still on the stack the program was started
+		// with (the platform's real stack is set after it)
+		arrAsm.push('@@BOOT@@');
+	}
 	if (objOptions.library === 'rom')
 	{
 		arrAsm.push(strIndent + 'call ntc_rj_find\t\t; Library: ROM - find the ROM, patch the jump block');
@@ -13431,6 +14263,16 @@ function ntcCompile(input_a, objOptions_a)
 		// real stack (16 bits); the thread starts: SP = main_thread - 1, rts
 		arrAsm.splice(intStartAt);
 		arrAsm.push('ntc_start:');
+		if (blnWin)
+		{
+			// the 6502 with an REU: the platform's start code has put the thread in the REU and
+			// emptied the windows; the first piece comes into one
+			arrAsm.push(strIndent + 'ldx #<main_thread');
+			arrAsm.push(strIndent + 'ldy #>main_thread');
+			arrAsm.push(strIndent + 'jmp ntc_goxy');
+		}
+		else
+		{
 		arrAsm.push(strIndent + 'tsx\t\t\t\t; the real stack (the library\'s jsr calls)');
 		arrAsm.push(strIndent + 'stx ntc_csp');
 		arrAsm.push(strIndent + 'tsy');
@@ -13440,6 +14282,7 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push(strIndent + 'ldy #>(main_thread-1)');
 		arrAsm.push(strIndent + 'tys');
 		arrAsm.push(strIndent + 'rts');
+		}
 		objStack = null;
 	}
 	if (objStack !== null)
@@ -13694,6 +14537,10 @@ function ntcCompile(input_a, objOptions_a)
 		});
 		arrProcStubs.push('ntc_pkbuf:\t\tds ' + intPkMax + '\t\t; the biggest set of them');
 	}
+	if (blnWin)
+	{
+		arrAsm.push('; (the end of the threads)');		// winLayout: what is above goes to the REU
+	}
 	if ((arrGotoStubs.length > 0) || (arrFastUse.length > 0) || (arrProcStubs.length > 0))
 	{
 		arrAsm.push('');
@@ -13713,6 +14560,13 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				arrAsm.push(arrGotoStubs[intI] + '_go:' + strIndent + 'lea ' + arrGotoStubs[intI] + ', sp');
 				arrAsm.push(strIndent + 'rts');
+				continue;
+			}
+			if (blnWin)
+			{
+				arrAsm.push(arrGotoStubs[intI] + '_go:' + strIndent + 'ldx #<' + arrGotoStubs[intI]);
+				arrAsm.push(strIndent + 'ldy #>' + arrGotoStubs[intI]);
+				arrAsm.push(strIndent + 'jmp ntc_goxy');
 				continue;
 			}
 			if (blnM65)
@@ -13738,6 +14592,20 @@ function ntcCompile(input_a, objOptions_a)
 				arrAsm.push(strIndent + 'rts');
 				arrAsm.push(arrFastUse[intI] + '_rt:' + strIndent + 'movea.l ' + arrFastUse[intI] + '_rs, sp');
 				arrAsm.push(strIndent + 'rts');
+				continue;
+			}
+			if (blnWin)
+			{
+				declare(arrFastUse[intI] + '_rs', 'int', 0);
+				arrAsm.push(arrFastUse[intI] + '_gs:' + strIndent + 'NTC_POS');
+				arrAsm.push(strIndent + 'stx ' + arrFastUse[intI] + '_rs');
+				arrAsm.push(strIndent + 'sty ' + arrFastUse[intI] + '_rs+1');
+				arrAsm.push(strIndent + 'ldx #<' + arrFastUse[intI]);
+				arrAsm.push(strIndent + 'ldy #>' + arrFastUse[intI]);
+				arrAsm.push(strIndent + 'jmp ntc_goxy');
+				arrAsm.push(arrFastUse[intI] + '_rt:' + strIndent + 'ldx ' + arrFastUse[intI] + '_rs');
+				arrAsm.push(strIndent + 'ldy ' + arrFastUse[intI] + '_rs+1');
+				arrAsm.push(strIndent + 'jmp ntc_goxy');
 				continue;
 			}
 			if (blnM65)
@@ -14097,7 +14965,17 @@ function ntcCompile(input_a, objOptions_a)
 		}
 		if (blnM65)
 		{
-			objUsedT['ntc_m65_stub'] = true;		// the PRG's BASIC line, the platform's start code
+			objUsedT[blnWin ? 'ntc_c64_stub' : 'ntc_m65_stub'] = true;		// the PRG's BASIC line, the platform's start code
+			if (blnWin)
+			{
+				objUsedT['kw_wnext'] = true;		// the window: the end of every piece, the branches,
+				objUsedT['ntc_jmp'] = true;			// the multiply the 6502 has no hardware for
+				objUsedT['ntc_mulsw'] = true;
+				if (arrLots.length > 0)
+				{
+					objUsedT['ntc_lots'] = true;	// Option Lot: entering and leaving a lot, its workspace
+				}
+			}
 		}
 		strLibAsm = linkLibrary(objUsedT, objUsedN, irqNeeded());
 		if (blnM68k)
@@ -14139,6 +15017,22 @@ function ntcCompile(input_a, objOptions_a)
 				strLibAsm = arrRom.join('\n');
 			})();
 		}
+		if (String(objPlat.head || '').length > 0)
+		{
+			// (20261125-1) ;@head: the platform's file header, before the org
+			arrAsm = arrAsm.map(function(strL_a)
+			{
+				return (strL_a === '@@HEAD@@') ? ((objLibSections[objPlat.head] || { lines: ['; (;@head: no section of that name)'] }).lines.join('\n')) : strL_a;
+			});
+		}
+		if (String(objPlat.boot || '').length > 0)
+		{
+			// (20261125-1) ;@boot: the platform's start code, in the start code's place for it
+			arrAsm = arrAsm.map(function(strL_a)
+			{
+				return (strL_a === '@@BOOT@@') ? ('; ---- the platform\'s start code (;@boot ' + objPlat.boot + ')\n' + ((objLibSections[objPlat.boot] || { lines: ['; (no section of that name)'] }).lines.join('\n')) + '\n; ---- (its end)') : strL_a;
+			});
+		}
 		if (blnM65)
 		{
 			// the 45GS02: the stub section (the BASIC line, at $2001) and the start code go first
@@ -14154,7 +15048,7 @@ function ntcCompile(input_a, objOptions_a)
 					{
 						// (the start code too: it must be in low memory, below the ROMs BASIC 65 has
 						// mapped in when it starts the program, until it has mapped them out)
-						blnStub = /^;##\s+ntc_m65_(stub|boot)\b/.test(strL_a);
+						blnStub = /^;##\s+ntc_(m65|c64)_(stub|boot)\b/.test(strL_a);
 					}
 					(blnStub ? arrStub : arrRest).push(strL_a);
 				});
@@ -14635,7 +15529,7 @@ function ntcCompile(input_a, objOptions_a)
 		arrList_a.forEach(function(objE_a) { if (objE_a.file && (objOrigName[objE_a.file] !== undefined)) { objE_a.file = objOrigName[objE_a.file]; } });
 	});
 	return {
-		asm: objPlat.rom ? romLayout(holeLayout(linkTidy(arrAsm.join('\n')) + romTail())) : x86Text(m65Numbers((blnHighCode ? highLayout : holeLayout)(linkTidy(blnX86 ? arrAsm.join('\n').replace(/\(([^()\n]*)\)&\$FFFF/g, '($1)') : arrAsm.join('\n'))))),
+		asm: objPlat.rom ? romLayout(holeLayout(linkTidy(arrAsm.join('\n')) + romTail())) : x86Text(winLayout(m65Numbers((blnHighCode ? highLayout : holeLayout)(linkTidy(blnX86 ? arrAsm.join('\n').replace(/\(([^()\n]*)\)&\$FFFF/g, '($1)') : arrAsm.join('\n')))))),
 		libasm: strLibAsm,
 		vbfiles: arrFiles,
 		layout: arrLayout,
@@ -14702,7 +15596,8 @@ function ntcFlavours()
 		},
 		js: (typeof ntcFlavourJs === 'function') ? ntcFlavourJs : undefined,
 		php: (typeof ntcFlavourPhp === 'function') ? ntcFlavourPhp : undefined,
-		locomotive: (typeof ntcFlavourLoco === 'function') ? ntcFlavourLoco : undefined
+		locomotive: (typeof ntcFlavourLoco === 'function') ? ntcFlavourLoco : undefined,
+		natural: (typeof ntcFlavourNatural === 'function') ? ntcFlavourNatural : undefined
 	};
 }
 
@@ -14719,7 +15614,7 @@ function ntcPrep(input_a, objOptions_a)
 	{
 		var strText = String(objFile_a.text || '');
 		var arrFirst = strText.match(/^\s*(?:\d+\s+)?(?:\/\/#\s*|'#\s*|rem\s*#\s*)?option\s+flavour\s+(\w+)/i);
-		var strFlavour = arrFirst ? arrFirst[1].toLowerCase() : (/\.js$/i.test(objFile_a.name || '') ? 'js' : (/\.php$/i.test(objFile_a.name || '') ? 'php' : (/\.loc$/i.test(objFile_a.name || '') ? 'locomotive' : String(objOptions.flavour || 'vb5').toLowerCase())));
+		var strFlavour = arrFirst ? arrFirst[1].toLowerCase() : (/\.js$/i.test(objFile_a.name || '') ? 'js' : (/\.php$/i.test(objFile_a.name || '') ? 'php' : (/\.loc$/i.test(objFile_a.name || '') ? 'locomotive' : (/\.nat$/i.test(objFile_a.name || '') ? 'natural' : String(objOptions.flavour || 'vb5').toLowerCase()))));
 		var fnFlavour = objFlavours[strFlavour];
 		var objR = null;
 		var strStem = String(objFile_a.name || 'main').replace(/\.[^.\/\\]*$/, '');
@@ -14734,13 +15629,22 @@ function ntcPrep(input_a, objOptions_a)
 			arrErrors.push({ file: objFile_a.name, line: 1, msg: 'no such flavour: ' + strFlavour + ' (' + Object.keys(objFlavours).filter(function(k_a) { return typeof objFlavours[k_a] === 'function'; }).join(', ') + ')' });
 			return;
 		}
+		if (strFlavour === 'vb5' && typeof objFlavours.natural === 'function' && /^[ \t]*#natural\b/im.test(strText))
+		{
+			// a plain file with #natural ... #endnatural parts: those through the Natural flavour, the
+			// rest as it is (the file keeps its name: a class stays a class)
+			objR = objFlavours.natural(objFile_a, { naturalBlocks: true, files: arrIn });
+			arrErrors = arrErrors.concat(objR.errors);
+			arrFiles.push({ name: objFile_a.name, text: objR.text, lines: objR.lines, orig: objFile_a.name, flavour: 'natural', platform: objFile_a.platform });
+			return;
+		}
 		if (strFlavour === 'vb5')
 		{
 			objR = fnFlavour(objFile_a, objOptions);
 			arrFiles.push({ name: objFile_a.name, text: objR.text, platform: objFile_a.platform });
 			return;
 		}
-		objR = fnFlavour(objFile_a, objOptions);
+		objR = (strFlavour === 'natural') ? fnFlavour(objFile_a, { files: arrIn }) : fnFlavour(objFile_a, objOptions);		// (Natural: the project's classes are its words)
 		arrErrors = arrErrors.concat(objR.errors);
 		arrWarnings = arrWarnings.concat(objR.warnings || []);
 		arrFiles.push({ name: strStem + (objR.cls ? '.cls' : '.bas'), text: objR.text, lines: objR.lines, orig: objFile_a.name, flavour: strFlavour, platform: objFile_a.platform });
@@ -15027,7 +15931,7 @@ function ntcRomAsm(strPlatform_a, strReg_a, objOpt_a)
 				arrStack.push({ romlib: true, keep: true });
 				return;
 			}
-			if (/^\s*IFDEF\s+NTC_(ZXN|ISLC|PGLOADED|MSXDOS|ZXNDOT|ZXNDOTL)\b/i.test(strCode))
+			if (/^\s*IFDEF\s+NTC_(ZXN|ISLC|PGLOADED|MSXDOS|ZXNDOT|ZXNDOTL|EP128)\b/i.test(strCode))		// (20261125-1: EP128 - the Enterprise's parts)
 			{
 				arrStack.push({ romlib: true, keep: false });
 				return;

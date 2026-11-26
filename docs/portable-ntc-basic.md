@@ -593,6 +593,12 @@ A game can have several services open at once: the display, the music, the maths
 | `cyborgoshh` | the same, for a headless CyborgOS (a vCPC with no screen of its own) |
 | `sc3000`, `colecovision` | the cartridge machines, so far the `cpc` equivalents: full control, small RAM |
 | `md`, `m65` | the Mega Drive (68000) and MEGA65 (45GS02): `cpc` equivalents for their own, unrelated targets |
+| `zxndot`, `zxndotl` | a Next dot command: a tool run from BASIC that returns to it; BASIC's screen and keyboard, pages from NextZXOS |
+| `ep128` | the Enterprise 128, taken from EXOS: a `cpc` equivalent (own screen, keys, interrupt; the machine's segments as `Memory` pages) |
+| `x68000`, `neogeo`, `neocd`, `amiga` | the other 68000 machines: `cpc` equivalents for theirs (a boot disc or a cartridge that takes the machine) |
+| `towns` | the FM Towns (80386): the same, a boot disc with no Towns OS |
+| `c64reu` | a Commodore 64 with an REU (6502): takes the machine, the KERNAL kept for disc files only; the program lives in the REU |
+| `pcw16`, `ti83`, `ti89`, `trs80`, `system80` | drafts: they compile, none has been run (`targets.md`) |
 | `baremetal` | a machine NTC doesn't know: do everything from scratch (fill in the platform routines and classes) |
 | `test` | NTC's own test harness |
 

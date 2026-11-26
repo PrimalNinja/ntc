@@ -1,0 +1,28 @@
+Option Flavour Natural
+' Draw.nat - drawing with a turtle, and words of your own made from its words.
+' (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
+with the turtle
+
+to square using size
+  repeat 4 times forward size turn right end
+end
+
+to stairs using steps
+  repeat steps times forward 2 turn right forward 1 turn left end
+end
+
+to spiral using longest
+  count side from longest down to 1 forward side turn right end
+end
+
+clear
+move to 0 0  pen down  spiral 12  pen up
+
+ink "#"
+move to 16 0  pen down  stairs 5  pen up
+
+ink "o"
+count n from 1 to 3
+  move to ( 12 + n * 6 ) ( 8 + n )  pen down  square ( 2 + n )  pen up
+end
+show

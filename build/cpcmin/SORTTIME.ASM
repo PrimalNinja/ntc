@@ -3568,7 +3568,7 @@ ntc_rg131_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg132:
-;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank ntc_dot_bank @shared @far
+;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank ntc_dot_bank ntc_ep_bank @shared @far
 ; ------------------------------------------------------------
 ; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
 ; array RAM setting: C0 = plain, C4-C7 + bank * 8 = page 0-3 of a 64K bank;
@@ -3659,6 +3659,9 @@ mem_probe:
 	IFDEF NTC_MSXDOS
 			call msx_mem_probe		; MSX: the mapper's segments from MSX-DOS 2 (ntc_lib_msx.asm), sets mem_banks
 	ELSE
+	IFDEF NTC_EP128
+			call ep_mem_probe		; the Enterprise: the segments taken from EXOS at the start (ntc_lib_ep.asm), sets mem_banks
+	ELSE
 	IFDEF NTC_ZXNDOTL
 			call dot_mem_probe		; a Next dot command: pages from NextZXOS's allocator (ntc_lib_dot.asm), sets mem_banks
 	ELSE
@@ -3742,6 +3745,7 @@ mem_pr_back:
 mem_pr_di:
 	ELSE
 			call nxt_mem_probe		; Next: the RAM probe (ntc_lib_nxt.asm), sets mem_banks
+	ENDIF
 	ENDIF
 	ENDIF
 	ENDIF
@@ -3853,6 +3857,25 @@ mem_tb_pl2:
 			pop hl
 			djnz mem_tb_pl
 	ENDIF
+	IFDEF NTC_EP128
+			ld a, (ep_usable)		; the Enterprise: pages 2 .. usable + 1 are there (every free segment is a
+			ld e, a					; page); the table is in fours, so the last four's leftovers are marked taken
+			ld d, 0
+			inc de
+mem_tb_ep:
+			ld hl, (mem_count)
+			or a
+			sbc hl, de
+			jr z, mem_tb_epe
+			jr c, mem_tb_epe
+			inc de
+			ld hl, (mem_ttype)
+			add hl, de
+			dec hl
+			ld (hl), 'C'
+			jr mem_tb_ep
+mem_tb_epe:
+	ENDIF
 	IFDEF NTC_ZXN
 			ld a, (zxn_usable)		; the Next: pages 2 .. usable + 1 are there; the table is in fours,
 			ld e, a					; so the ones past that (the last four's leftovers) are marked taken
@@ -3930,6 +3953,9 @@ mem_jbc:
 	IFDEF NTC_MSXDOS
 			jp msx_mem_jbc			; MSX: 64K bank E -> its page 0's setting (ntc_lib_msx.asm)
 	ENDIF
+	IFDEF NTC_EP128
+			jp ep_mem_jbc			; the Enterprise: 64K bank E -> its page 0's setting (ntc_lib_ep.asm)
+	ENDIF
 	IFDEF NTC_ZXN
 			jp nxt_mem_jbc			; Next: 64K bank E -> its first 16K Next bank (ntc_lib_nxt.asm)
 	ENDIF
@@ -3983,6 +4009,9 @@ mem_se_do:
 mem_se_out:
 	IFDEF NTC_MSXDOS
 			jp msx_mem_se_out			; MSX: the segment into page 1 (PUT_P1: ntc_lib_msx.asm) -> mem_se_end
+	ENDIF
+	IFDEF NTC_EP128
+			jp ep_mem_se_out			; the Enterprise: the segment into page 1 (port #B1: ntc_lib_ep.asm) -> mem_se_end
 	ENDIF
 	IFDEF NTC_ZXNDOTL
 			jp dot_mem_se_out			; a Next dot command: the setting's two pages into slots 2, 3 (ntc_lib_dot.asm) -> mem_se_end
@@ -4229,6 +4258,20 @@ mem_ramsize:
 			ld a, h
 			or l
 			ret z
+	IFDEF NTC_EP128
+			ld a, (EPB_NSEG)		; the Enterprise: every segment is 16K - the free ones taken at the start,
+			add a, 5				; the program's three, the screen's and EXOS's own
+			ld l, a
+			ld h, 0
+			jr nc, mem_rs_ep
+			inc h
+mem_rs_ep:
+			add hl, hl				; x 16
+			add hl, hl
+			add hl, hl
+			add hl, hl
+			ret
+	ENDIF
 			ld a, (mem_banks)
 			ld l, a
 			ld h, 0
@@ -4392,6 +4435,14 @@ mem_bankcount:
 			ld a, h
 			or l
 			ret z
+	IFDEF NTC_EP128
+			ld a, (ep_usable)		; the Enterprise: whole banks only (the last four pages may not all be there)
+			srl a
+			srl a
+			ld l, a
+			ld h, 0
+			ret
+	ENDIF
 			dec hl
 			srl h
 			rr l
@@ -6328,6 +6379,113 @@ ntc_rg138_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg139:
+;## ntc_ep_bank ntc_mem @far
+	IFDEF NTC_EP128
+EPB_SEG1	equ #BCFE				; the platform's start code leaves these for this section, at fixed places (the
+EPB_NSEG	equ #BCFF				; library names no platform label): the program's page 1 segment, the number of
+EPB_SEGS	equ #BD00				; free segments, and their list
+ep_usable:		db 0					; the pages there are after page 1 (segments in the list, Option Memory's limit kept)
+
+; ep_mem_probe - the segments the start code listed, 4 a bank (up to MEM_BANKS;
+; a last bank of fewer than 4 counts). Sets mem_banks, mem_found and ep_usable.
+; Called from mem_probe on the real stack
+ep_mem_probe:
+			ld a, (EPB_NSEG)
+	IF MEM_BANKS < 63				; (Option Memory Heap Pages n: no more than its pages)
+			cp MEM_BANKS * 4 + 1
+			jr c, ep_pr_n
+			ld a, MEM_BANKS * 4
+ep_pr_n:
+	ENDIF
+			ld (ep_usable), a
+			add a, 3				; banks = (segments + 3) / 4 (252 segments at most: no carry)
+			srl a
+			srl a
+			ld (mem_banks), a
+			or a
+			ret z
+			ld hl, mem_found		; the banks found: 0, 1, 2 ...
+			ld b, a
+			ld e, 0
+ep_pr_fl:
+			ld (hl), e
+			inc hl
+			inc e
+			djnz ep_pr_fl
+			ret
+
+; ep_mem_jbc - E = a 64K bank (0-63) -> BC = its page 0's RAM setting (B = 1 + E / 32,
+; C = (E and 31) * 8 + 4: the four 16K parts step C, as the CPC's #C4 - #C7 do).
+; Keeps DE, HL.
+ep_mem_jbc:
+			ld a, e
+			add a, a
+			add a, a
+			add a, a
+			add a, 4
+			ld c, a
+			ld a, e
+			rlca
+			rlca
+			rlca
+			and 1
+			inc a
+			ld b, a
+			ret
+
+; ep_mem_seg - BC = a RAM setting -> A = its segment: B = #7F (main RAM's own,
+; #7FC0) = the program's own page 1; else EPB_SEGS((B - 1) * 128 + (C and #F8) / 2 +
+; page), the page C's low 3 bits less 4 (the whole bank's "2" and 0-3: its page 0).
+; Keeps BC, DE, HL.
+ep_mem_seg:
+			ld a, b
+			cp #7F
+			jr nz, ep_ms_pg
+			ld a, (EPB_SEG1)
+			ret
+ep_ms_pg:
+			push hl
+			ld a, c
+			and 7
+			sub 4
+			jr nc, ep_ms_ok
+			xor a					; 0-3: page 0
+ep_ms_ok:
+			ld l, a
+			ld a, c
+			and #F8
+			srl a					; (bank and 31) * 4
+			add a, l
+			ld l, a
+			ld a, b
+			dec a
+			rrca					; bank / 32: bit 7
+			and #80
+			or l
+			ld l, a
+			ld h, high EPB_SEGS
+			ld a, (hl)
+			pop hl
+			ret
+
+; ep_mem_se_out - BC = the RAM setting: its segment into the window (page 1, port #B1).
+; Reached by jp from mem_se_out; exits through mem_se_end. ntc_rampt first, then the port
+ep_mem_se_out:
+			ld (ntc_rampt), bc
+			call ep_mem_seg
+			out (#B1), a
+			jp mem_se_end
+	ENDIF
+
+ntc_rg139_e:
+			IF ($ < 32768) && (ntc_rg140_e - ntc_rg140 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
+			ENDIF
+			IF ($ < 65536) && (ntc_rg140_e - ntc_rg140 + $ > 42496)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
+ntc_oom = 1		; (said once: the parts after this one reach it too)
+			ENDIF
+ntc_rg140:
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based)
 ntc_cury:		db 0			; cursor row (0 based)
@@ -6360,15 +6518,15 @@ ntc_modetab:	db 4, 20, #C0, 2		; mode 0
 
 ; (ntc_plat_scroll, ntc_plat_cls: their own section - the ROM runs them from RAM)
 
-ntc_rg139_e:
-			IF ($ < 32768) && (ntc_rg140_e - ntc_rg140 + $ > 16384)	; fwdref-ok
+ntc_rg140_e:
+			IF ($ < 32768) && (ntc_rg141_e - ntc_rg141 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg140_e - ntc_rg140 + $ > 42496)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg141_e - ntc_rg141 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg140:
+ntc_rg141:
 ;## ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ; ------------------------------------------------------------
 ; ntc_plat_putc - A = character 32-126 (others print as ?), draw it
@@ -6544,15 +6702,15 @@ ntc_nl_do:
 			ld (ntc_cury), a
 			jp (ix)
 
-ntc_rg140_e:
-			IF ($ < 32768) && (ntc_rg141_e - ntc_rg141 + $ > 16384)	; fwdref-ok
+ntc_rg141_e:
+			IF ($ < 32768) && (ntc_rg142_e - ntc_rg142 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg141_e - ntc_rg141 + $ > 42496)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg142_e - ntc_rg142 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg141:
+ntc_rg142:
 ;## ntc_plat_backspace @unit ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ; ------------------------------------------------------------
 ; ntc_plat_backspace - cursor back one and blank that cell
@@ -6579,15 +6737,15 @@ ntc_bs_col:
 ntc_bs_none:
 			jp (ix)
 
-ntc_rg141_e:
-			IF ($ < 32768) && (ntc_rg142_e - ntc_rg142 + $ > 16384)	; fwdref-ok
+ntc_rg142_e:
+			IF ($ < 32768) && (ntc_rg143_e - ntc_rg143 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg142_e - ntc_rg142 + $ > 42496)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg143_e - ntc_rg143 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg142:
+ntc_rg143:
 ;## ntc_plat_mode @unit ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ; ------------------------------------------------------------
 ; ntc_plat_mode - A = mode (0-2, 3 = 2). Gate array mode with both
@@ -6659,15 +6817,15 @@ ntc_fontcopy:
 			jp ntc_md_set
 ntc_fontcopy_end:
 
-ntc_rg142_e:
-			IF ($ < 32768) && (ntc_rg143_e - ntc_rg143 + $ > 16384)	; fwdref-ok
+ntc_rg143_e:
+			IF ($ < 32768) && (ntc_rg144_e - ntc_rg144 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg143_e - ntc_rg143 + $ > 42496)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg144_e - ntc_rg144 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg143:
+ntc_rg144:
 ;## ntc_plat_scroll ntc_plat_data ntc_data @shared @romram
 ; ------------------------------------------------------------
 ; ntc_plat_scroll - move rows 1-24 up one, clear row 24
@@ -6773,15 +6931,15 @@ ntc_cl_close:
 			ld (ntc_cury), a
 			jp (ix)
 
-ntc_rg143_e:
-			IF ($ < 32768) && (ntc_rg144_e - ntc_rg144 + $ > 16384)	; fwdref-ok
+ntc_rg144_e:
+			IF ($ < 32768) && (ntc_rg145_e - ntc_rg145 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg144_e - ntc_rg144 + $ > 42496)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg145_e - ntc_rg145 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg144:
+ntc_rg145:
 ;## ntc_plat_key ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_plat_scankey - A = ASCII of a key pressed since the last scan,
@@ -6929,15 +7087,15 @@ ntc_keymaps:
 			db "!", 34, 27, "Q", 9, "A", 0, "Z"
 			db 0, 0, 0, 0, 0, 0, 0, 127
 
-ntc_rg144_e:
-			IF ($ < 32768) && (ntc_rg145_e - ntc_rg145 + $ > 16384)	; fwdref-ok
+ntc_rg145_e:
+			IF ($ < 32768) && (ntc_rg146_e - ntc_rg146 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg145_e - ntc_rg145 + $ > 42496)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg146_e - ntc_rg146 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg145:
+ntc_rg146:
 ;## ntc_plat_frame ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_plat_frame - wait for the start of vsync (PPI port B bit 0)
@@ -6968,23 +7126,6 @@ ntc_fr_wait:
 ntc_fr_done:
 			jp (ix)
 
-ntc_rg145_e:
-			IF ($ < 32768) && (ntc_rg146_e - ntc_rg146 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
-			ENDIF
-			IF ($ < 65536) && (ntc_rg146_e - ntc_rg146 + $ > 42496)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
-ntc_oom = 1		; (said once: the parts after this one reach it too)
-			ENDIF
-ntc_rg146:
-;## ntc_plat_ticks ntc_data
-; ------------------------------------------------------------
-; ntc_plat_ticks - HL = interrupt count (300 a second, normal mode)
-; ------------------------------------------------------------
-ntc_plat_ticks:
-			ld hl, (ntc_ticks)
-			jp (ix)
-
 ntc_rg146_e:
 			IF ($ < 32768) && (ntc_rg147_e - ntc_rg147 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -6994,6 +7135,23 @@ ntc_rg146_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg147:
+;## ntc_plat_ticks ntc_data
+; ------------------------------------------------------------
+; ntc_plat_ticks - HL = interrupt count (300 a second, normal mode)
+; ------------------------------------------------------------
+ntc_plat_ticks:
+			ld hl, (ntc_ticks)
+			jp (ix)
+
+ntc_rg147_e:
+			IF ($ < 32768) && (ntc_rg148_e - ntc_rg148 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
+			ENDIF
+			IF ($ < 65536) && (ntc_rg148_e - ntc_rg148 + $ > 42496)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
+ntc_oom = 1		; (said once: the parts after this one reach it too)
+			ENDIF
+ntc_rg148:
 ;## ntc_plat_irq ntc_plat_data ntc_data ntc_plat_irqh @shared
 ; ------------------------------------------------------------
 ; ntc_plat_irqon - put the interrupt handler at #38 (IM 1)
@@ -7011,15 +7169,15 @@ ntc_plat_irqon:
 			ld (ntc_irqset), a
 			jp (ix)
 
-ntc_rg147_e:
-			IF ($ < 32768) && (ntc_rg148_e - ntc_rg148 + $ > 16384)	; fwdref-ok
+ntc_rg148_e:
+			IF ($ < 32768) && (ntc_rg149_e - ntc_rg149 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg148_e - ntc_rg148 + $ > 42496)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg149_e - ntc_rg149 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg148:
+ntc_rg149:
 ;## ntc_plat_irqh ntc_plat_data ntc_data @shared @romram
 ; the handler: runs on the real stack, between keywords. Counts ticks
 ; (300 a second). AF goes to AF', HL to RAM; interrupt classes' counting
@@ -7076,15 +7234,15 @@ ntc_irq_ron:
 			ret
 		ENDIF
 
-ntc_rg148_e:
-			IF ($ < 32768) && (ntc_rg149_e - ntc_rg149 + $ > 16384)	; fwdref-ok
+ntc_rg149_e:
+			IF ($ < 32768) && (ntc_rg150_e - ntc_rg150 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg149_e - ntc_rg149 + $ > 42496)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg150_e - ntc_rg150 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg149:
+ntc_rg150:
 ;## ntc_plat_exit ntc_plat_data
 ; ------------------------------------------------------------
 ; ntc_plat_exit - before returning to the caller: interrupt handler
@@ -7132,15 +7290,15 @@ FS_TOOBIG	equ -8
 FS_FAILED	equ -9
 FS_BADNAME	equ -4
 
-ntc_rg149_e:
-			IF ($ < 32768) && (ntc_rg150_e - ntc_rg150 + $ > 16384)	; fwdref-ok
+ntc_rg150_e:
+			IF ($ < 32768) && (ntc_rg151_e - ntc_rg151 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg150_e - ntc_rg150 + $ > 42496)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg151_e - ntc_rg151 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg150:
+ntc_rg151:
 ;## ntc_plat_memtop
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
 ; use: #A600 (the firmware's and AMSDOS's RAM is above). Called on the real
@@ -7153,15 +7311,15 @@ ntc_plat_memtop:
 		ENDIF
 			ret
 
-ntc_rg150_e:
-			IF ($ < 32768) && (ntc_rg151_e - ntc_rg151 + $ > 16384)	; fwdref-ok
+ntc_rg151_e:
+			IF ($ < 32768) && (ntc_rg152_e - ntc_rg152 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg151_e - ntc_rg151 + $ > 42496)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg152_e - ntc_rg152 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg151:
+ntc_rg152:
 ;## ntc_plat_rmr ntc_plat_data
 ; ntc_plat_rmr - A = the gate array's ROM / mode byte now (#8x: screen mode,
 ; lower and upper ROM on / off), so Memory's CallBank can turn both ROMs off
@@ -7176,7 +7334,7 @@ ntc_plat_rmr:
 			ret
 
 
-ntc_rg151_e:
+ntc_rg152_e:
 ntc_end:				; the end of the program (and of its file)
 glyph_20			equ ntc_font + 0		; " "
 glyph_28			equ ntc_font + 64		; "("

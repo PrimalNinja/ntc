@@ -34,7 +34,7 @@ Fixed) on every Z80 platform. x = there, b = from the base, - = not there.
    cpm           x      x     x       x      -    x     x       -    -      x
    cyborgos      x      b     b       b      -    b     b       -    -      x       CybSys
    cyborgoshh    b      b     b       b      -    b     b       -    -      x       (cyborgos's)
-   msxdos        b      b     b       x      -    b     b       -    -      x
+   msxdos        b      b     b       x      x    b     b       -    -      x
    msx           x      x     x       x      x    x     -       x    x      x
    msxcard       b      b     b       b      b    b     -       x    b      x
    msx9990       b      b     b       b      b    b     -       b    b      x
@@ -43,8 +43,21 @@ Fixed) on every Z80 platform. x = there, b = from the base, - = not there.
    baremetal     x      x     x       x      -    x     -       -    -      x
    test          x      x     x       x      -    x     -       -    -      x
    colecovision  (its own platform file; classes as sc3000's where they apply)
-   md            x      x     -       -      -    -     -       -    -      -       Pad, Psg, Vdp
+   zxndot        x      x     -       x      x    x     -       -    -      x
+   zxndotl       x      b     -       b      b    b     -       -    -      x
+   ep128         x      x     -       x      x    x     -       -    -      x
+   md            x      x     -       -      x    -     -       -    -      -       Pad, Psg, Vdp, Z80, Pcm
    m65           x      x     -       -      -    -     -       -    -      -       Joy, Sid, Vic
+   x68000        x      x     -       -      x    -     -       -    -      -       Vdp, Pcm, Opm
+   towns         x      x     -       x      x    -     -       -    -      -       Vdp, Pcm
+   neogeo        x      x     -       -      x    -     -       -    -      -       Vdp, Pad, Pcm, Psg, Fm, Cdda, Sound
+   neocd         b      b     -       -      b    -     -       -    -      -       (neogeo's)
+   amiga         x      x     -       x      x    -     -       -    -      -       Loader
+   c64reu        x      x     -       -      x    -     -       -    -      -       Reu, Task, Disk, Vic, Sid, Joy
+   pcw16, ti83, ti89, trs80, system80: System only (drafts)
+   Loader (a file from where the program was run): cpc, cpcfw, cpcmin, cpm, msx, sc3000, zxn,
+   baremetal, test. ROMDiscFS: cpc, cpcfw, cpcmin (cpc has no FileSystem class since 20261116-5:
+   its x in the FileSys column above is ROMDiscFS).
 ```
 
 The cyborgos target and the Pi (2026-11-02): a program built for cyborgos runs in any CyborgOS slot

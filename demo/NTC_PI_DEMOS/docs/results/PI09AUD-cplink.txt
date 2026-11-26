@@ -1,0 +1,20 @@
+PI09 AUDIO - music played by the Pi
+-----------------------------------
+  ok    OPEN store and OPEN audio (two channels at once)
+  ok    STATUS says idle
+  ok    the tone put in the store (MUSIC/8BIT/PIDEMO, 6000 bytes)
+  ok    PLAY MUSIC/8BIT/PIDEMO
+    OK playing MUSIC/8BIT/PIDEMO 0
+  ok    STATUS says playing (or the half second is over already)
+    event: ENDED MUSIC/8BIT/PIDEMO
+  ok    the ENDED event came
+  ok    STATUS is idle again
+  ok    a tag that is not there is refused (ERR nofile)
+  ok    VOL 80
+  ok    STOP
+  ok    NEXT with no list is refused (ERR nolist)
+  ok    the tone taken out of the store again
+
+12 ok, 0 failed - ALL PASS
+
+--- ended  bytes to the Pi 6562, from the Pi 380, Pi ROM writes 0  (cplink)

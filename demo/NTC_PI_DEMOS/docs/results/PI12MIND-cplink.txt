@@ -1,0 +1,19 @@
+PI12 MIND - the generative model on the Pi
+------------------------------------------
+  ok    OPEN mind
+    OK GEN
+  ok    MODELS
+  ok    LOAD GEN
+    OK 97 32 64 2 2  (V E H L K)
+  ok    INFO
+    OK 97 32 64 2 2  !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^
+  ok    RUN 60 hello
+  ok      60 characters came
+    "iPrint "world"' a programOption ExplicitDim iitPrint "
+  ok    RESET
+  ok    RUN 60 hello again gives the same text (the state was reset)
+  ok      the same 60 characters
+
+9 ok, 0 failed - ALL PASS
+
+--- ended  bytes to the Pi 234, from the Pi 458, Pi ROM writes 0  (cplink)

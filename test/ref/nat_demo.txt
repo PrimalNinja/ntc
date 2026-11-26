@@ -1,0 +1,17 @@
+score 28 r 3 lives 57
+The red door is closed.
+The red door is open.
+The cellar door is locked.
+Door 1 is closed.
+It will not open.
+The cellar door is open.
+hip
+hip
+hip
+down 4
+down 3
+lives 1
+r 7
+cheer7
+Door 5 is closed.
+end

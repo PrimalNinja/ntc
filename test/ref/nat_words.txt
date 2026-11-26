@@ -1,0 +1,8 @@
+ERR Words.nat:4: natural: bump expects 1 value, got "say"
+ERR Words.nat:6: natural: "jump" is not a tally word (tally has: bump, value)
+ERR Words.nat:8: natural: "lost" is not a tally word (tally has: bump, value)
+ERR Words.nat:9: natural: "value" is a value of the tally's, not something to do (say value)
+ERR Words.nat:11: natural: to ... starts a word of your own: it can't be inside an if, a loop or another to
+ERR Words.nat:13: natural: to expects the new word (to square using size ... end), got "using"
+ERR Words.nat:18: natural: with tally expects a value, got "say"
+ERR Words.nat:20: natural: this to has no end

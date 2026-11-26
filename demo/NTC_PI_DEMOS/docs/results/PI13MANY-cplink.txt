@@ -1,0 +1,19 @@
+PI13 MANY - several channels at once
+------------------------------------
+  ok    three channels open, each its own number
+    store 1, math 2, float 3
+  ok    20 rounds of store, maths, float, store - all right
+    80 requests in 1422 ticks (300 a second)
+  ok    the maths channel closed: it takes no more
+  ok    the store still answers
+  ok    the float still answers
+  ok    maths opened again
+  ok      and it answers
+  ok    CHANS
+    OK 0 control /  / 1 store /  / 2 math /  / 3 float
+  ok    DEL the round's tag
+    frames skipped while waiting for answers: 5
+
+9 ok, 0 failed - ALL PASS
+
+--- ended  bytes to the Pi 4072, from the Pi 2704, Pi ROM writes 0  (cplink)

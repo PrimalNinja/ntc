@@ -37,6 +37,252 @@ Packaging rule (what goes in the archive) - READ THIS BEFORE ZIPPING
 History (newest first)
 ======================
 
+20261126-2
+  - DOCUMENTS ONLY. No compiler, library, platform, class, example or test file changed; every
+    built file (build/, hosted/, test/out, js/ntc_lib.js) is 20261126-1's, byte for byte.
+  - Why: done.md stopped at 9 November, and todo.md, components.md, buglist.md and
+    architecture.md named none of the platforms added since (x68000, towns, the Neo Geo made to
+    run, neocd, amiga, ep128, c64reu), nor the Natural flavour, the Loader class, ROMDiscFS,
+    ByRef in place, the option clean-up, Reserve and Safe. It was all here and in each machine's
+    own document, nowhere else.
+  - done.md: entries for 2026-11-05 to 2026-11-26, one a build or a group of builds, each naming
+    its build number.
+  - todo.md: 30 new items marked (20261126-2), gathered from the NOT done / NOT run notes of
+    those builds, each naming its build; five old items ticked (the dot commands, CP/M's
+    terminals, the Next's files and pages, the targets done); new sections 43, 53, 55.
+  - components.md: rewritten from what is in the tree. 53 to 60 are new numbers (ntc_lib_x86,
+    the Neo Geo's sound driver, Loader, ROMDiscFS, the ternary classes, the other machines'
+    classes, their tools, this file); 12, 13, 16 to 19, 24, 25, 28, 29, 33, 36, 44 brought up to
+    date.
+  - buglist.md: the fixes of 5 to 26 November, and three open entries - the ByRef "?" on
+    CyborgOS's V9990 HELP (not found), a paged class nothing calls (20261111-1; a small case
+    tried today on cpcmin builds clean, not reproduced), the c64reu Disk hang (worked round,
+    cause not found).
+  - architecture.md: the other Z80 platforms in 3.3, the other libraries in 8, and a new
+    section 11 - the 68000, the 45GS02, the 6502 and the 80386: the thread register, interrupts,
+    where the variables are.
+  - targets.md: rows for x68000 and towns (they had none); the graphics family and coverage
+    tables for them, md's new classes, m65's classes, c64reu, amiga, ep128.
+  - userguide.md (the platform table: the Next, the dot commands, md, m65, x68000, towns, the
+    Neo Geo, the Amiga, the drafts), requirements.md (the tools and targets; the Next's program
+    is in banks 0-2, it said 8-10), requirements-user.md (the classes table), portable-ntc-
+    basic.md, NTC.md (the source table).
+  - NOT done: the tutorial (no page for a machine that is not a Z80, the Natural flavour,
+    Loader, ROMDiscFS or Option Lot - a todo item, 43). Each machine's own document and the
+    README were already up to date and are not changed.
+  - FOUND while doing CyborgOS's documents the same day (CyborgOS 20261126-2, its buglist 1):
+    since Option CompactCalls went (20261116-2) CyborgOS's C2 hypervisor is 635 bytes bigger, and
+    on a CPC with UniDOS and an IDE node it has page table room for 816K only - 4MB shows "Not
+    mapped: 3344K". Confirmed in CyborgOS's harness. A todo item here (2): whether the option
+    comes back.
+  - No regression was run: nothing that is compiled, assembled or run changed. test/out is
+    20261126-1's clean run.
+
+20261126-1
+  - c64reu: Option Lot Name = Class, Class ... - programs bigger than one 64K thread. The REU
+    past the kernel's 32K is lots of 96K (5 on a 512K REU, 21 on 2 MB, 174 on 16 MB). A lot named
+    by an Option Lot line is a code lot: 64K of its classes' compiled code and 32K of workspace
+    (their variables, strings and call stubs), which is in the C64's memory - at one place,
+    ending at $CFFF - only while that lot is running, and goes back to the REU when another
+    lot's comes in. Any other lot is 96K of data (Reu.LotBank, Reu.LotAddr). Classes in no lot
+    are the kernel: always in memory, called from any lot with parameters.
+    A lot's Sub called from outside the lot takes no parameters and gives no result (the
+    compiler says which one does); inside a lot anything goes. docs/c64reu.md section 13.
+  - Compiler: scanLots (the Option Lot lines), winLayout sorts each lot's threads, stubs,
+    variables and strings out of the program, makes an entry in the kernel for every Sub of a
+    lot called from outside it, and reports calls and variable uses a lot cannot take.
+  - Library / platform: each window knows its piece's lot; ntc_lot_enter, ntc_lot_ret,
+    ntc_ws_set; a kernel Sub's stub keeps the caller's lot (NTC_LOTIN, NTC_LOTOUT). A task
+    keeps its lot and its workspace's, so a task can run inside a lot. A program with lots
+    checks the REU is big enough at the start ("THIS PROGRAM NEEDS A BIGGER REU").
+  - test/c64build.js: with lots the program is assembled twice (the workspace goes as high as
+    the biggest lets it); --split writes GAME.0, GAME.1 ... (the kernel's thread, then each
+    lot's thread and workspace; GAME.T is now GAME.0); --reu and --d64 take them all; a D64
+    can hold more than 8 files; the build lists every part, its size and where it goes.
+  - Reu.Banks() no longer changes anything in the REU (it puts back the bytes it tries).
+    System.Lots(): how many lots the REU has.
+  - Disk class: the serial bus is waited for before a file is opened. On the emulator one
+    program hung in the KERNAL opening a file that was not there, a few frames after another
+    load; it does not with the wait, but why it did was not found.
+  - New sample src/bas/c64_lots (and in the IDE's examples): a title screen and two stages
+    in three lots, a data lot, a kernel class they all call.
+  - test/c64regress.sh: 63 checks (lots: variables kept, lot to lot calls, 256K / 512K, an REU
+    too small, a --split build from disc, a task inside a lot, the calls refused, a 120K
+    program in two lots).
+  - The MEGA65's output is still byte for byte unchanged (13 test programs).
+
+20261125-3
+  - c64reu: a new sample, src/bas/c64_dungeon (and in the IDE's examples): a dungeon of 128 x 128
+    tiles, each 16 x 16 pixels (2 x 2 multicolour characters), scrolled a pixel at a time with
+    Q A O P or a joystick, 50 frames a second. The level is kept in the REU as tiles, as
+    characters and as colours; every 8th pixel the whole view is fetched again while the border
+    is drawn. The tiles' pictures and the sprite's are strings in the program.
+  - Vic class (c64reu): Scroll x, y (smooth scrolling: 38 columns, 24 rows), ScrollOff,
+    MultiText onoff, c1, c2 (multicolour text).
+  - Reu.FetchRect / StashRect (c64reu) are quicker: about 125 cycles a row and a cycle a byte
+    (40 x 25 in 3,150 cycles; it was about 5,400). A step of 0 is allowed (the same bytes to
+    every row: a column drawn in one call).
+  - test/c64regress.sh: 49 checks (the scroll registers, the new sample building).
+  - docs/c64reu.md: section 7 has the new members and how the scrolling is done.
+
+20261125-2
+  - NEW platform c64reu: a stock Commodore 64 with an REU (a plain 6502). The compiled program -
+    the thread - is kept in the REU and run through three 64 byte windows in page 1
+    ($0100-$01BF: SP runs through them); the C64's own memory holds the keyword library, the
+    variables and the arrays. A piece of thread not in a window is fetched in 64 cycles; a loop
+    of up to three pieces, or a loop and the Subs it calls, goes round with no fetch. Run on VICE
+    (x64sc, PAL) only - not on a real C64, REU or Ultimate. docs/c64reu.md.
+  - Compiler: ;@cpu 6502 (blnWin) rides the 45GS02 path. winLayout cuts the threads into 64 byte
+    pieces (each ends with kw_wnext, no keyword cut from its arguments), starts a new piece
+    before a loop or small Sub that would straddle two, and puts them after the program with
+    their own addresses (rorg). The build says how many loops stay in one piece.
+  - Library: asm/ntc_lib_m65.asm is shared by the MEGA65 and the C64. The C64's parts are inside
+    ifd NTC_C64 (ntc_goxy, kw_wnext, a software multiply); inw / dew / the hardware multiplier
+    are macros the compiler writes (NTC_INW, NTC_DEW, NTC_MULGO, NTC_MULGO16). The MEGA65's
+    output is byte for byte unchanged (13 test programs compared).
+  - Interrupts are on (the MEGA65 has them off): the frame's interrupt counts Ticks and marks
+    the windows when SP was in one; System.FrameHook calls machine code every frame.
+  - Classes (lib/c64reu): Reu (Banks, Size, Stash, Fetch, Swap, FetchRect, StashRect, Fill,
+    MemFill, Peek, Poke, Deek, Doke), Task (up to 32 tasks that take turns: Start, Yield, Sleep,
+    Id, Count, Stop - a task is one thread position), Disk (LoadReu: a file off the disc into the
+    REU through the KERNAL), Vic (the 8 sprites, 79 shapes, the program's own characters), Sid,
+    Keys (keys held), Joy, StdIO (with Pen, Paper, Border), System.
+  - Programs bigger than a PRG: c64build.js --split puts the thread in a file of its own
+    (GAME.T, up to 65,024 bytes) that the program reads into the REU when it starts; --reu
+    writes an REU image with the thread in it (the program finds its mark and loads nothing).
+    Tested with a 78K program: 15.7K in the C64, a 62K thread.
+  - Tools: test/c64build.js (--split, --d64, --add=FILE, --reu, --log, --list), test/c64run.py
+    (the VICE x64sc libretro core: PRG or D64, keys, joystick, REU size, screenshots),
+    test/c64regress.sh (46 checks), test/c64/ (its test programs, genbig.js, extra.sh).
+  - Samples (src/bas, and in the IDE's examples): c64_test (the self test), c64_tasks (20 tasks,
+    one a screen line), c64_world (a 256 x 256 map in the REU to walk round: Q A O P or a
+    joystick), c64_film (64 whole screens played back from the REU, one a frame), c64_sprites
+    (8 sprites as 8 tasks, 64 shapes kept in the REU).
+  - The IDE has the platform (ntc.html); docs/targets.md, docs/userguide.md, docs/m65.md and
+    the README updated.
+
+20261125-1
+  - NEW platform ep128: the Enterprise 128 (Z80), a program file EXOS loads (GAME.COM) that then
+    takes the machine and works the hardware itself - its own screen, keyboard and interrupt;
+    EXOS is asked once, at the start, for its free memory and not called again. First stage: no
+    file, graphics or sound classes yet.
+    src/asm/ntc_plat_ep128.asm, src/asm/ntc_lib_ep.asm, src/lib/ep128/ (StdIO, System, Memory,
+    Keys, List), test/epbuild.js, test/eprun.py, test/epregress.sh, test/ep/, docs/ep128.md.
+  - All of the machine's memory: every free 16K segment is a page of the Memory class with
+    Option Memory Heap Pages - 128K gives 3, 1 MB 59, a full 4 MB about 250 - through the same
+    window (#4000-#7FFF), calls and far pointers as on the CPC and MSX-DOS 2. The paging
+    manager (ntc_lib_cpc.asm) got an Enterprise branch at its three hardware points (the probe,
+    a bank's setting, the window's select), a count of real pages (the last bank may be short:
+    the missing pages read as taken) and RamSize / Banks for it. System.Segments(),
+    System.Segment(page). The least it runs on is 128K: a 64K machine stops with a red border.
+  - How EXOS hands a program over, found on the emulator and dealt with in the start code: the
+    stack is EXOS's own (a call to EXOS on it never returns); a program over 32K has its second
+    part's segment in no page at all (found by asking EXOS to free each segment number: it
+    agrees to that one only). Run on EXOS 2.0, 2.1 and 2.4.
+  - The console: Nick, 2 colours, NTC's font, Mode 1 = 40 x 25, Mode 2 = 80 x 25. The keyboard
+    matrix; Keys.Down, Keys.Joystick(0 the built in one, 1 / 2 the control ports). The frame
+    interrupt (50 a second): Ticks, Frame, the Interrupt hook, interrupt classes.
+  - epbuild.js: GAME.COM, and with --img GAME.IMG - a 720K EXDOS disc with the program and an
+    EXDOS.INI that starts it. The file's 16 byte EXOS header is assembled with the program, so
+    sjasmplus --raw=GAME.COM alone writes a complete file (the web IDE lists ep128 too).
+  - The compiler: two new platform header lines, both general. ;@boot name - that section is
+    put at the program's very start and runs on into the start code (never linked a second
+    time). ;@head name - that section goes before the program's org (a file header). ep128
+    may use Option Memory Heap Pages; DEFINE NTC_EP128 for the library (the keyword ROM builder
+    leaves the Enterprise's parts out, as the Next's and the MSX's: the three CPC ROMs are the
+    same but for their set stamp).
+  - Tests: epregress.sh, 32 checks on the ep128emu core (the self tests, typed input, the hook,
+    interrupt classes, programs of 26K and 45K, the Memory class on 128K to 3.7 MB with every
+    segment marked and read back, a 64K machine refused, keys, three joysticks, 80 columns).
+    They load off the disc: the emulator's own file device handed one program over wrongly
+    nearly every time (a file of exactly 5,334 bytes; before any of its bytes ran), and never
+    off the disc.
+  - Not run on a real Enterprise. Nothing changed for the other platforms.
+
+20261124-1
+  - NEW platform amiga: the Commodore Amiga 500 (68000), a boot disc (.adf) that takes the
+    machine and works the hardware itself - nothing of the operating system is used once the
+    boot block has read the program. First stage: no graphics or sound classes yet (next, in
+    the other 68000 machines' shapes, for TIANLONG).
+    src/asm/ntc_plat_amiga.asm, src/lib/amiga/ (StdIO, System, Memory, Keys, Loader),
+    test/amigabuild.js, test/amigarun.py, test/amigaregress.sh, test/amiga/Classes.bas,
+    docs/amiga.md. The compiler and the 68000 library are not changed.
+  - The boot: the boot block notes the memory, reads the program with the ROM's disc driver,
+    switches the system off (supervisor mode, no interrupts, no DMA), moves the program to
+    $10000 and starts it in user mode with A7 as the thread (as the X68000).
+  - Memory, found at the start: chip RAM 512K / 1 MB / 2 MB, and the other RAM (the trapdoor's
+    slow RAM, fast RAM in the side slot: up to 8 MB, two blocks of it). System.ChipRam(),
+    System.OtherRam(), System.Hz(); the Memory class: Alloc (chip), AllocOther, AllocAny,
+    Free, FreeOther.
+  - The console: one bitplane, 80 x 32 (80 x 25 on an NTSC machine), NTC's font. The keyboard
+    through CIA-A (US layout), Keys.Down, Keys.Joystick(0 / 1) with the other machines' bits.
+  - Discs: a hardware loader (the motor, the head, the disc DMA, MFM decoding and checksums,
+    four tries a track) for DF0-DF3. amigabuild.js --file=NAME=path[@disc] lays files out
+    after the program, on one disc or several, with their list; the Loader class: Load, Size,
+    Disc, Drive, Drives, Wanted, Read, MotorOff. A file is found on whichever drive has its
+    disc; with one drive Load answers WrongDisc and the game asks for the change. Each disc
+    has a label (its number, the set's mark).
+  - RUN on the PUAE emulator with the Kickstart replacement it carries (AROS):
+    test/amigaregress.sh, 25 checks, all pass - 15 self tests; files read at the drive's real
+    speed; a second disc with one drive (changed) and with two; the joystick; a key held;
+    five memory set-ups from 512K + 512K slow to 2 MB chip + 4 MB fast; an NTSC machine.
+  - NOT run: Commodore's Kickstart, a real Amiga, real drives, a bare 512K machine (the
+    replacement Kickstart will not start in 512K), DF2 / DF3.
+  - Every other platform's output is unchanged.
+
+20261123-4
+  - Natural flavour: example programs (src/bas/natural_demo/, and in the IDE's examples) -
+    Primes.nat, Fibonacci.nat, Guess.nat (guess the number), Bank.nat + Account.cls (two
+    accounts over three months), Draw.nat + Turtle.cls (a turtle draws on a sheet of
+    characters, with words of your own), Maze.nat + Robot.cls (a robot leaves a maze by the
+    right-hand wall). Main.nat + Door.cls stays as the one with every kind of sentence.
+  - Writing them showed what was missing, now in the flavour:
+    - the project's classes are the vocabulary: the flavour reads the project's .cls files, so
+      a word can be several words (turn left = TurnLeft), a verb takes as many values as it
+      has parameters, a Function is a value (say balance) and a state word (while not home),
+      and a word the class has not got is an error in the sentence's terms. (ntcPrep hands the
+      flavour the project's files; the compiler itself is still not touched.)
+    - with turtle: a class with no ids
+    - to square using size ... end: a word of your own (a Sub)
+    - ask "Guess" into g (Input), pick n from 1 to 6 (a number at random)
+    - a bare name that set / ask / pick / into writes to is declared for you (String, Long or
+      Integer by what it is set to), so a small program needs no #ntc part
+    - a value by itself is a condition (if prime ...)
+    - to / from / by / into / of / at between a class's verb's values (transfer 50 to savings)
+    - a noise word can be a name where one is being given (set a to 0)
+    - CHANGED: say puts a space between the things said (say "Score" n prints "Score 5")
+  - regress.sh: the six examples on test, cpc, cpcmin, cpcfw, cpm in both modes; test/natural/
+    Words.nat (the messages for a class's words and words of your own). 61 more checks.
+  - docs/natural_flavour.md rewritten for all of the above.
+  - Programs that use no natural part compile to what they did.
+
+20261123-3
+  - NEW flavour Natural (src/js/ntc_flavour_natural.js, the `natural` entry in the flavour
+    factory): near-English sentences turned into VB5 text for the one parser and compiler.
+    The compiler itself is not touched; only ntcPrep (the flavour step) knows the new entry.
+    A file starting "Option Flavour Natural" (or named .nat) is natural all through, with
+    #ntc ... #endntc for plain NTC BASIC and #asm ... #endasm as ever. A plain .bas or .cls
+    can hold #natural ... #endnatural parts (a class stays a class).
+  - What is in it: words separated by a space, a line break, a colon or a comma; a noise word
+    list (NTC_NATURAL_NOISE: the a an then please - add to it); with <class> <id> for the
+    context (to the next with, or the end of the block it was opened in); a word that is not
+    built in is the context's class's Sub (Sprite.Rotate 1, 90) or a plain call; name red door
+    is door 3; say, set, add, subtract, multiply, divide, remainder; if / else / end; repeat,
+    count (up and down), while, forever, leave; conditions (is above / below / equal to / not
+    equal to / at least / at most, a state word, not, and, or); ( a VB expression ).
+  - Messages in the sentences' own terms with the source line, one for each mistake. A word
+    nobody has written is the compiler's usual "not found".
+  - NOT in it: each, templates with marker words for your own verbs, type checking in the
+    flavour, natural parts in a JS / PHP / Locomotive file (docs/natural_flavour.md section 7).
+  - Loaded by test/cli.js, genbuild.js, genrom.js, src/ntc.html (so the hosted IDE),
+    tools/coleco/build.js, tools/ntccheck/compare.js, src/ntc3d/tools/build.js,
+    src/bas/cyswarm_m65/build.js; in the regression's ES5 check.
+  - NEW example src/bas/natural_demo/ (Main.nat, Door.cls); test/natural/ (Blocks.bas,
+    Tally.cls, Errors.nat); regress.sh: 22 new checks (the example and the parts on test, cpc,
+    cpcmin, cpcfw, cpm in both modes; the translation; the messages).
+  - NEW docs/natural_flavour.md; README, docs/NTC.md, architecture.md, components.md.
+  - Programs that use no natural part compile to what they did.
+
 20261123-2
   - JOINED: this build is 20261119-1 with the other line's two builds on top (that line went
     20261117-2 -> 20261120-1 -> 20261123-1: the Neo Geo cartridge, then the Neo Geo CD). Their

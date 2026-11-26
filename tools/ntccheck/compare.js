@@ -19,7 +19,7 @@ function loadCompiler(strTree_a)
 
 	objCtx.window = objCtx;
 	vm.createContext(objCtx);
-	['ntc_lib.js', 'ntc_parser.js', 'ntc_compiler.js', 'ntc_flavour_js.js', 'ntc_flavour_php.js', 'ntc_flavour_loco.js'].forEach(function(strF_a)
+	['ntc_lib.js', 'ntc_parser.js', 'ntc_compiler.js', 'ntc_flavour_js.js', 'ntc_flavour_php.js', 'ntc_flavour_loco.js', 'ntc_flavour_natural.js'].forEach(function(strF_a)
 	{
 		var strP = path.join(strJs, strF_a);
 

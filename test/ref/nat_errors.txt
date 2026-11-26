@@ -1,0 +1,13 @@
+ERR main.bas:11: natural: what is +? (a sum goes in brackets: ( x * 2 + 1 ))
+ERR main.bas:5: natural: add expects "to", got "score"
+ERR main.bas:7: natural: set ... to expects a value, got "if"
+ERR main.bas:8: natural: "points" is not a name the file declares (written: variable points)
+ERR main.bas:9: natural: "closed" needs a with before it (with door 3 ... closed)
+ERR main.bas:10: natural: leave is not inside a loop
+ERR main.bas:12: natural: the name "say" is already a word or a variable
+ERR main.bas:13: natural: else without an if
+ERR main.bas:14: natural: count expects a counter's name (count n from 1 to 8), got "from"
+ERR main.bas:15: natural: with expects a thing (with sprite 1), got "repeat"
+ERR main.bas:16: natural: repeat expects "times", got "say"
+ERR main.bas:17: natural: is expects above, below, equal to, at least or at most, got "over"
+ERR main.bas:17: natural: this if has no end

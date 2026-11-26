@@ -1,0 +1,11 @@
+Option Flavour Natural
+' Fibonacci.nat - each number is the two before it added together.
+' (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
+set a to 0
+set b to 1
+repeat 20 times
+  say a
+  set c to ( a + b )
+  set a to b
+  set b to c
+end

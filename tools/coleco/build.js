@@ -16,6 +16,7 @@ eval(fs.readFileSync(SRC + 'js/ntc_compiler.js', 'utf8').replace('function ntcCo
 eval(fs.readFileSync(SRC + 'js/ntc_flavour_js.js', 'utf8'));
 eval(fs.readFileSync(SRC + 'js/ntc_flavour_php.js', 'utf8'));
 eval(fs.readFileSync(SRC + 'js/ntc_flavour_loco.js', 'utf8'));
+eval(fs.readFileSync(SRC + 'js/ntc_flavour_natural.js', 'utf8'));
 
 var args = process.argv.slice(2);
 var files = [];

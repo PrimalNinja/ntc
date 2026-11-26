@@ -286,8 +286,11 @@ Files (ES5, no node, no Python):
 | `../docs/architecture.md` | Memory maps, the ROM structure, interrupts and start up |
 | `../docs/md.md` | The Sega Mega Drive / Genesis platform (`md`): NTC on the 68000, its memory, classes, building and testing |
 | `../docs/x68000.md` | The Sharp X68000 platform (`x68000`): a 68000 boot disc, its memory, console and keys, building and testing on the px68k emulator (first stage: no graphics or sound classes yet) |
+| `../docs/amiga.md` | The Commodore Amiga 500 platform (`amiga`): a 68000 boot disc that takes the machine, the memory it finds, console, keys and joysticks, files off one to four drives, building and testing on the PUAE emulator (first stage: no graphics or sound classes yet) |
+| `../docs/ep128.md` | The Enterprise 128 platform (`ep128`): a Z80 program file EXOS loads and that then takes the machine, all of its memory (128K to 4 MB) as the Memory class's pages, console in 40 and 80 columns, keys and joysticks, building and testing on the ep128emu emulator (first stage: no files, graphics or sound classes yet) |
 | `../docs/towns.md` | The Fujitsu FM Towns platform (`towns`): NTC on the 80386 (ring 3, the thread in ESP), a boot disc, its memory, console and keys, building and testing on the Tsugaru emulator (first stage: no graphics or sound classes yet) |
 | `../docs/m65.md` | The MEGA65 platform (`m65`): NTC on the 45GS02, its memory, classes, building and testing (with Xemu and NTC's test driver, `test/xemu/`) |
+| `../docs/c64reu.md` | The Commodore 64 with an REU (`c64reu`): NTC on a plain 6502 - the thread kept in the REU and run through three 64 byte windows in page 1 - its memory, the `Reu`, `Task`, `Disk`, `Vic`, `Sid`, `Keys` and `Joy` classes, programs bigger than a PRG (`--split`), building and testing on VICE |
 | `../docs/cyborgos-readme.md` | CyborgOS: a separate project written in NTC BASIC (`bas/cyborgos320kb`, `bas/cyborgos128kb`) - its own README, user guide, design and todo list |
 | `../docs/tutorial/` | The tutorial: 77 small pages (1.1 the IDE ... 14.4 a game loop in a Tick), contents in `README.md`; every example is checked by `test/tutcheck.py` |
 | `build/` | Test builds: every program in `bas/` compiled for every platform (`.ASM`), and `build.bat` to assemble them all with sjasmplus on Windows / MS-DOS (CPC: AMSDOS `.BIN` files, CP/M: `.COM`) |
@@ -469,6 +472,23 @@ less 1 (`rts` adds it back). Interrupts would push onto the thread, so they are 
 drawn by the CPU and the DMA chip), `Joy`, `Sid`, `StdIO`, `System`. `docs/m65.md` has all of
 it; `bas/cyswarm_m65/` is the same game built with it.
 
+`c64reu` (`ntc_plat_c64reu.asm`, `lib/c64reu/`) is a stock Commodore 64 with an REU: a plain 6502,
+whose stack pointer is 8 bits and fixed in page 1. It uses the MEGA65's keyword library
+(`ntc_lib_m65.asm`: the C64's parts are inside `ifd NTC_C64`, the few 45GS02 only instructions are
+macros) and the 45GS02 path of the compiler, with one difference: the thread is not in the CPU's
+memory. It is in the REU, cut into 64 byte pieces, and three pieces at a time are in page 1
+(`$0100-$01BF`), where SP runs through them; a piece not there is fetched in 64 cycles
+(`ntc_goxy`, `kw_wnext`; the compiler's `winLayout` cuts the pieces and keeps loops whole).
+The C64's own memory is left for the library, variables and arrays. Interrupts are on. The
+classes: `Reu` (the REU as the program's memory), `Task` (up to 32 tasks: a task is one thread
+position), `Disk` (files into the REU through the KERNAL), `Vic` (sprites, characters), `Sid`,
+`Keys`, `Joy`, `StdIO`, `System`. `test/c64build.js` builds the `.PRG` (`--split` for a thread
+past what a PRG holds, `--d64` for a disc). `docs/c64reu.md` has all of it; `bas/c64_tasks`,
+`bas/c64_world`, `bas/c64_film`, `bas/c64_sprites`, `bas/c64_dungeon` (a 128 x 128 tile
+level scrolled by the pixel) and `bas/c64_lots` are samples. `Option Lot Name = Class, ...`
+cuts a bigger program into lots of the REU - 64K of code and 32K of workspace each, the
+workspace in the C64's memory only while its lot runs (`docs/c64reu.md` section 13).
+
 - The library prints through `ntc_plat_putc` (A = char). On the CPC hardware platform it
   turns the char into its glyph and draws it; `kw_printzoscii` (inline glyph words) is only
   used by glyph platforms.
@@ -609,6 +629,14 @@ keeps them all), the declarations and the DATA table at the top, `End`, the DEF 
 and helpers at the end. A line using something unsupported throws inside pass 2: the line
 becomes `' WARNING: ...` (its number kept when something jumps to it) and a warning - flavours
 return `warnings`, ntcPrep passes them on, ntcCompile adds them to its own.
+
+The Natural flavour (`js/ntc_flavour_natural.js`, `ntcFlavourNatural`) turns near-English
+sentences into VB5 text: `with sprite 1 rotate 90` is `Sprite.Rotate 1, 90`, with `set` / `add` /
+`if` / `count` / `while` and the like built in. A file starting `Option Flavour Natural` (or named
+`.nat`) is natural all through, with `#ntc` ... `#endntc` for plain NTC BASIC; a plain file can
+hold `#natural` ... `#endnatural` parts. The project's classes are the vocabulary (`turn left` is
+`Robot.TurnLeft`), and `to square using size ... end` makes a word of your own. Examples in
+`src/bas/natural_demo/`; `docs/natural_flavour.md`.
 
 ### Project explorer (GUI)
 
@@ -1268,6 +1296,30 @@ the Genesis Plus GX libretro core (`NTC_MDCORE`), with pads, pictures, plane A a
 with no keyboard, `md_test` first (157 checks of the statements on the 68000). `docs/md.md` says
 how to build vasm and the core.
 
+### amigabuild.js, amigarun.py, amigaregress.sh - the Commodore Amiga 500 (amiga)
+
+`node amigabuild.js Main.bas [More.cls ...] --out=GAME.adf [--log] [--file=NAME=path[@disc]]`
+compiles for `amiga`, assembles with vasm (`NTC_VASM`) and writes a floppy image that boots
+itself, with the boot block's checksum filled in and any `--file`s laid out after the program
+(`@2` ...: on a further disc of the set) with their list for the `Loader` class. `python3
+amigarun.py GAME.adf [GAME_2.adf] [--model=A500] [--chip=1024] [--fast=8] [--drives=2]
+[--swap=frame:n] [--keys=...] [--joy=...] [--shot=out.png] [--log] [--untilend]` boots it on the
+PUAE libretro core (`NTC_AMIGACORE`) with the Kickstart replacement the core carries, sets the
+machine's memory, types keys, holds the joystick, changes discs, saves a picture and prints a
+`--log` build's transcript. `amigaregress.sh` runs 25 tests. `docs/amiga.md` has it all.
+
+### epbuild.js, eprun.py, epregress.sh - the Enterprise 128 (ep128)
+
+`node epbuild.js Main.bas [More.cls ...] --out=GAME.COM [--img] [--log] [--ram=K]` compiles for
+`ep128` and assembles with sjasmplus: `GAME.COM`, the file an Enterprise loads (EXOS's 16 byte
+header is assembled with the program). `--img` also writes `GAME.IMG`, a 720K EXDOS disc with
+the program and an `EXDOS.INI` that starts it. `python3 eprun.py GAME.IMG [--frames=N]
+[--keys=...] [--hold=frame:key] [--joy=...] [--joy2=...] [--shot=out.png] [--log] [--untilend]`
+starts it on the ep128emu libretro core (`NTC_EPCORE`: EXOS 2.1 and EXDOS, which load the file
+off the disc as a real machine does), types keys, holds a key or a joystick, saves a picture
+and prints a `--log` build's transcript; the machine's RAM is `--ram=K` when building (64 to
+3712). `epregress.sh` runs 32 checks. `docs/ep128.md` has it all.
+
 ### x68build.js, x68run.py, x68regress.sh - the Sharp X68000 (x68000)
 
 `node x68build.js Main.bas [More.cls ...] --out=GAME.xdf [--log]` compiles for `x68000`,
@@ -1309,6 +1361,18 @@ pictures into the C ROM's sprite tiles, the palettes `Vdp.Colors` / `Vdp.Back` t
 tiles in the S ROM beside NTC's font. `node tools/neogeo/ngpcm.js --out=NAME --samples=HIT.wav
 SONG0.wav ...` turns WAV files into the V ROM (samples as ADPCM-A, songs as ADPCM-B) and the sound
 driver's two tables. `docs/neogeo.md` section 4.
+
+### c64build.js, c64run.py, c64regress.sh - the Commodore 64 with an REU (c64reu)
+
+`node c64build.js Main.bas [More.cls ...] --out=GAME.PRG [--split] [--d64] [--add=FILE] [--reu]
+[--log] [--list]` compiles for `c64reu`, assembles with vasm (`NTC_VASM65`: the same
+`vasm6502_oldstyle` the MEGA65 uses, without `-mega65`) and puts the load address in front.
+`--split` writes the threads as files of their own, `GAME.0` ... (read into the REU at the start),
+`--d64` a 1541 disc with the program, those files and every `--add=` data file, `--reu` an REU image with the
+thread in it. `python3 c64run.py GAME.PRG | GAME.D64 [--frames=N] [--untilend] [--log] [--screen]
+[--shot=out.png] [--keys=+N:text] [--hold=+N:key,frames] [--joy=+N:udlrf,frames] [--reu=512kB]`
+runs it on the VICE x64sc libretro core (`NTC_C64CORE`). `c64regress.sh` runs 63 checks
+(`test/c64/`: its own programs and `extra.sh`). `docs/c64reu.md` sections 9 and 10.
 
 ### m65build.py, m65run.py, m65regress.sh - the MEGA65 (m65)
 

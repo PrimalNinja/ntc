@@ -1,0 +1,26 @@
+PI05 FLOAT - the coprocessor behind NTC's Float class
+-----------------------------------------------------
+  ok    OPEN float
+  ok    OP 1: 1.5 + 2.25
+    bytes back: 0 0 70 40 0
+  ok      3.75 (00 00 70 40), no overflow
+  ok    OP 2: 1.5 - 2.25
+  ok      -0.75 (00 00 40 BF)
+  ok    OP 3: 1.5 * 2.25
+  ok      3.375 (00 00 58 40)
+  ok    OP 4: 2.25 / 1.5
+  ok      1.5 (00 00 C0 3F)
+  ok    OP 5: the Long 1000 to a single
+  ok      1000.0 (00 00 7A 44)
+  ok    OP 6: 1000.0 to a Long
+  ok      1000 (E8 03 00 00)
+  ok    OP 4: 1.0 / 0
+    bytes back: 0 0 80 7F 1
+  ok      the overflow flag is set
+  ok    ARR 1 4 0 3: three sums in one request
+    bytes back: 0 0 C0 3F 0 0 20 40 0 0 60 40 0
+  ok      1.5, 2.5, 3.5
+
+17 ok, 0 failed - ALL PASS
+
+--- ended  bytes to the Pi 381, from the Pi 279, Pi ROM writes 0  (cplink2)

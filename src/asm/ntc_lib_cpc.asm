@@ -434,7 +434,7 @@ mem_putback:
 			pop hl
 			ret
 
-;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank ntc_dot_bank @shared @far @if:ntc_mem_cpcexpansion
+;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank ntc_dot_bank ntc_ep_bank @shared @far @if:ntc_mem_cpcexpansion
 ; ------------------------------------------------------------
 ; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
 ; array RAM setting: C0 = plain, C4-C7 + bank * 8 = page 0-3 of a 64K bank;
@@ -525,6 +525,9 @@ mem_probe:
 	IFDEF NTC_MSXDOS
 			call msx_mem_probe		; MSX: the mapper's segments from MSX-DOS 2 (ntc_lib_msx.asm), sets mem_banks
 	ELSE
+	IFDEF NTC_EP128
+			call ep_mem_probe		; the Enterprise: the segments taken from EXOS at the start (ntc_lib_ep.asm), sets mem_banks
+	ELSE
 	IFDEF NTC_ZXNDOTL
 			call dot_mem_probe		; a Next dot command: pages from NextZXOS's allocator (ntc_lib_dot.asm), sets mem_banks
 	ELSE
@@ -608,6 +611,7 @@ mem_pr_back:
 mem_pr_di:
 	ELSE
 			call nxt_mem_probe		; Next: the RAM probe (ntc_lib_nxt.asm), sets mem_banks
+	ENDIF
 	ENDIF
 	ENDIF
 	ENDIF
@@ -719,6 +723,25 @@ mem_tb_pl2:
 			pop hl
 			djnz mem_tb_pl
 	ENDIF
+	IFDEF NTC_EP128
+			ld a, (ep_usable)		; the Enterprise: pages 2 .. usable + 1 are there (every free segment is a
+			ld e, a					; page); the table is in fours, so the last four's leftovers are marked taken
+			ld d, 0
+			inc de
+mem_tb_ep:
+			ld hl, (mem_count)
+			or a
+			sbc hl, de
+			jr z, mem_tb_epe
+			jr c, mem_tb_epe
+			inc de
+			ld hl, (mem_ttype)
+			add hl, de
+			dec hl
+			ld (hl), 'C'
+			jr mem_tb_ep
+mem_tb_epe:
+	ENDIF
 	IFDEF NTC_ZXN
 			ld a, (zxn_usable)		; the Next: pages 2 .. usable + 1 are there; the table is in fours,
 			ld e, a					; so the ones past that (the last four's leftovers) are marked taken
@@ -796,6 +819,9 @@ mem_jbc:
 	IFDEF NTC_MSXDOS
 			jp msx_mem_jbc			; MSX: 64K bank E -> its page 0's setting (ntc_lib_msx.asm)
 	ENDIF
+	IFDEF NTC_EP128
+			jp ep_mem_jbc			; the Enterprise: 64K bank E -> its page 0's setting (ntc_lib_ep.asm)
+	ENDIF
 	IFDEF NTC_ZXN
 			jp nxt_mem_jbc			; Next: 64K bank E -> its first 16K Next bank (ntc_lib_nxt.asm)
 	ENDIF
@@ -849,6 +875,9 @@ mem_se_do:
 mem_se_out:
 	IFDEF NTC_MSXDOS
 			jp msx_mem_se_out			; MSX: the segment into page 1 (PUT_P1: ntc_lib_msx.asm) -> mem_se_end
+	ENDIF
+	IFDEF NTC_EP128
+			jp ep_mem_se_out			; the Enterprise: the segment into page 1 (port #B1: ntc_lib_ep.asm) -> mem_se_end
 	ENDIF
 	IFDEF NTC_ZXNDOTL
 			jp dot_mem_se_out			; a Next dot command: the setting's two pages into slots 2, 3 (ntc_lib_dot.asm) -> mem_se_end
@@ -1095,6 +1124,20 @@ mem_ramsize:
 			ld a, h
 			or l
 			ret z
+	IFDEF NTC_EP128
+			ld a, (EPB_NSEG)		; the Enterprise: every segment is 16K - the free ones taken at the start,
+			add a, 5				; the program's three, the screen's and EXOS's own
+			ld l, a
+			ld h, 0
+			jr nc, mem_rs_ep
+			inc h
+mem_rs_ep:
+			add hl, hl				; x 16
+			add hl, hl
+			add hl, hl
+			add hl, hl
+			ret
+	ENDIF
 			ld a, (mem_banks)
 			ld l, a
 			ld h, 0
@@ -1258,6 +1301,14 @@ mem_bankcount:
 			ld a, h
 			or l
 			ret z
+	IFDEF NTC_EP128
+			ld a, (ep_usable)		; the Enterprise: whole banks only (the last four pages may not all be there)
+			srl a
+			srl a
+			ld l, a
+			ld h, 0
+			ret
+	ENDIF
 			dec hl
 			srl h
 			rr l

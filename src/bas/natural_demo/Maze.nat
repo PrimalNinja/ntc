@@ -1,0 +1,18 @@
+Option Flavour Natural
+' Maze.nat - a robot finds its way out of a maze by keeping a hand on the right-hand wall.
+' The words are Robot.cls's. (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
+with the robot
+enter the maze
+show
+
+while not home
+  if clear right
+    turn right
+    forward
+  else
+    if clear ahead forward else turn left end
+  end
+end
+
+show
+say "Out in" steps "steps."

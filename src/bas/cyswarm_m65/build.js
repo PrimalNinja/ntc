@@ -58,7 +58,7 @@ function load(f, fix) { var t = fs.readFileSync(path.join(ntc, 'js', f), 'utf8')
 load('ntc_lib.js', function(t) { return t.replace(/^var /gm, 'global.'); });
 load('ntc_parser.js', function(t) { return t.replace(/^var /gm, 'global.').replace('function IFtoPF', 'global.IFtoPF = function IFtoPF').replace('function ntcParse', 'global.ntcParse = function ntcParse'); });
 load('ntc_compiler.js', function(t) { return t.replace('function ntcCompile', 'global.ntcCompile = function ntcCompile'); });
-['ntc_flavour_js.js', 'ntc_flavour_php.js', 'ntc_flavour_loco.js'].forEach(function(f) { load(f); });
+['ntc_flavour_js.js', 'ntc_flavour_php.js', 'ntc_flavour_loco.js', 'ntc_flavour_natural.js'].forEach(function(f) { load(f); });
 var r = ntcCompile(files, { platform: cfg.platform, name: cfg.name });
 (r.warnings || []).forEach(function(e) { console.log('warning ' + (e.file || '') + ':' + e.line + ': ' + e.msg); });
 if (r.errors.length)

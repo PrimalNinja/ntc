@@ -1,0 +1,29 @@
+Option Flavour Natural
+' Bank.nat - two bank accounts over three months. The words are Account.cls's: its Subs are
+' the verbs, its Functions the values and the state words. (c) 2026 Cyborg Unicorn Pty Ltd -
+' MIT License
+name cheque account is account 1
+name savings is account 2
+
+with the cheque account
+deposit 500
+withdraw 120
+say "Cheque account:" balance
+
+with savings deposit 1000
+
+count month from 1 to 3
+  with savings pay interest 2
+  with the cheque account
+  if balance is below 400 charge 5 end
+  transfer 50 to savings
+  say "Month" month "- cheque" balance
+end
+
+with savings say "Savings:" balance
+
+with the cheque account
+withdraw 2000
+if refused say "Not enough money for that." end
+withdraw balance
+if empty say "The cheque account is empty." end

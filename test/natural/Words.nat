@@ -1,0 +1,20 @@
+Option Flavour Natural
+' Words.nat - mistakes with a project class's words (Tally.cls) and with words of your own
+with tally 1
+bump
+say "a"
+jump 3
+say "b"
+if lost say "x" end
+value
+if value is above 3
+  to helper say "x" end
+end
+to using size
+end
+to twice using n multiply n by 2 say n end
+twice
+say "c"
+with tally
+say "d"
+to last say "x"

@@ -12,8 +12,8 @@ it); **draft** = new, compiles + assembles but not yet run on the real machine /
 machine.
 
 Build-box note (a sandbox limitation, *not* a maturity one): the Z80 targets assemble here with
-sjasmplus; the 68000 targets (`md`, `neogeo`, `ti89`) and the 45GS02 `m65` assemble with
-vasm / vasm6502 **on your machine** — the cloud box only lacks those assemblers.
+sjasmplus; the 68000 targets (`md`, `x68000`, `neogeo`, `neocd`, `amiga`, `ti89`), the 45GS02 `m65` and the
+6502 `c64reu` assemble with vasm / vasm6502, and the 80386 `towns` with nasm, **on your machine** — the cloud box only lacks those assemblers.
 
 ## 1. The targets
 
@@ -37,10 +37,15 @@ vasm / vasm6502 **on your machine** — the cloud box only lacks those assembler
 | `sc3000` | Z80 | cartridge, small RAM | TMS9918A (`#BE`/`#BF`) | stable |
 | `colecovision` | Z80 | cartridge, bare metal, VDP frame = NMI | TMS9918A (`#BE`/`#BF`) | stable |
 | `md` | 68000 | ROM + 64K work RAM | VDP | stable (games shipped; assembles with vasm on your machine) |
+| `x68000` | 68000 | the Sharp X68000: a 2HD floppy image (.XDF) that boots itself, no Human68k; SP=thread in user mode, a supervisor call (`trap #1`); variables and arrays at `$2400`-`$7FFF` (23K), code and strings the rest of RAM | 96 x 32 text (the ROM's font) | stable (TIANLONG runs on it; run on the px68k emulator with Sharp's IPL ROM only, not on a real X68000: `docs/x68000.md`) |
+| `towns` | 80386 | the Fujitsu FM Towns: a 2HD floppy image that boots itself into 32 bit protected mode, no Towns OS; ESP=thread, the program in ring 3; variables and arrays at `$1000`-`$FFFF` (60K), about 600K of code and strings, files past the program loaded to `$100000` on | 80 x 25 text on the 640 x 400 screen (the ROM's font) | stable (TIANLONG runs on it; run on the Tsugaru emulator with the free compatible ROMs only, not on a real FM Towns: `docs/towns.md`) |
 | `m65` | 45GS02 | MEGA65, large RAM | native | stable (assembles with vasm6502 on your machine) |
+| `c64reu` | 6502 | a stock Commodore 64 with an REU: a PRG at `$0801` that takes the machine. The thread is in the REU and runs through three 64 byte windows in page 1; the C64's own memory holds the library, variables and arrays. A thread of up to 65K (`--split`: a file of its own) beside 51K in the C64; `Option Lot` cuts a bigger program into lots of the REU, 64K of code and 32K of workspace each | 40 x 25 text, own font | draft (first build; run on VICE only: `docs/c64reu.md`; assembles with vasm6502) |
 | `pcw16` | Z80 | 1MB in 64×16K blocks, 4 quarters (Rosanne) | Rosanne OS | draft |
 | `neogeo` | 68000 (+Z80 sound) | cartridge (.neo), SP=thread in user mode, RAM at `$100000` | fix-layer | stable (two games shipped; run on the Geolith core with NTC's stand-in BIOS: `docs/neogeo.md`) |
 | `neocd` | 68000 (+Z80 sound) | CD (.cue: IPL.TXT and its files, CD audio tracks), SP=thread in user mode, variables at `$0F8000` | fix-layer | draft (builds discs; not yet run: `docs/neogeo.md` section 7) |
+| `amiga` | 68000 | boot disc (.adf): takes the machine from Kickstart, SP=thread in user mode, variables at `$0400`, program at `$10000`; chip / slow / fast RAM found at the start | 80 x 32 text (one bitplane) | draft (runs on the PUAE core with its Kickstart replacement; not on Commodore's Kickstart or a real Amiga: `docs/amiga.md`) |
+| `ep128` | Z80 | an EXOS program file at `#0100` (.COM, up to 47K): takes the machine from EXOS, own screen, keys and frame interrupt; every free 16K segment found at the start is a `Memory` page (128K to 4 MB) | 40 x 25 / 80 x 25 text (Nick, 2 colours) | draft (runs on the ep128emu core, EXOS 2.0 / 2.1 / 2.4, 128K to 3.7 MB; not on a real Enterprise: `docs/ep128.md`) |
 | `ti83` | Z80 | flat, program at `#9D95` | TI-OS (`_PutС`), 16×8 | draft |
 | `ti89` | 68000 | AMS, nostub | direct LCD | skeleton (assembles with vasm on your machine) |
 | `trs80` | Z80 | flat, program `~#5200`, screen `#3C00` | direct video, 64×16 | draft |
@@ -60,9 +65,9 @@ The deciding split is **bitmap vs tile/sprite**, because it sets the whole drawi
 
 | Family | Platforms |
 |---|---|
-| Bitmap | `cpc` (native), `pcw16`, PCW 8256, `trs80`, `system80`, `ti83`, `ti89`, Sharp G850, `m65` |
-| Tile/sprite | `sc3000`, `colecovision`, `md`, `neogeo`, `neocd` |
-| Both | `msx` (TMS9918 tiles **and** V9938 bitmap+sprites), `zxn` (Layer 2 **and** HW sprites + tilemap) |
+| Bitmap | `cpc` (native), `pcw16`, PCW 8256, `trs80`, `system80`, `ti83`, `ti89`, Sharp G850, `m65`, `ep128` (Nick), `amiga` (bitplanes; its hardware sprites are not classed) |
+| Tile/sprite | `sc3000`, `colecovision`, `md`, `neogeo`, `neocd`, `c64reu` (characters and the 8 sprites) |
+| Both | `msx` (TMS9918 tiles **and** V9938 bitmap+sprites), `zxn` (Layer 2 **and** HW sprites + tilemap), `x68000` (a graphics page **and** sprites **and** a text plane), `towns` (two bitmap layers **and** sprites) |
 
 The TMS9918 "screen 2" is a *constrained* pseudo-bitmap (colour is per-8-pixels), so
 Coleco / SC-3000 / MSX-1 count as tile/sprite; true bitmap on an MSX needs the V9938.
@@ -77,12 +82,18 @@ see the gaps). Measured by capability, not method count.
 | `cpc`, `cpcmin`, `cpcfw`, `cpc9990`, `cpccard` | `Graphics` (native: Line/Plot/Pen/Clip/**DoubleBuffer**/**Flip**/CopyText) + `VDP` (card: PSet/Point/Box/Fill/Copy/Palette/Screen) | the only targets with **both** a native drawer and a card drawer |
 | `msx`, `msxcard`, `msx9990` | `VDP` (PSet/Point/Box/Fill/Copy/Palette/Screen) | richer chip API than CPC's native, but **no** DoubleBuffer/Flip/Clip |
 | `sc3000` | `VDP` (17) | TMS9918A tile/sprite |
-| `md` | `Vdp` (15) | tiles + HW sprites |
+| `md` | `Vdp`, `Pad`, `Keys`, `Psg`, `Pcm`, `Z80` | tiles + HW sprites, the sprite table, scrolling by cell and by line; DPCM music on the YM2612's DAC by a Z80 player (`docs/md.md`) |
+| `x68000` | `Vdp`, `Keys`, `Pcm`, `Opm` | 256 x 256 in 256 colours: sprites, graphics page 0 with up to 4 raster splits, the text plane; ADPCM music, the YM2151's registers; no tile layers, no files (`docs/x68000.md`) |
+| `towns` | `Vdp`, `Keys`, `Pcm`, `Memory` | 256 x 240, 2 layers of 32768 colours: sprites, a backdrop in 4 scrolled bands, words; ADPCM music and 4 channels of effects (the RF5C68); no tile layers, no files, no CD (`docs/towns.md`) |
+| `m65` | `Vic`, `Joy`, `Sid` | the screen, the palette, sprites, stamps, boxes, a star field; joysticks; the SIDs (`docs/m65.md`) |
 | `zxn` | `Graphics` (10) | **hardware sprites / Layer 2 / 256-col not classed** - big gap vs the silicon |
 | `cpm`, `cyborgos`, `cyborgoshh` | (inherited `Graphics`) | CyborgOS really draws via the **Pi/RVDU streamer**, not a per-platform class |
 | `colecovision` | **none** | identical video to `sc3000` (TMS9918A, `#BE`/`#BF`) - the SC-3000 `VDP` class drops straight on |
 | `neogeo`, `neocd` | `Vdp`, `Keys`, `Pad`, `Pcm`, `Psg`, `Fm`, `Cdda`, `Sound` | sprites (a table of 128, any sprite straight), a backdrop of sprites in four scrolled bands, palettes, the fix layer's cells; ADPCM music and samples, the SSG, FM registers (`docs/neogeo.md` section 3) |
-| `m65`, `pcw16`, `ti83`, `ti89`, `trs80`, `system80` | **none** | console only so far; graphics is the next layer |
+| `amiga` | `Memory`, `Keys`, `Loader` | no graphics or sound classes yet; blocks of chip and other RAM, keys held and two joysticks, files off the game's discs (one to four drives, discs changed) (`docs/amiga.md`) |
+| `ep128` | `Memory`, `Keys` | no graphics, sound or file classes yet; the machine's segments as pages (`Option Memory Heap Pages`), keys held, the built in joystick and both control ports (`docs/ep128.md`) |
+| `c64reu` | `Reu`, `Task`, `Disk`, `Vic`, `Sid`, `Keys`, `Joy` | the REU as the program's memory (blocks, rows, fills), up to 32 tasks, files off the disc into the REU, the 8 sprites and the program's own characters, three SID voices, keys held, both joysticks (`docs/c64reu.md`) |
+| `pcw16`, `ti83`, `ti89`, `trs80`, `system80` | **none** | console only so far; graphics is the next layer |
 
 ### Known gaps (library, not hardware)
 
@@ -92,6 +103,11 @@ see the gaps). Measured by capability, not method count.
   but aren't shipped classes (BOUNCE drove sprites through a *project* class, not the library).
 - `cyborgos` graphics completeness isn't in this table - its path is the Pi/RVDU streamer
   (`streamer/`, `pi-bridge.md`).
+- `amiga` and `ep128` are first stages: memory, keys and (the Amiga) files, no graphics or sound
+  classes. The Amiga's are the next ones wanted (a `Vdp` and a `Pcm` in the other 68000 machines'
+  shapes).
+- `x68000` and `towns` have no tile layers and no file classes; the FM Towns' CD is not used.
+- `c64reu`: no class that writes files; bitmap mode is not classed.
 - The recent targets (`pcw16`, `ti83`, `ti89`, `trs80`, `system80`) are console-only; the
   normalised display layer (below) is how they get graphics without hand-rolling each one.
 

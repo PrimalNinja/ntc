@@ -1,0 +1,28 @@
+PI04 MATH - the Pi as a maths coprocessor
+-----------------------------------------
+  ok    OPEN math
+  ok    EVAL 2+3*4 = 14
+  ok    EVAL (2+3)*4 = 20
+  ok    EVAL sqrt(2) = 1.41421356
+  ok    EVAL sin(pi/2) = 1
+  ok    EVAL &HFF+1 = 256
+  ok    EVAL 2^10 = 1024
+  ok    EVAL 10/4 = 2.5
+  ok    BIG 2^100 = 1267650600228229401496703205376
+  ok    BIG 99999999999*99999999999 = 9999999999800000000001
+  ok    a broken sum is refused
+    ERR the expression ends too soon
+  ok    XFORM 4 points
+  ok      16 bytes back
+    point 0: 160, 100
+    point 1: 260, 50
+    point 2: 32, 164
+    point 3: -32768, -32768
+  ok      the centre is 160, 100
+  ok      right and up is 260, 50
+  ok      left, down, nearer is 32, 164
+  ok      behind the eye is -32768
+
+17 ok, 0 failed - ALL PASS
+
+--- ended  bytes to the Pi 445, from the Pi 389, Pi ROM writes 0  (cplink2)

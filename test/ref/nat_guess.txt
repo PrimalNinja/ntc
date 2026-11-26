@@ -1,0 +1,16 @@
+I am thinking of a number from 1 to 100.
+Your guess? 50
+Too high.
+Your guess? 25
+Too low.
+Your guess? 37
+Too high.
+Your guess? 31
+Too low.
+Your guess? 34
+Too high.
+Your guess? 32
+Too low.
+Your guess? 33
+You got it in 7 tries.
+Well done.

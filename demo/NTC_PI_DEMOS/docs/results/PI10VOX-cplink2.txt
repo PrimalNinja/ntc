@@ -1,0 +1,14 @@
+PI10 VOTRAX - speech from the Pi (the SC-01)
+--------------------------------------------
+  ok    OPEN votrax
+  ok    STATUS
+    OK off
+    off: the votrax program is not built on this Pi (cyborg-os/3p/votrax)
+  ok    7 phonemes sent (HELLO)
+  ok    the channel still answers
+  ok    STOP (the chip restarted)
+  ok    an unknown request is refused
+
+6 ok, 0 failed - ALL PASS
+
+--- ended  bytes to the Pi 189, from the Pi 205, Pi ROM writes 0  (cplink2)

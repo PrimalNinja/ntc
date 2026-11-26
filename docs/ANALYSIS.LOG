@@ -280,3 +280,18 @@ Corrections to the entry above - two of its claims were wrong:
   UseEngine 2 / default prints the same string inside the 4 s boot wait, Backend reports 1 / 2.
   Compiles for cpm unchanged (NET_COP 0). gen.js run: src/js/ntc_lib.js + hosted/js/ntc_lib.js.
 - files: src/lib/z80/Net.cls, src/js/ntc_lib.js, hosted/js/ntc_lib.js, docs/ANALYSIS.LOG
+
+## 2026-11-26T09:10Z - claude-fable-5-2 (the configured model for this session) - the documents brought up to date
+- Asked: "i don't see any c64 platform" in done.md, then "please update all the docs". Found: done.md's
+  newest entry was 2026-11-09; todo.md, components.md, buglist.md and architecture.md named none of
+  x68000, towns, neogeo (run), neocd, amiga, ep128, c64reu; targets.md had no row for x68000 or towns;
+  the user guide's platform table stopped at the Z80 machines; requirements.md still had the Next's
+  program in banks 8-10. Everything had gone into build-info.txt and each machine's own document only.
+- Method: build-info.txt entries 20261105-1 to 20261126-1 read through; the tree listed (src/asm,
+  src/lib/*, src/bas, test, tools) for components.md; each "NOT done / NOT run" note made a todo item
+  that names its build; each fix made a buglist line.
+- One thing tried: the 20261111-1 fault (a paged class nothing calls -> "Label not found") with a
+  small case on cpcmin: compiles and assembles clean. Entered as REPORTED, not reproduced.
+- No source, library or compiler file changed. Nothing was run but that one case.
+- files: docs/done.md, todo.md, components.md, buglist.md, architecture.md, targets.md, userguide.md,
+  requirements.md, requirements-user.md, portable-ntc-basic.md, NTC.md, build-info.txt, ANALYSIS.LOG

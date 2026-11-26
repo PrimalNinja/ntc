@@ -1,0 +1,6 @@
+big 6
+twice 42
+tally 10
+k 1
+k 2
+#natural in a string, and total6

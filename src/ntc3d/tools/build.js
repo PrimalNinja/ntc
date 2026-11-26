@@ -66,6 +66,7 @@ load('ntc_parser.js', function(t) { return t.replace(/^var /gm, 'global.').repla
 load('ntc_compiler.js', function(t) { return t.replace('function ntcCompile', 'global.ntcCompile = function ntcCompile'); });
 load('ntc_flavour_js.js');
 load('ntc_flavour_loco.js');
+load('ntc_flavour_natural.js');
 var r = global.ntcCompile(files, { platform: 'zxn', name: name, turbo: true });
 (r.warnings || []).forEach(function(e) { console.log('warning ' + (e.file || '') + ' line ' + e.line + ': ' + e.msg); });
 if (r.errors.length)

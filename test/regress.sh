@@ -795,6 +795,33 @@ for pl in cpcfw cpcmin; do for m in --turbo ""; do
 done; done
 o=$(node cli.js t/loc/classic.loc --platform=test --vb 2>/dev/null)
 if [ "$o" == "$(cat ref/loc_classic_vb.txt)" ]; then echo "ok   Locomotive: translation"; else echo "FAIL Locomotive: translation"; diff <(echo "$o") ref/loc_classic_vb.txt | head -5; fail=1; fi
+# Natural flavour (sentences -> VB5 text): a file natural all through (#ntc ... #endntc for the
+# plain parts) with a class as its noun, on the platforms, both modes; #natural ... #endnatural
+# parts in a plain file and inside a class's Sub; the translation; the messages for mistakes
+rm -rf t/nat; mkdir -p t/nat; cp natural/* ../src/bas/natural_demo/* t/nat/
+for pl in test cpc cpcmin cpcfw cpm; do for m in --turbo ""; do
+  o=$(timeout 100 python3 ntcrun.py t/nat/Main.nat '' t/nat/Door.cls --platform=$pl $m 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/nat_demo.txt)" ]; then echo "ok   Natural: sentences $pl ${m:-normal}"; else echo "FAIL Natural: sentences $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+  o=$(timeout 100 python3 ntcrun.py t/nat/Blocks.bas '' t/nat/Tally.cls --platform=$pl $m 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/nat_blocks.txt)" ]; then echo "ok   Natural: #natural parts $pl ${m:-normal}"; else echo "FAIL Natural: #natural parts $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+done; done
+# the examples: primes, Fibonacci, guess the number (typed), a bank (the class is the vocabulary),
+# a turtle (words of your own), a robot in a maze (words of several words, state words)
+for pl in test cpc cpcmin cpcfw cpm; do for m in --turbo ""; do
+  for e in "primes Primes.nat" "fib Fibonacci.nat" "bank Bank.nat Account.cls" "draw Draw.nat Turtle.cls" "maze Maze.nat Robot.cls"; do
+    set -- $e
+    o=$(timeout 100 python3 ntcrun.py t/nat/$2 '' ${3:+t/nat/$3} --platform=$pl $m 2>&1 | grep -v "^--- ")
+    if [ "$o" == "$(cat ref/nat_$1.txt)" ]; then echo "ok   Natural: $1 $pl ${m:-normal}"; else echo "FAIL Natural: $1 $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+  done
+  o=$(timeout 100 python3 ntcrun.py t/nat/Guess.nat '50\n25\n37\n31\n34\n32\n33\n' --platform=$pl $m 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/nat_guess.txt)" ]; then echo "ok   Natural: guess $pl ${m:-normal}"; else echo "FAIL Natural: guess $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+done; done
+o=$(node cli.js t/nat/Words.nat t/nat/Tally.cls --platform=test 2>&1 | grep "^ERR")
+if [ "$o" == "$(cat ref/nat_words.txt)" ]; then echo "ok   Natural: messages (a class's words, words of your own)"; else echo "FAIL Natural: messages (words)"; diff <(echo "$o") ref/nat_words.txt | head -5; fail=1; fi
+o=$(node cli.js t/nat/Main.nat t/nat/Door.cls --platform=test --vb 2>/dev/null)
+if [ "$o" == "$(cat ref/nat_demo_vb.txt)" ]; then echo "ok   Natural: translation"; else echo "FAIL Natural: translation"; diff <(echo "$o") ref/nat_demo_vb.txt | head -5; fail=1; fi
+o=$(node cli.js t/nat/Errors.nat --platform=test 2>&1 | grep "^ERR")
+if [ "$o" == "$(cat ref/nat_errors.txt)" ]; then echo "ok   Natural: messages"; else echo "FAIL Natural: messages"; diff <(echo "$o") ref/nat_errors.txt | head -5; fail=1; fi
 # The ROM disc: the ROMDiscFS class (20261116-5: no longer volume R of FileSystem) - read-only files in
 # ROMs, made by ntcRomDisc / genromdisc.js, here 2 ROMs with a file across them, in slots 10, 11:
 # directory, Load, Open / ReadLine / Read / Eof, Exists, Size; cpc, cpcmin, cpcfw, both modes, Library:
@@ -1155,7 +1182,7 @@ if [ -z "$NTC_FAST" ] && [ -f ../../cyborgos/src/bas/cyborgosc2/apps/pluto/Zc.cl
 fi
 # compiler bugs fixed: each test/compare program runs (compare.js compiles them too)
 cp compare/bytearr.bas t/; check "byte array parameter in a Long" "^1234 ABCD" "$(timeout 200 python3 ntcrun.py t/bytearr.bas 2>&1)"
-for f in ../src/js/ntc_parser.js ../src/js/ntc_compiler.js ../src/js/ntc_flavour_js.js ../src/js/ntc_flavour_loco.js ../src/js/ntc_gui.js ../src/js/ntc_lib.js ../src/js/ntc_examples.js; do
+for f in ../src/js/ntc_parser.js ../src/js/ntc_compiler.js ../src/js/ntc_flavour_js.js ../src/js/ntc_flavour_loco.js ../src/js/ntc_flavour_natural.js ../src/js/ntc_gui.js ../src/js/ntc_lib.js ../src/js/ntc_examples.js; do
   node -e "require('acorn').parse(require('fs').readFileSync('$f','utf8'),{ecmaVersion:5})" || { echo "FAIL ES5 $f"; fail=1; }
 done
 echo "ES5 checked"

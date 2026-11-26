@@ -1,0 +1,7 @@
+Cheque account: 380
+Month 1 - cheque 325
+Month 2 - cheque 270
+Month 3 - cheque 215
+Savings: 1213
+Not enough money for that.
+The cheque account is empty.

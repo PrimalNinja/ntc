@@ -2,7 +2,8 @@
 
 How an NTC program is laid out in memory, how it starts, how it runs, how interrupts reach
 it, and how the keyword ROMs fit in. The CPC platforms get the most detail; CP/M and the test
-platform are covered where they differ. For the language see `userguide.md`; for the
+platform are covered where they differ; the processors that are not a Z80 are in section 11.
+For the language see `userguide.md`; for the
 compiler's internals and the reasons behind each choice see `NTC.md`.
 
 ---
@@ -159,6 +160,14 @@ upward from `#9400`; when the firmware is retired they can grow up into its RAM.
 | `msx`, `msxcard`, `msx9990` | `#4000` (a cartridge ROM) | the BIOS's (End returns to it) | the stack less 512 | see 3.5 |
 | `sc3000` | `#0000` (a cartridge ROM) | its own, from `#C800` down | `#C780` | see 3.5 |
 | `cpccard`, `cpc9990` | `#0040` | as `cpc` | as `cpc` | `cpc` with the console on a card's video chip (`&FF88` / `&FF60`) |
+| `colecovision` | `#8000` (a cartridge ROM, 8K-32K) | its own, in the 1K of RAM | `#6400` | the variables, arrays and stack share `#6000`-`#63FF`; Option Turbo only |
+| `zxndot` | `#2000` (a dot command's 8K) | its own, in the 8K | `#4000` | the Small Model: BASIC's screen through the ROM; see NTC.md "Dot commands on the ZX Spectrum Next" |
+| `zxndotl` | `#2000` the entry, `#8000` the program | in the program | `#FF80` | the Large Model: 32K and the Memory class's banks from NextZXOS's allocator |
+| `ep128` | `#0100` (an EXOS program file) | its own, from `#C000` down | the platform's Reserved ranges (`#BCF0` on, `#C000`-`#FFFF`) | the Enterprise 128, taken from EXOS: `ep128.md` |
+| `pcw16`, `ti83`, `trs80`, `system80` | - | - | - | drafts: `targets.md` |
+
+The platforms that are not a Z80 (`md`, `x68000`, `neogeo`, `neocd`, `amiga`, `ti89`, `m65`,
+`c64reu`, `towns`) are in section 11.
 
 ### 3.4 ZX Spectrum Next (`zxn`)
 
@@ -486,11 +495,14 @@ registry's exported variables keep fixed addresses).
 |---|---|
 | `src/js/ntc_parser.js` | the parser: records and the element table |
 | `src/js/ntc_compiler.js` | the code generator, the library linker, the start code, `ntcRomAsm` (builds a ROM set), `ntcRomJumpBlock` (a ROM program's side) |
-| `src/js/ntc_flavour_js.js`, `ntc_flavour_loco.js` | the JS and Locomotive BASIC flavours (to VB5 text) |
+| `src/js/ntc_flavour_js.js`, `ntc_flavour_php.js`, `ntc_flavour_loco.js`, `ntc_flavour_natural.js` | the JS, PHP, Locomotive BASIC and Natural flavours (to VB5 text) |
 | `src/asm/ntc_lib.asm` | the keyword library: sections `;## name deps [@shared] [@far] [@romram] [@ramonly] [@data] [@unit] [@if:x]` |
+| `src/asm/ntc_lib_cpc.asm`, `ntc_lib_msx.asm`, `ntc_lib_nxt.asm`, `ntc_lib_dot.asm`, `ntc_lib_ep.asm`, `ntc_lib_vdp.asm` | a Z80 machine's own library parts (paging, the mapper, the Next's MMU and DOS, a dot command's pages, the Enterprise's segments, the video cards) |
+| `src/asm/ntc_lib_68k.asm`, `ntc_lib_m65.asm`, `ntc_lib_x86.asm` | the keyword library for the 68000, the 45GS02 / 6502 and the 80386 (section 11) |
+| `src/asm/neogeo_sound_z80.asm` | the Neo Geo's Z80 sound driver (not threaded code) |
 | `src/asm/ntc_plat_*.asm` | the platform layers: screen, keys, interrupts, exit, files (`IF NTC_ROMLIB` marks what differs in a ROM) |
 | `src/asm/ntc_rom_*.txt` | the ROM registries |
-| `src/lib/<platform>/*.cls` | the platform classes: StdIO, System, FileSystem, Memory, List, Graphics, Keys |
+| `src/lib/<platform>/*.cls` | the platform classes: StdIO, System, FileSystem, ROMDiscFS, Loader, Memory, List, Graphics, Keys, and a machine's own (Vdp, Pcm, Psg, Vic, Sid, Reu, Task ...): `components.md` 15 to 24 and 55 to 58 |
 | `src/build/rom/` | the built ROMs |
 | `test/genrom.js` | builds a platform's ROM set and updates its registry |
 
@@ -533,3 +545,39 @@ thread is handled by the runtime's own entry (the platform's ntc_plat file), not
 
 Where to read: ntc_lib.asm's header (the modes: SP is the thread in both), asmBlock in
 ntc_compiler.js, findAsmKeywords, NTC.md "#asm and the stack".
+
+## 11. The other processors (2026-11-26)
+
+Everything above is the Z80. NTC also compiles for the 68000, the 45GS02, the 6502 and the 80386.
+The idea is the same on each: the stack pointer is the thread, a keyword ends with a return, its
+operands are popped. What differs is which register that is, how interrupts are kept off the
+thread, and where the variables are.
+
+| CPU | Platforms | Library | The thread | Interrupts | Assembler |
+|---|---|---|---|---|---|
+| 68000 | `md`, `x68000`, `neogeo`, `neocd`, `amiga` (`ti89` a skeleton) | `ntc_lib_68k.asm` | A7 in user mode; a thread is a list of longs | an interrupt switches to the supervisor stack by itself, so the thread is never written on | vasm |
+| 45GS02 | `m65` | `ntc_lib_m65.asm` | SP (16 bit on the 45GS02) | off | vasm6502 |
+| 6502 | `c64reu` | `ntc_lib_m65.asm`, the C64's parts inside `ifd NTC_C64` | SP, through three 64 byte windows in page 1 onto a thread kept in the REU | on: the frame interrupt marks a window it wrote on and the piece is fetched again | vasm6502 |
+| 80386 | `towns` | `ntc_lib_x86.asm` (nasm; every section of the 68000 library, the same names) | ESP in ring 3; a thread is a list of 32 bit words | interrupts and exceptions go to ring 0's own stack | nasm |
+
+The compiler has two paths. The Z80 path is sections 1 to 10. The 68000 path (32 bit thread
+words, the variables in a RAM block the platform names with `;@ramorg` / `;@ramend`, a 16 bit
+address for a variable) also serves the 80386: `;@cpu x86` takes it and a last pass writes the
+output as nasm. The 45GS02 path serves the 6502: `;@cpu 6502` takes it, and `winLayout` then cuts
+the threads into 64 byte pieces for the REU (and, with `Option Lot`, sorts each lot's threads,
+stubs, variables and strings out of the program).
+
+| Platform | The program is | Variables and arrays | Document |
+|---|---|---|---|
+| `md` | a cartridge ROM, org 0 | the 64K work RAM, from `$FF8000` | `md.md` |
+| `x68000` | a 2HD floppy image (.XDF) that boots itself, no Human68k | `$2400`-`$7FFF` (23K) | `x68000.md` |
+| `neogeo` | a cartridge (.neo: P, S, M1, V, C ROMs) the BIOS starts | `$100000`-`$10BFFF` | `neogeo.md` |
+| `neocd` | a CD (.cue), `;@base neogeo` | `$0F8000`-`$107FFF` | `neogeo.md` section 7 |
+| `amiga` | a boot disc (.adf) that takes the machine from Kickstart; the program at `$10000` | from `$0400` | `amiga.md` |
+| `m65` | a PRG at `$2001` | the MEGA65's RAM | `m65.md` |
+| `c64reu` | a PRG at `$0801`; the thread in the REU (its first 32K the kernel's, then lots of 96K) | the C64's own memory up to `$CFFF` | `c64reu.md` |
+| `towns` | a 2HD floppy image that boots itself into 32 bit protected mode, no Towns OS | `$1000`-`$FFFF` (60K); files past the program from `$100000` | `towns.md` |
+
+What none of these have: the keyword ROMs (section 6), overlay classes and pages (5.3, 5.4) - the
+C64's lots are its own answer to a program bigger than memory - and in-place ByRef parameters
+(they copy in and back). Each machine's document says what it has and what has been run.

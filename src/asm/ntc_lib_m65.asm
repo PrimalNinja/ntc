@@ -38,6 +38,28 @@
 ;   Result is the Z flag. Z = true, NZ = false. A compare keyword ends with
 ;   LDA #0 (true) or LDA #1 (false) just before its RTS.
 ;
+; THE WINDOWS (NTC_C64: the plain 6502 - the C64 with an REU)
+;   A 6502's SP is 8 bits, in page 1. There the thread is in the REU, at its own
+;   16 bit address (bank ntc_wbank), cut into "pieces" of 64 bytes (addresses
+;   n * 64 to n * 64 + 63). Three pieces at a time are in page 1 - the windows
+;   $0100-$013F, $0140-$017F, $0180-$01BF - and SP runs through the one in use:
+;   a thread position P in window k is at SP = k * 64 + (P and $3F) - 1.
+;   ntc_wb is the piece SP is in (its address), ntc_wtl / ntc_wth each window's.
+;   The compiler ends every piece with kw_wnext (the next piece) and never cuts
+;   a keyword from its arguments. ntc_goxy goes to a position: SP alone when it
+;   is in the window in use, a change of window when it is in another, and a
+;   fetch from the REU (into the window used longest ago) when it is in none.
+;   So a loop of up to three pieces, or a loop and the Subs it calls, goes round
+;   with no fetch at all. The real stack is $01C0-$01FF.
+;   Lots (Option Lot): the REU past the kernel's 32K (lot 0) is lots of 96K, and a
+;   position is in the lot whose thread is running (ntc_wlot); each window knows
+;   its piece's lot (ntc_wtb). A change of lot sets ntc_wlot and lets the window in
+;   use go (ntc_wb + 1 = 0), so the next ntc_goxy looks the windows over.
+;   Interrupts are on: one that comes while SP is in a window pushes over thread
+;   words already used and sets ntc_wdirty, so the next branch fetches again.
+;   45GS02 only instructions are macros the compiler writes (NTC_INW, NTC_DEW,
+;   NTC_MULGO, NTC_MULGO16: on the MEGA65 they are the instruction / nothing).
+;
 ; SECTIONS
 ;   ";## name dep dep ..." starts a section, as in the Z80 library. The
 ;   platform file supplies the ntc_plat_* routines, called with JSR on the
@@ -55,6 +77,26 @@
 ; ------------------------------------------------------------
 ntc_ip		equ $02			; the thread position while on the real stack
 ntc_csp		equ $04			; the real stack (set at start)
+			ifd NTC_C64
+ntc_wb		equ $04			; the piece SP is in (its thread address: a multiple of 64)
+ntc_wdirty	equ $70			; not 0: an interrupt pushed into the windows
+ntc_mret	equ $71			; NTC_MULGO: where to carry on
+NTC_MULA	equ $74			; the multiply's registers (the MEGA65's are hardware)
+NTC_MULB	equ $78
+NTC_MULP	equ $7C
+ntc_wbank	equ $80			; the thread's REU bank
+ntc_task	equ $81			; the Task class: the task running
+ntc_wor		equ $82			; the window in use: $00, $40 or $80 (its place in page 1)
+ntc_wcur	equ $83			; its number (0-2)
+ntc_wprev	equ $84			; the one in use before it
+ntc_wtl		equ $85			; each window's piece: low bytes (3)
+ntc_wth		equ $88			; high bytes (3). 0 = nothing in it
+ntc_gx		equ $8B			; ntc_goxy: the position's low byte
+ntc_gt		equ $8C			; its piece's
+ntc_wz		equ $8D			; kw_wnext: the Z flag carried over (0 = set)
+ntc_wlot	equ $8E			; the lot whose thread is running (0: the kernel)
+ntc_wslot	equ $8F			; the lot whose workspace is in the C64's memory (0: none)
+			endif
 z_p0		equ $06			; pointers
 z_p1		equ $08
 z_p2		equ $0A
@@ -96,6 +138,116 @@ ntc_inbuf:	ds 41					; inputint: typed text
 ; (SP = label - 1); ntc_goxy with the label in Y:X; ntc_skip2 steps over
 ; a label (not taken)
 ; ------------------------------------------------------------
+			ifd NTC_C64
+ntc_go:
+			pla
+			tax
+			pla
+			tay
+; Y:X = a thread position. In the window in use: SP alone. Uses A, X, Y
+ntc_goxy:
+			cpy ntc_wb+1
+			bne ntc_go_slow
+			txa
+			eor ntc_wb
+			and #$C0
+			bne ntc_go_slow
+			txa
+			and #$3F					; SP = the window + the place in the piece - 1
+			ora ntc_wor
+			tax
+			dex
+			txs
+			lda ntc_wdirty				; (looked at after SP has moved: an interrupt from
+			bne ntc_go_redo				; here on pushes below the new SP, not over what is next)
+			rts
+ntc_go_redo:							; an interrupt got in first: the piece again
+			inx
+			txa
+			and #$3F
+			ora ntc_wb
+			tax
+			ldy ntc_wb+1
+ntc_go_slow:
+			sei
+			lda ntc_wdirty
+			beq ntc_go_other
+			lda #0						; an interrupt pushed into the windows: nothing is in any
+			sta ntc_wdirty
+			sta ntc_wth
+			sta ntc_wth+1
+			sta ntc_wth+2
+			sta ntc_wb+1
+ntc_go_other:							; is the piece in one of the other windows?
+			stx ntc_gx
+			txa
+			and #$C0
+			sta ntc_gt
+			ldx #2
+ntc_go_o1:
+			tya
+			cmp ntc_wth,x
+			bne ntc_go_o2
+			lda ntc_wtb,x				; (the same lot's)
+			cmp ntc_wlot
+			bne ntc_go_o2
+			lda ntc_gt
+			cmp ntc_wtl,x
+			beq ntc_go_sw
+ntc_go_o2:
+			dex
+			bpl ntc_go_o1
+			lda #3						; in none: into the window that is neither the one
+			sec							; in use nor the one before it
+			sbc ntc_wcur
+			sbc ntc_wprev
+			tax
+			lda ntc_gt
+			sta ntc_wtl,x
+			sta $DF04
+			tya
+			sta ntc_wth,x
+			lda ntc_wlot
+			sta ntc_wtb,x
+			stx ntc_gv
+			tax							; the piece is at the lot's start + its position
+			tya
+			clc
+			adc ntc_lot_bh,x
+			sta $DF05
+			lda ntc_lot_bb,x
+			adc #0
+			sta $DF06
+			ldx ntc_gv
+			lda ntc_wbase,x
+			sta $DF02
+			lda #$B1					; REU -> the window, 64 bytes (the registers reload)
+			sta $DF01
+			lda ntc_gt
+ntc_go_sw:								; window X (piece Y:A) is the one in use now
+			sta ntc_wb
+			sty ntc_wb+1
+			cpx ntc_wcur				; (it was already, let go by a change of lot)
+			beq ntc_go_sw1
+			lda ntc_wcur
+			sta ntc_wprev
+			stx ntc_wcur
+ntc_go_sw1:
+			lda ntc_wbase,x
+			sta ntc_wor
+			lda ntc_gx
+			and #$3F
+			ora ntc_wor
+			tax
+			dex
+			txs
+			cli
+			lda ntc_wz					; (kw_wnext: the flag a compare left)
+			rts
+ntc_wbase:	db $00, $40, $80
+ntc_wtb:	db 0, 0, 0					; each window's piece: its lot
+ntc_gv:		db 0
+			else
 ntc_go:
 			pla
 			tax
@@ -110,10 +262,110 @@ ntc_go_nb:
 			txs
 			tys
 			rts
+			endif
 ntc_skip2:
 			pla
 			pla
 			rts
+
+;## kw_wnext ntc_data ntc_jmp
+; ------------------------------------------------------------
+; NTC_C64: kw_wnext - the end of a piece: on into the next 64 bytes of the
+; thread. The compiler puts it there. The Z flag (a compare's answer on its
+; way to a branch) is kept; uses A, X, Y.
+; ------------------------------------------------------------
+			ifd NTC_C64
+kw_wnext:
+			beq kw_wn_z
+			lda #1
+			bne kw_wn_s
+kw_wn_z:
+			lda #0
+kw_wn_s:
+			sta ntc_wz
+			clc
+			lda ntc_wb
+			adc #$40
+			tax
+			ldy ntc_wb+1
+			bcc kw_wn_g
+			iny
+kw_wn_g:
+			jmp ntc_go_slow				; (never the window in use)
+			endif
+
+;## ntc_mulsw ntc_data
+; ------------------------------------------------------------
+; NTC_C64: NTC_MULP = NTC_MULA * NTC_MULB (32 bits, the low 32 of the product),
+; entered by NTC_MULGO (jmp, back through ntc_mret: it runs on the thread too).
+; Uses A; NTC_MULA and NTC_MULB are used up.
+; ------------------------------------------------------------
+			ifd NTC_C64
+ntc_mulsw:
+			lda #0
+			sta NTC_MULP
+			sta NTC_MULP+1
+			sta NTC_MULP+2
+			sta NTC_MULP+3
+ntc_msw_lp:
+			lda NTC_MULB
+			ora NTC_MULB+1
+			ora NTC_MULB+2
+			ora NTC_MULB+3
+			beq ntc_msw_end
+			lsr NTC_MULB+3
+			ror NTC_MULB+2
+			ror NTC_MULB+1
+			ror NTC_MULB
+			bcc ntc_msw_sh
+			clc
+			lda NTC_MULP
+			adc NTC_MULA
+			sta NTC_MULP
+			lda NTC_MULP+1
+			adc NTC_MULA+1
+			sta NTC_MULP+1
+			lda NTC_MULP+2
+			adc NTC_MULA+2
+			sta NTC_MULP+2
+			lda NTC_MULP+3
+			adc NTC_MULA+3
+			sta NTC_MULP+3
+ntc_msw_sh:
+			asl NTC_MULA
+			rol NTC_MULA+1
+			rol NTC_MULA+2
+			rol NTC_MULA+3
+			jmp ntc_msw_lp
+ntc_msw_end:
+			jmp (ntc_mret)
+			endif
+
+; NTC_MULGO16: the same for 16 bits (NTC_MULP's low word = NTC_MULA's * NTC_MULB's)
+			ifd NTC_C64
+ntc_mulsw16:
+			lda #0
+			sta NTC_MULP
+			sta NTC_MULP+1
+ntc_m16_lp:
+			lsr NTC_MULB+1
+			ror NTC_MULB
+			bcc ntc_m16_sh
+			clc
+			lda NTC_MULP
+			adc NTC_MULA
+			sta NTC_MULP
+			lda NTC_MULP+1
+			adc NTC_MULA+1
+			sta NTC_MULP+1
+ntc_m16_sh:
+			asl NTC_MULA
+			rol NTC_MULA+1
+			lda NTC_MULB
+			ora NTC_MULB+1
+			bne ntc_m16_lp
+			jmp (ntc_mret)
+			endif
 
 ;## ntc_gstack
 ; ------------------------------------------------------------
@@ -216,10 +468,16 @@ kw_gosub:
 			sta z_t0
 			pla
 			sta z_t1
+			ifd NTC_C64
+			NTC_POS
+			stx z_t2
+			sty z_t3
+			else
 			tsx
 			stx z_t2
 			tsy
 			sty z_t3
+			endif
 			ldx ntc_gsi
 			lda z_t2
 			sta ntc_gslo,x
@@ -231,7 +489,7 @@ kw_gosub:
 			ldy z_t1
 			jmp ntc_goxy
 
-;## kw_return ntc_gstack
+;## kw_return ntc_gstack ntc_jmp
 ;kw_return
 kw_return:
 			ldx ntc_gsi
@@ -241,9 +499,13 @@ kw_return:
 			tay
 			lda ntc_gslo,x
 			tax
+			ifd NTC_C64
+			jmp ntc_goxy
+			else
 			txs
 			tys
 			rts
+			endif
 
 ;## ntc_for_jump ntc_jmp
 ; ------------------------------------------------------------
@@ -741,21 +1003,22 @@ kw_4x:
 ; $D778: the product). Uses A only. JSR or JMP / back by hand
 ntc_mul16:
 			lda z_a
-			sta $D770
+			sta NTC_MULA
 			lda z_a+1
-			sta $D771
+			sta NTC_MULA+1
 			lda #0
-			sta $D772
-			sta $D773
-			sta $D776
-			sta $D777
+			sta NTC_MULA+2
+			sta NTC_MULA+3
+			sta NTC_MULB+2
+			sta NTC_MULB+3
 			lda z_b
-			sta $D774
+			sta NTC_MULB
 			lda z_b+1
-			sta $D775
-			lda $D778
+			sta NTC_MULB+1
+			NTC_MULGO16
+			lda NTC_MULP
 			sta z_a
-			lda $D779
+			lda NTC_MULP+1
 			sta z_a+1
 			rts
 
@@ -777,23 +1040,24 @@ kw_mulvv:
 ntc_mul_st:
 			NTC_POP z_p2
 			lda z_a
-			sta $D770
+			sta NTC_MULA
 			lda z_a+1
-			sta $D771
+			sta NTC_MULA+1
 			lda #0
-			sta $D772
-			sta $D773
-			sta $D776
-			sta $D777
+			sta NTC_MULA+2
+			sta NTC_MULA+3
+			sta NTC_MULB+2
+			sta NTC_MULB+3
 			lda z_b
-			sta $D774
+			sta NTC_MULB
 			lda z_b+1
-			sta $D775
+			sta NTC_MULB+1
+			NTC_MULGO16
 			ldy #0
-			lda $D778
+			lda NTC_MULP
 			sta (z_p2),y
 			iny
-			lda $D779
+			lda NTC_MULP+1
 			sta (z_p2),y
 			rts
 
@@ -1951,21 +2215,22 @@ kw_redim:
 			ora z_d+1
 			beq kw_rd_end
 			lda z_b						; bytes = size * count (the multiplier)
-			sta $D770
+			sta NTC_MULA
 			lda z_b+1
-			sta $D771
+			sta NTC_MULA+1
 			lda #0
-			sta $D772
-			sta $D773
-			sta $D776
-			sta $D777
+			sta NTC_MULA+2
+			sta NTC_MULA+3
+			sta NTC_MULB+2
+			sta NTC_MULB+3
 			lda z_c
-			sta $D774
+			sta NTC_MULB
 			lda z_c+1
-			sta $D775
-			lda $D778
+			sta NTC_MULB+1
+			NTC_MULGO16
+			lda NTC_MULP
 			sta z_a
-			lda $D779
+			lda NTC_MULP+1
 			sta z_a+1
 			jmp ntc_zerofill
 kw_rd_end:
@@ -2098,11 +2363,11 @@ ntc_scp_e:
 			rts
 ; X = the capacity byte before z_p1 (uses A)
 ntc_scap:
-			dew z_p1
+			NTC_DEW z_p1
 			ldy #0
 			lda (z_p1),y
 			tax
-			inw z_p1
+			NTC_INW z_p1
 			rts
 
 ;## kw_strcpy ntc_scopy
@@ -2110,11 +2375,11 @@ ntc_scap:
 kw_strcpy:
 			NTC_POP z_p1
 			NTC_POP z_p0
-			dew z_p1
+			NTC_DEW z_p1
 			ldy #0
 			lda (z_p1),y
 			tax
-			inw z_p1
+			NTC_INW z_p1
 			jmp ntc_scopy
 
 ;## kw_strcpyn ntc_scopy
@@ -2132,11 +2397,11 @@ kw_strcpyn:
 kw_strcat:
 			NTC_POP z_p1
 			NTC_POP z_p0
-			dew z_p1
+			NTC_DEW z_p1
 			ldy #0
 			lda (z_p1),y
 			sta z_t0					; capacity
-			inw z_p1
+			NTC_INW z_p1
 			ldy #0
 kw_sc_end:
 			cpy z_t0
@@ -2248,7 +2513,7 @@ ntc_puts:
 			lda (z_p0),y
 			beq ntc_puts_e
 			jsr ntc_plat_putc
-			inw z_p0
+			NTC_INW z_p0
 			jmp ntc_puts
 ntc_puts_e:
 			rts
@@ -2276,7 +2541,7 @@ ntc_itoa:
 			lda #'-'
 			ldy #0
 			sta (z_p1),y
-			inw z_p1
+			NTC_INW z_p1
 			sec
 			lda #0
 			sbc z_a
@@ -2387,7 +2652,7 @@ kw_printintvb:
 			lda #' '
 			ldy #0
 			sta (z_p1),y
-			inw z_p1
+			NTC_INW z_p1
 kw_piv_neg:
 			NTC_RS
 			jsr ntc_itoa
@@ -2548,11 +2813,11 @@ kw_out:
 ; line input with echo and backspace, on the real stack (JSR). z_p2 = buffer (its
 ; capacity in the byte before it). 0 terminated, then a new line.
 ntc_gets:
-			dew z_p2
+			NTC_DEW z_p2
 			ldy #0
 			lda (z_p2),y
 			sta z_t4					; capacity
-			inw z_p2
+			NTC_INW z_p2
 			lda #0
 			sta z_t5					; typed
 ntc_gs_wait:
@@ -2980,21 +3245,22 @@ kw_pw_lp:
 			lda z_c+1
 			sta z_b+1
 			lda z_a						; z_a *= base (the multiplier)
-			sta $D770
+			sta NTC_MULA
 			lda z_a+1
-			sta $D771
+			sta NTC_MULA+1
 			lda #0
-			sta $D772
-			sta $D773
-			sta $D776
-			sta $D777
+			sta NTC_MULA+2
+			sta NTC_MULA+3
+			sta NTC_MULB+2
+			sta NTC_MULB+3
 			lda z_b
-			sta $D774
+			sta NTC_MULB
 			lda z_b+1
-			sta $D775
-			lda $D778
+			sta NTC_MULB+1
+			NTC_MULGO16
+			lda NTC_MULP
 			sta z_a
-			lda $D779
+			lda NTC_MULP+1
 			sta z_a+1
 			lda z_d
 			bne kw_pw_d
@@ -3041,7 +3307,7 @@ kw_sq_lp:
 			bcc kw_sq_done
 			sta z_a+1
 			stx z_a
-			inw z_b
+			NTC_INW z_b
 			lda z_c
 			clc
 			adc #2
@@ -3286,8 +3552,8 @@ ntc_rp_miss:
 			ldy #0
 			lda (z_p0),y
 			sta (z_p1),y
-			inw z_p0
-			inw z_p1
+			NTC_INW z_p0
+			NTC_INW z_p1
 			dec z_t0
 			jmp ntc_rp_lp
 ntc_rp_hit:
@@ -3307,7 +3573,7 @@ ntc_rp_w:
 			sty z_t1
 			ldy #0
 			sta (z_p1),y
-			inw z_p1
+			NTC_INW z_p1
 			dec z_t0
 			ldy z_t1
 			iny
@@ -3321,8 +3587,8 @@ ntc_rp_rest:
 			ldx z_t0
 			beq ntc_rp_done
 			sta (z_p1),y
-			inw z_p0
-			inw z_p1
+			NTC_INW z_p0
+			NTC_INW z_p1
 			dec z_t0
 			jmp ntc_rp_rest
 ntc_rp_done:
@@ -3363,7 +3629,7 @@ ntc_lk_lp:
 			lda (z_p0),y
 			cmp #'*'
 			bne ntc_lk_one
-			inw z_p0
+			NTC_INW z_p0
 			lda z_p0
 			sta z_p2
 			lda z_p0+1
@@ -3391,13 +3657,13 @@ ntc_lk_one:
 			cmp #'9'+1
 			bcs ntc_lk_back
 ntc_lk_ok1:
-			inw z_p0
-			inw z_p1
+			NTC_INW z_p0
+			NTC_INW z_p1
 			jmp ntc_lk_lp
 ntc_lk_br:
 			cmp #'['
 			bne ntc_lk_lit
-			inw z_p0
+			NTC_INW z_p0
 			lda #0
 			sta z_t2					; ! = 1
 			sta z_t3					; hit
@@ -3405,7 +3671,7 @@ ntc_lk_br:
 			cmp #'!'
 			bne ntc_lk_cl
 			inc z_t2
-			inw z_p0
+			NTC_INW z_p0
 ntc_lk_cl:
 			ldy #0
 			lda (z_p0),y
@@ -3414,7 +3680,7 @@ ntc_lk_cl:
 			beq ntc_lk_clend
 			sta z_t4					; lo
 			sta z_t5					; hi
-			inw z_p0
+			NTC_INW z_p0
 			lda (z_p0),y
 			cmp #'-'
 			bne ntc_lk_cmp
@@ -3425,8 +3691,8 @@ ntc_lk_cl:
 			cmp #0
 			beq ntc_lk_back
 			sta z_t5
-			inw z_p0
-			inw z_p0
+			NTC_INW z_p0
+			NTC_INW z_p0
 ntc_lk_cmp:
 			lda z_t1
 			cmp z_t4
@@ -3438,22 +3704,22 @@ ntc_lk_cmp:
 			sta z_t3
 			jmp ntc_lk_cl
 ntc_lk_clend:
-			inw z_p0
+			NTC_INW z_p0
 			lda z_t3
 			cmp z_t2
 			beq ntc_lk_back
-			inw z_p1
+			NTC_INW z_p1
 			jmp ntc_lk_lp
 ntc_lk_lit:
 			cmp z_t1
 			bne ntc_lk_back
-			inw z_p0
-			inw z_p1
+			NTC_INW z_p0
+			NTC_INW z_p1
 			jmp ntc_lk_lp
 ntc_lk_back:
 			lda z_t7
 			beq ntc_lk_no
-			inw z_p3
+			NTC_INW z_p3
 			lda z_p3
 			sta z_p1
 			lda z_p3+1
@@ -3467,7 +3733,7 @@ ntc_lk_end:
 			lda (z_p0),y
 			cmp #'*'
 			bne ntc_lk_e2
-			inw z_p0
+			NTC_INW z_p0
 			jmp ntc_lk_end
 ntc_lk_e2:
 			cmp #0
@@ -3615,15 +3881,15 @@ ntc_fm_common:
 			bne ntc_fm_pre
 			ldy #0
 			sta (z_p1),y
-			inw z_p1
+			NTC_INW z_p1
 			inx
 ntc_fm_pre:
 			ldy #0
 			lda (z_p2),y
 			beq ntc_fm_cnt
 			sta (z_p1),y
-			inw z_p1
-			inw z_p2
+			NTC_INW z_p1
+			NTC_INW z_p2
 			jmp ntc_fm_pre
 ntc_fm_cnt:
 			stx z_t0					; where the digits start
@@ -3674,7 +3940,7 @@ ntc_fm_d:
 ntc_fm_put:
 			ldy #0
 			sta (z_p1),y
-			inw z_p1
+			NTC_INW z_p1
 			dec z_t3
 			dec z_t4
 			bne ntc_fm_o1
@@ -3688,7 +3954,7 @@ ntc_fm_put:
 			lda #','
 			ldy #0
 			sta (z_p1),y
-			inw z_p1
+			NTC_INW z_p1
 			jmp ntc_fm_o1
 ntc_fm_suf:
 			ldy #0
@@ -3819,7 +4085,7 @@ ntc_jn_c1:
 			sty z_t1
 			ldy #0
 			sta (z_p1),y
-			inw z_p1
+			NTC_INW z_p1
 			dec z_t0
 			ldy z_t1
 			iny
@@ -3849,7 +4115,7 @@ ntc_jn_c2:
 			sty z_t1
 			ldy #0
 			sta (z_p1),y
-			inw z_p1
+			NTC_INW z_p1
 			dec z_t0
 			ldy z_t1
 			iny
@@ -3898,7 +4164,7 @@ ntc_sp_elem:
 			lda z_e+1
 			sbc z_c+1
 			bcs ntc_sp_fin
-			inw z_e
+			NTC_INW z_e
 			lda z_p5
 			sta z_p1
 			lda z_p5+1
@@ -3923,11 +4189,11 @@ ntc_sp_m:
 ntc_sp_nosep:
 			ldy #0
 			lda (z_p0),y
-			inw z_p0
+			NTC_INW z_p0
 			ldx z_t0
 			beq ntc_sp_ch
 			sta (z_p1),y
-			inw z_p1
+			NTC_INW z_p1
 			dec z_t0
 			jmp ntc_sp_ch
 ntc_sp_hit:
@@ -4068,7 +4334,7 @@ kw_sm_sk:
 			beq kw_sm_len
 			lda (z_p0),y
 			beq kw_sm_len
-			inw z_p0
+			NTC_INW z_p0
 			dex
 			jmp kw_sm_sk
 kw_sm_len:
@@ -4124,7 +4390,7 @@ kw_strstr:
 			lda #' '
 			ldy #0
 			sta (z_p1),y
-			inw z_p1
+			NTC_INW z_p1
 kw_st_go:
 			NTC_RS
 			jsr ntc_itoa
@@ -4297,7 +4563,7 @@ kw_lt_skip:
 			lda (z_p0),y
 			cmp #' '
 			bne kw_lt_copy
-			inw z_p0
+			NTC_INW z_p0
 			jmp kw_lt_skip
 kw_lt_copy:
 			ldx #255
@@ -4339,7 +4605,7 @@ kw_tr_skip:
 			lda (z_p0),y
 			cmp #' '
 			bne ntc_rt_go
-			inw z_p0
+			NTC_INW z_p0
 			jmp kw_tr_skip
 
 ;## kw_strasc
@@ -4384,7 +4650,7 @@ kw_in_adv:
 			ldy #0
 			lda (z_p0),y
 			beq kw_in_nf
-			inw z_p0
+			NTC_INW z_p0
 			jmp kw_in_adv
 kw_in_try:
 			ldy #0
@@ -4399,7 +4665,7 @@ kw_in_miss:
 			ldy #0
 			lda (z_p0),y
 			beq kw_in_nf
-			inw z_p0
+			NTC_INW z_p0
 			inc z_t4
 			jmp kw_in_try
 kw_in_nf:
@@ -4536,25 +4802,26 @@ kw_scge_f:
 ntc_sidx:
 			ldy #0
 			lda (z_p1),y
-			sta $D770
+			sta NTC_MULA
 			iny
 			lda (z_p1),y
-			sta $D771
+			sta NTC_MULA+1
 			lda #0
-			sta $D772
-			sta $D773
-			sta $D776
-			sta $D777
+			sta NTC_MULA+2
+			sta NTC_MULA+3
+			sta NTC_MULB+2
+			sta NTC_MULB+3
 			lda z_b
-			sta $D774
+			sta NTC_MULB
 			lda z_b+1
-			sta $D775
+			sta NTC_MULB+1
+			NTC_MULGO16
 			clc
 			lda z_p0
-			adc $D778
+			adc NTC_MULP
 			sta z_p0
 			lda z_p0+1
-			adc $D779
+			adc NTC_MULP+1
 			sta z_p0+1
 			rts
 
@@ -4631,26 +4898,27 @@ ntc_pa_tail:					; z_a = element number, z_p0 = descriptor
 			lda (z_p0),y
 			sta z_b+1
 			lda z_a
-			sta $D770
+			sta NTC_MULA
 			lda z_a+1
-			sta $D771
+			sta NTC_MULA+1
 			lda #0
-			sta $D772
-			sta $D773
-			sta $D776
-			sta $D777
+			sta NTC_MULA+2
+			sta NTC_MULA+3
+			sta NTC_MULB+2
+			sta NTC_MULB+3
 			lda z_b
-			sta $D774
+			sta NTC_MULB
 			lda z_b+1
-			sta $D775
+			sta NTC_MULB+1
+			NTC_MULGO16
 			ldy #0
 			lda (z_p0),y
 			clc
-			adc $D778
+			adc NTC_MULP
 			tax
 			iny
 			lda (z_p0),y
-			adc $D779
+			adc NTC_MULP+1
 			sta z_p0+1
 			stx z_p0
 			rts
@@ -4664,23 +4932,24 @@ ntc_paddr2:
 			ldy #2
 			sec
 			sbc (z_p0),y
-			sta $D770
+			sta NTC_MULA
 			ldy #1
 			lda (z_p1),y
 			ldy #3
 			sbc (z_p0),y
-			sta $D771					; (i - lo1)
+			sta NTC_MULA+1					; (i - lo1)
 			lda #0
-			sta $D772
-			sta $D773
-			sta $D776
-			sta $D777
+			sta NTC_MULA+2
+			sta NTC_MULA+3
+			sta NTC_MULB+2
+			sta NTC_MULB+3
 			ldy #8
 			lda (z_p0),y
-			sta $D774
+			sta NTC_MULB
 			iny
 			lda (z_p0),y
-			sta $D775					; * count 2
+			sta NTC_MULB+1					; * count 2
+			NTC_MULGO16
 			ldy #0
 			lda (z_p2),y
 			ldy #4
@@ -4694,10 +4963,10 @@ ntc_paddr2:
 			sta z_a+1					; + (j - lo2)
 			clc
 			lda z_a
-			adc $D778
+			adc NTC_MULP
 			sta z_a
 			lda z_a+1
-			adc $D779
+			adc NTC_MULP+1
 			sta z_a+1
 			jmp ntc_pa_tail
 
@@ -5188,14 +5457,15 @@ ntc_lmul:
 			ldx #3
 ntc_lml_lp:
 			lda z_l0,x
-			sta $D770,x
+			sta NTC_MULA,x
 			lda z_l1,x
-			sta $D774,x
+			sta NTC_MULB,x
 			dex
 			bpl ntc_lml_lp
+			NTC_MULGO
 			ldx #3
 ntc_lml_out:
-			lda $D778,x
+			lda NTC_MULP,x
 			sta z_l0,x
 			dex
 			bpl ntc_lml_out
@@ -5449,7 +5719,7 @@ ntc_ltoa:
 			lda #'-'
 			ldy #0
 			sta (z_p1),y
-			inw z_p1
+			NTC_INW z_p1
 			ldx #z_l0
 			jsr ntc_lnegz_t
 ntc_lta_pos:
@@ -5573,7 +5843,7 @@ kw_lpv_ld:
 			lda #' '
 			ldy #0
 			sta (z_p1),y
-			inw z_p1
+			NTC_INW z_p1
 kw_lpv_neg:
 			NTC_RS
 			jsr ntc_ltoa
@@ -5621,7 +5891,7 @@ kw_lst_ld:
 			lda #' '
 			ldy #0
 			sta (z_p1),y
-			inw z_p1
+			NTC_INW z_p1
 kw_lst_go:
 			NTC_RS
 			jsr ntc_ltoa
@@ -5845,7 +6115,11 @@ kw_bssinit:
 			lda z_p0+1
 			adc z_a+1
 			bcs kw_bs_big
+			ifd NTC_C64
+			cmp #>NTC_BSSTOP			; (below a lot's workspace, when there are lots)
+			else
 			cmp #$D0
+			endif
 			bcc kw_bs_ok
 			bne kw_bs_big
 			lda z_t0
@@ -5863,7 +6137,7 @@ kw_bs_pl:
 			lda (z_p0),y
 			beq kw_bs_stop
 			jsr ntc_plat_putc
-			inw z_p0
+			NTC_INW z_p0
 			jmp kw_bs_pl
 kw_bs_stop:
 			jsr ntc_plat_newline

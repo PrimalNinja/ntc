@@ -1,9 +1,12 @@
 # NTC - todo
 
 Open work for NTC BASIC, by component - the numbers are [components.md](components.md)'s; bugs are
-in [buglist.md](buglist.md) under the same numbers; what is done is in [done.md](done.md). 48 on:
-future components (no code yet) - one keeps its number when it is built. Decisions and design notes
-kept for reference are at the end.
+in [buglist.md](buglist.md) under the same numbers; what is done is in [done.md](done.md). 48 to 52:
+future components (no code yet) - one keeps its number when it is built. 53 on: components added to
+the list on 2026-11-26. Decisions and design notes kept for reference are at the end.
+
+The items marked (20261126-2) were gathered on 2026-11-26 from the NOT done / NOT run notes of
+builds 20261105-1 to 20261126-1 in build-info.txt; each names the build it comes from.
 
 ## 2 ntc_compiler.js - the compiler
 - [ ] Scalar strings' buffers (variables, locals, params, results, temps) after the program like
@@ -187,11 +190,45 @@ kept for reference are at the end.
       all - VB's "locals start empty" only matters for a local read before written); a ByVal
       parameter never assigned in the procedure can read the caller's value, no copy.
       Cheaper argument passing for small procedures (registers for one or two Integers)
+- [ ] (20261126-2) By-reference parameters in place for a class in a page: still copied in and back
+      when the procedure writes them (20261116-5; 20261116-9 packs the number parameters that are
+      only copied in). The page bodies are written by composePages, apart from the in-place
+      operands; the stores have to run after the page is switched in. Not possible on a ROM
+      platform the way it is done (the body's operands are in ROM). String, array and Type
+      parameters of a class in a page are not packed either
+- [ ] (20261126-2) `Option Class Default = Page` gives each class a page of its own; it does not
+      pack several classes into one page (the compiler would need the classes' sizes before it
+      lays out pages) (20261116-3)
+- [ ] (20261126-2) `Option Page "FILE" Loaded n` with the keyword library ROM: refused; the ROM's
+      loader takes a free page (20261116-5)
+- [ ] (20261126-2) dead code: the branches for Option CompactCalls are still in procStubs, never
+      reached (20261116-5)
+- [ ] (20261126-2) decide: does Option CompactCalls come back? It went in 20261116-2 (ByRef in
+      place). CyborgOS's C2 hypervisor had used it for 643 bytes of main RAM; without it a CPC with
+      UniDOS and an IDE node uses no memory past 816K ("Not mapped: 3344K" on 4MB - confirmed in
+      CyborgOS's harness 2026-11-26: CyborgOS's buglist, 1). The other ways out are CyborgOS's (code
+      out of block 1, the page tables somewhere else)
+- [ ] (20261126-2) zxn: `Option Memory Heap Main` on a program that runs on over the stack - the
+      heap would start after the arrays and is not checked against the text or Layer 2's window
+      (20261118-1)
+- [ ] (20261126-2) c64reu lots: a lot's Sub called from outside the lot takes no parameters and
+      gives no result. Parameters for cross-lot calls (the values carried across the workspace
+      swap); read-only strings left in the REU and fetched when used, so a text adventure's text
+      costs no workspace (discussed 2026-11-26, not built)
+- [ ] (20261126-2) c64reu: the `Interrupt` statement and interrupt classes (the platform has
+      System.FrameHook for machine code only); tasks that are switched by the interrupt (they
+      take turns at Yield / Sleep now)
+- [ ] (20261126-2) design, not built (discussed 2026-11-26): Subs that can run more than once at a
+      time through a data pointer (IX on the Z80, a zero page pointer on the 6502: OS-9's way);
+      thread jumps relative to the piece, so a thread can be put anywhere
 
-## 5 The flavours (Locomotive, JS, PHP)
+## 5 The flavours (Locomotive, JS, PHP, Natural)
 - [ ] JS flavour, next (docs/js_flavour.md): the ES5 class form, the four open decisions,
       VB `'#` hints and `Dim n = 0`, `+` joining a number and text, the GUI view of the VB text
 - [ ] Keys: the Shift / Control forms of INKEY(n) (32, 128 ...) for the Locomotive flavour
+- [ ] (20261126-2) Natural flavour, not in it (docs/natural_flavour.md section 7): `each`, templates
+      with marker words for your own verbs, type checking in the flavour, natural parts in a JS /
+      PHP / Locomotive file (20261123-3)
 
 ## 6 The IDE
 - [ ] FUTURE: formRenderer for project forms (structured form creator)
@@ -221,18 +258,51 @@ kept for reference are at the end.
       ntc_lib_nxt's file calls; CyborgOS's ZEsarUX harness is the only test (moved from the
       buglist 2026-11-01: a test not written, not a fault found)
 
-## 12 The Mega Drive and MEGA65 runtimes
+## 12 The 68000 and the 45GS02 / 6502 runtimes (md, x68000, neogeo, neocd, amiga; m65, c64reu)
 - [ ] m65: pages - `Option Page Name Loaded n` with MAP's 8K blocks of the 384K chip RAM (main
       RAM kept for code, 16K pages for screens, sprites, music or more code); the attic RAM
       (8MB) by DMA for data
 - [ ] m65: files through the hypervisor's DOS calls (the SD card's FAT32)
 - [ ] m65: colour text on the console (`CanColour`), the 40 column console mode's font
 - [ ] m65: try it on a real MEGA65 (so far Xemu only; the SIDs never listened to)
+- [ ] (20261126-2) m65, ti89: they still carry font8x8_basic. On the Next that was a bug (the
+      Amstrad CPC's font is NTC's); not touched on these two - a question (20261116-6)
+- [ ] (20261126-2) c64reu: run on a real C64 with a real REU, and on an Ultimate; so far VICE
+      x64sc, PAL only. NTSC not tried (the frame interrupt is set for line 251). The --reu image
+      (a thread already in the REU, nothing loaded) has no test that proves it. A real 1541 (the
+      Disk class waits for the serial bus before it opens a file: see the buglist)
+- [ ] (20261126-2) c64reu: a class that writes files; a keyboard queue in the platform (keys typed
+      between two reads are lost); both are in the CHIP-8 editor's own classes (Ui, Files), not
+      yet NTC's
+- [ ] (20261126-2) x68000: tile layers; files; a Human68k .X program; the boot loads the whole
+      disc first; variables and arrays have 23K ($2400-$7FFF: a variable's address is 16 bits on
+      the 68000 path). Not run on a real X68000 (20261117-1, 20261119-1)
+- [ ] (20261126-2) neogeo: not run with SNK's BIOS or on a real Neo Geo (Geolith with NTC's
+      stand-in BIOS only); Vdp.Shrink and Vdp.TextBase have no test. neocd: never run at all (no
+      emulator for it here), so Cdda is untested (20261123-1, 20261123-2)
+- [ ] (20261126-2) neogeo: changes to the Psg class were offered and not decided
+- [ ] (20261126-2) amiga: graphics and sound classes (a Vdp and a Pcm in the other 68000
+      machines' shapes, for TIANLONG on the A500) - offered, not started. Not run: Commodore's
+      Kickstart, a real Amiga, real drives, a bare 512K machine, DF2 / DF3 (20261124-1)
+- [ ] (20261126-2) md, x68000, towns: their three regressions were last run for 20261119-1; the
+      builds since had no Tsugaru, px68k or Genesis Plus GX to run them on, and checked only that
+      their test programs assemble to the same bytes (20261123-2)
 
 ## 13 The platform files
-- [ ] zxn: other Next targets later (a dot command, a NextZXOS-friendly build that returns)
-- [ ] CP/M: more terminal types (ADM-3A ...) if wanted; Ticks from the CP/M 3 clock where
-      there is one
+- [x] done 20261108-2: zxn: other Next targets (the dot commands zxndot and zxndotl)
+- [x] done 20261116-4: CP/M: more terminal types (ADM-3A, Televideo; StdIO.SetTerminal)
+- [ ] CP/M: Ticks from the CP/M 3 clock where there is one
+- [ ] (20261126-2) zxn: the layout of 20261116-7 (the program in the Next's banks 0, 1, 2) has not
+      been tried on a real Next - run in the harness and on NextZXOS in ZEsarUX only. The 4MB
+      Next's upper 2MB cannot be switched in as pages (reached by copying, zxnDMA): a RAM disc
+      for bigger games is the use for it (20261116-6)
+- [ ] (20261126-2) zxndotl: the ZOSCII tool's own FileSystem class needs `Option Buffer address,
+      336` when it is next built (20261116-5)
+- [ ] (20261126-2) ep128: file, graphics and sound classes (the first stage has StdIO, System,
+      Memory, Keys, List). Not run on a real Enterprise (20261125-1)
+- [ ] (20261126-2) the drafts, none of them run on a machine or an emulator: pcw16 (26 of 35
+      examples assemble), ti83, trs80, system80; ti89 is a skeleton that only compiles (20261106-2,
+      20261107-2, 20261107-3)
 - [ ] the platform file gives the defaults: usable RAM ranges, screen, start stack, bank
       window and bank port list (CPC: from primal/src/ams_*.asm)
 - [ ] cpm: the start code checks the TPA reaches #8000 when there are overlay classes (a clear
@@ -351,15 +421,16 @@ kept for reference are at the end.
       - `Option Files n` for MAXOPEN (now fixed at 2 on CP/M), VB style statements
         (`Open ... As #n`, `Print #`, `Line Input #`, `Close #`) as a front on the class
       - Spectrum +3 = +3DOS; later a simple NTC file system
-- [ ] zxn: files through NextZXOS / esxDOS (DivMMC paged in for the call, as cpcmin hands back to
-      the firmware)
+- [x] done (the zxn FileSystem class; before 2026-11-05, its date not recorded): zxn: files
+      through NextZXOS / esxDOS
 - [ ] CP/M files through BDOS FCBs (with the file device classes)
 - [ ] `FileSystem.LoadPage(name, page)`: load into a page through the window, cut at the 16K
       boundary and carry on in the next page (files over 16K)
 
 ## 17 Memory.cls
-- [ ] zxn: Memory pages - the Next's 8K pages into a slot (the interrupt lands in slot 0's page
-      and can bring the others in); CallBank-style whole 64K maps
+- [x] done 20261116-6: zxn: Memory pages (a page is the Next's 16K bank of the same number)
+- [ ] zxn: CallBank-style whole 64K maps
+- [ ] (20261126-2) towns: Memory blocks are not given back (20261119-1)
 - [ ] if reading RAM under a ROM is needed: a keyword / library routine that copies x bytes
       from under the ROM into a shared RAM buffer (ROM off, ldir, ROM back on). It must sit
       outside the ROM area it switches off. (The firmware has RAM LAM - RST 4 at #0020,
@@ -396,6 +467,8 @@ kept for reference are at the end.
       8-bit guard byte, no sticky bit), C and the Pi round to even, so a tie can differ by an
       ulp between backends. Needs a sticky bit through the engine's add, multiply and divide
       (asked 2026-11-01; the tie tests in test/float/chk.py check the engine's rule now)
+- [ ] (20261126-2) Fixed.Add32 / Sub32 are still BASIC; BASIC's own Long multiply and divide take
+      about 20000 T-states each - the slowest part of Long maths (20261114-1)
 
 ## 25 src/ntc3d (E3 and the rest)
 - [ ] E3 objects get a matrix (roll, any orientation): an object is placed by position and
@@ -407,6 +480,15 @@ kept for reference are at the end.
 
 ## 38 A real CPC through its serial link
 - [ ] test on a real CPC (both modes, Turbo On / Off)
+
+## 43 NTC.md, userguide.md, tutorial/, architecture.md
+- [ ] (20261126-2) "Reserve &H4000 for paging" is still what the tutorial pages (9.x, 12.x, 13.x)
+      and parts of the user guide show for programs that switch pages by hand
+      (Memory.SelectPage). Those programs run their own main code while a page is in, so only a
+      Reserved window keeps them right; the documents were not rewritten to Paged + Safe
+      (20261116-5)
+- [ ] (20261126-2) the tutorial has no page for any platform that is not a Z80, nor for the
+      Natural flavour, the Loader class, ROMDiscFS, Option Lot; a machine's own document has it
 
 ## 48 Sound (an AY class, a music player)
 - [ ] Sound (CPC AY-3-8912): reached through the PPI, not directly: PSG data on PPI port A
@@ -420,7 +502,11 @@ kept for reference are at the end.
       the keys share the PPI)
 
 ## 49 More targets (the ZX Spectrum, the PRIMAL list)
+- [x] done since this was written (done.md, targets.md): zxndot, zxndotl, pcw16, ti83, ti89,
+      trs80, system80, neogeo, neocd, x68000, towns, amiga, ep128, c64reu
 - [ ] more hosts: ZX Spectrum, then more (the PRIMAL target list is the guide)
+- [ ] (20261126-2) a Commodore 64 without an REU ("might", 2026-11-25): a normal C64 program, the
+      thread in the C64's own memory
 - [ ] Spectrum: ROM at #0000-#3FFF (IM 1 handler is in ROM), screen at #4000 (attribute
       layout, 32x24 text), keyboard ports #xxFE; 128k paging at #C000 only
 
@@ -441,6 +527,17 @@ kept for reference are at the end.
 - [ ] 3+ dimension array parameters (not planned unless needed)
 - [ ] `Format$` with dates / text patterns (`@`, `>`, `<`), `%`; Split's most parts (16)
       could be an option
+
+## 53 ntc_lib_x86.asm - the 80386 runtime (the FM Towns)
+- [ ] (20261126-2) towns, not there yet: tile layers, files, the CD drive, the mouse, a Towns OS
+      .EXP program, the `Interrupt` statement; the backdrop's bands are TIANLONG's four (lines 0,
+      56, 112, 152). Variables and arrays have 60K ($1000-$FFFF); Peek / Poke / VarPtr reach the
+      first 64K. Not run on a real FM Towns or with a real machine's ROM; the sound on the new
+      classes not checked by ear (20261117-2, 20261119-1)
+
+## 55 Loader.cls
+- [ ] (20261126-2) not run on a real CPC: the AMSDOS drive keep (#BE7D) is the usual way, but the
+      test emulator's firmware is a stand-in (20261116-10)
 
 ## Decisions and design notes (kept for reference - not open work)
 

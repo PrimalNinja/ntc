@@ -1,0 +1,37 @@
+PI02 STORE - tagged data kept on the Pi
+---------------------------------------
+  ok    OPEN store
+    channel 1
+  ok    PUT PIDEMO/PIECE (64 bytes)
+  ok      the Pi says OK 64
+  ok    SIZE
+    OK 64 2026-11-26 20:41
+  ok      64 bytes
+  ok    GET it back
+  ok      64 bytes came
+  ok      the same bytes
+  ok    GET bytes 10 to 14 (GET tag 10 5)
+  ok      5 bytes, the right ones
+  ok    APPEND 16 more
+  ok      now 80
+  ok    GET all 80
+  ok      80 bytes, the same
+  ok    PUT PIDEMO/HELLO.TXT (text)
+  ok    LIST PIDEMO/
+  ok      two tags
+PIDEMO/HELLO.TXT 19 2026-11-26 20:41
+PIDEMO/PIECE 80 2026-11-26 20:41
+  ok    an empty PUT (0 bytes)
+  ok      SIZE says 0
+  ok    DEL the three
+  ok    GET after DEL is refused (ERR notag)
+  ok    DEL again is refused
+  ok    a tag that climbs out (../) is refused
+    ERR fail bad tag ../OUTSIDE
+  ok    an unknown request is refused
+  ok    CLOSE
+  ok    the closed channel takes no more requests (ERR nochan)
+
+26 ok, 0 failed - ALL PASS
+
+--- ended  bytes to the Pi 765, from the Pi 682, Pi ROM writes 0  (cplink)

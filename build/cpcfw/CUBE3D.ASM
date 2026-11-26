@@ -4507,7 +4507,7 @@ ntc_rg254_e:
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg255:
-;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank ntc_dot_bank @shared @far
+;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank ntc_dot_bank ntc_ep_bank @shared @far
 ; ------------------------------------------------------------
 ; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
 ; array RAM setting: C0 = plain, C4-C7 + bank * 8 = page 0-3 of a 64K bank;
@@ -4598,6 +4598,9 @@ mem_probe:
 	IFDEF NTC_MSXDOS
 			call msx_mem_probe		; MSX: the mapper's segments from MSX-DOS 2 (ntc_lib_msx.asm), sets mem_banks
 	ELSE
+	IFDEF NTC_EP128
+			call ep_mem_probe		; the Enterprise: the segments taken from EXOS at the start (ntc_lib_ep.asm), sets mem_banks
+	ELSE
 	IFDEF NTC_ZXNDOTL
 			call dot_mem_probe		; a Next dot command: pages from NextZXOS's allocator (ntc_lib_dot.asm), sets mem_banks
 	ELSE
@@ -4681,6 +4684,7 @@ mem_pr_back:
 mem_pr_di:
 	ELSE
 			call nxt_mem_probe		; Next: the RAM probe (ntc_lib_nxt.asm), sets mem_banks
+	ENDIF
 	ENDIF
 	ENDIF
 	ENDIF
@@ -4792,6 +4796,25 @@ mem_tb_pl2:
 			pop hl
 			djnz mem_tb_pl
 	ENDIF
+	IFDEF NTC_EP128
+			ld a, (ep_usable)		; the Enterprise: pages 2 .. usable + 1 are there (every free segment is a
+			ld e, a					; page); the table is in fours, so the last four's leftovers are marked taken
+			ld d, 0
+			inc de
+mem_tb_ep:
+			ld hl, (mem_count)
+			or a
+			sbc hl, de
+			jr z, mem_tb_epe
+			jr c, mem_tb_epe
+			inc de
+			ld hl, (mem_ttype)
+			add hl, de
+			dec hl
+			ld (hl), 'C'
+			jr mem_tb_ep
+mem_tb_epe:
+	ENDIF
 	IFDEF NTC_ZXN
 			ld a, (zxn_usable)		; the Next: pages 2 .. usable + 1 are there; the table is in fours,
 			ld e, a					; so the ones past that (the last four's leftovers) are marked taken
@@ -4869,6 +4892,9 @@ mem_jbc:
 	IFDEF NTC_MSXDOS
 			jp msx_mem_jbc			; MSX: 64K bank E -> its page 0's setting (ntc_lib_msx.asm)
 	ENDIF
+	IFDEF NTC_EP128
+			jp ep_mem_jbc			; the Enterprise: 64K bank E -> its page 0's setting (ntc_lib_ep.asm)
+	ENDIF
 	IFDEF NTC_ZXN
 			jp nxt_mem_jbc			; Next: 64K bank E -> its first 16K Next bank (ntc_lib_nxt.asm)
 	ENDIF
@@ -4922,6 +4948,9 @@ mem_se_do:
 mem_se_out:
 	IFDEF NTC_MSXDOS
 			jp msx_mem_se_out			; MSX: the segment into page 1 (PUT_P1: ntc_lib_msx.asm) -> mem_se_end
+	ENDIF
+	IFDEF NTC_EP128
+			jp ep_mem_se_out			; the Enterprise: the segment into page 1 (port #B1: ntc_lib_ep.asm) -> mem_se_end
 	ENDIF
 	IFDEF NTC_ZXNDOTL
 			jp dot_mem_se_out			; a Next dot command: the setting's two pages into slots 2, 3 (ntc_lib_dot.asm) -> mem_se_end
@@ -5168,6 +5197,20 @@ mem_ramsize:
 			ld a, h
 			or l
 			ret z
+	IFDEF NTC_EP128
+			ld a, (EPB_NSEG)		; the Enterprise: every segment is 16K - the free ones taken at the start,
+			add a, 5				; the program's three, the screen's and EXOS's own
+			ld l, a
+			ld h, 0
+			jr nc, mem_rs_ep
+			inc h
+mem_rs_ep:
+			add hl, hl				; x 16
+			add hl, hl
+			add hl, hl
+			add hl, hl
+			ret
+	ENDIF
 			ld a, (mem_banks)
 			ld l, a
 			ld h, 0
@@ -5331,6 +5374,14 @@ mem_bankcount:
 			ld a, h
 			or l
 			ret z
+	IFDEF NTC_EP128
+			ld a, (ep_usable)		; the Enterprise: whole banks only (the last four pages may not all be there)
+			srl a
+			srl a
+			ld l, a
+			ld h, 0
+			ret
+	ENDIF
 			dec hl
 			srl h
 			rr l
@@ -7870,6 +7921,109 @@ ntc_rg264_e:
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg265:
+;## ntc_ep_bank ntc_mem @far
+	IFDEF NTC_EP128
+EPB_SEG1	equ #BCFE				; the platform's start code leaves these for this section, at fixed places (the
+EPB_NSEG	equ #BCFF				; library names no platform label): the program's page 1 segment, the number of
+EPB_SEGS	equ #BD00				; free segments, and their list
+ep_usable:		db 0					; the pages there are after page 1 (segments in the list, Option Memory's limit kept)
+
+; ep_mem_probe - the segments the start code listed, 4 a bank (up to MEM_BANKS;
+; a last bank of fewer than 4 counts). Sets mem_banks, mem_found and ep_usable.
+; Called from mem_probe on the real stack
+ep_mem_probe:
+			ld a, (EPB_NSEG)
+	IF MEM_BANKS < 63				; (Option Memory Heap Pages n: no more than its pages)
+			cp MEM_BANKS * 4 + 1
+			jr c, ep_pr_n
+			ld a, MEM_BANKS * 4
+ep_pr_n:
+	ENDIF
+			ld (ep_usable), a
+			add a, 3				; banks = (segments + 3) / 4 (252 segments at most: no carry)
+			srl a
+			srl a
+			ld (mem_banks), a
+			or a
+			ret z
+			ld hl, mem_found		; the banks found: 0, 1, 2 ...
+			ld b, a
+			ld e, 0
+ep_pr_fl:
+			ld (hl), e
+			inc hl
+			inc e
+			djnz ep_pr_fl
+			ret
+
+; ep_mem_jbc - E = a 64K bank (0-63) -> BC = its page 0's RAM setting (B = 1 + E / 32,
+; C = (E and 31) * 8 + 4: the four 16K parts step C, as the CPC's #C4 - #C7 do).
+; Keeps DE, HL.
+ep_mem_jbc:
+			ld a, e
+			add a, a
+			add a, a
+			add a, a
+			add a, 4
+			ld c, a
+			ld a, e
+			rlca
+			rlca
+			rlca
+			and 1
+			inc a
+			ld b, a
+			ret
+
+; ep_mem_seg - BC = a RAM setting -> A = its segment: B = #7F (main RAM's own,
+; #7FC0) = the program's own page 1; else EPB_SEGS((B - 1) * 128 + (C and #F8) / 2 +
+; page), the page C's low 3 bits less 4 (the whole bank's "2" and 0-3: its page 0).
+; Keeps BC, DE, HL.
+ep_mem_seg:
+			ld a, b
+			cp #7F
+			jr nz, ep_ms_pg
+			ld a, (EPB_SEG1)
+			ret
+ep_ms_pg:
+			push hl
+			ld a, c
+			and 7
+			sub 4
+			jr nc, ep_ms_ok
+			xor a					; 0-3: page 0
+ep_ms_ok:
+			ld l, a
+			ld a, c
+			and #F8
+			srl a					; (bank and 31) * 4
+			add a, l
+			ld l, a
+			ld a, b
+			dec a
+			rrca					; bank / 32: bit 7
+			and #80
+			or l
+			ld l, a
+			ld h, high EPB_SEGS
+			ld a, (hl)
+			pop hl
+			ret
+
+; ep_mem_se_out - BC = the RAM setting: its segment into the window (page 1, port #B1).
+; Reached by jp from mem_se_out; exits through mem_se_end. ntc_rampt first, then the port
+ep_mem_se_out:
+			ld (ntc_rampt), bc
+			call ep_mem_seg
+			out (#B1), a
+			jp mem_se_end
+	ENDIF
+
+ntc_rg265_e:
+			IF ($ < 32768) && (ntc_rg266_e - ntc_rg266 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
+			ENDIF
+ntc_rg266:
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based) - kept here for Tab
 ntc_cury:		db 0			; cursor row (0 based)
@@ -7885,11 +8039,11 @@ ntc_fwtop:		dw #A600		; the top of free RAM (#A5F0 with the fast ticker's block)
 ntc_fwblk:		dw NTC_FWBLK		; the fast ticker's event block: lower (and the top with it) when the ROMs
 								; started take more RAM than AMSDOS's #A700-#ABFF (Option RomEnable)
 
-ntc_rg265_e:
-			IF ($ < 32768) && (ntc_rg266_e - ntc_rg266 + $ > 16384)	; fwdref-ok
+ntc_rg266_e:
+			IF ($ < 32768) && (ntc_rg267_e - ntc_rg267 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg266:
+ntc_rg267:
 ;## ntc_plat_fw ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_fwcall - IY = firmware address; A, BC, DE, HL go in and come
@@ -7910,11 +8064,11 @@ ntc_fwcall:
 ntc_fwjp:
 			jp (iy)
 
-ntc_rg266_e:
-			IF ($ < 32768) && (ntc_rg267_e - ntc_rg267 + $ > 16384)	; fwdref-ok
+ntc_rg267_e:
+			IF ($ < 32768) && (ntc_rg268_e - ntc_rg268 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg267:
+ntc_rg268:
 ;## ntc_plat_screen ntc_plat_fw ntc_plat_data ntc_data
 ; ntc_plat_putc - A = character: TXT OUTPUT. The firmware wraps by itself after
 ; the last column, so only the column is counted here; a new line straight after
@@ -7976,11 +8130,11 @@ ntc_nl_row:
 
 ntc_pclink:		dw 0
 
-ntc_rg267_e:
-			IF ($ < 32768) && (ntc_rg268_e - ntc_rg268 + $ > 16384)	; fwdref-ok
+ntc_rg268_e:
+			IF ($ < 32768) && (ntc_rg269_e - ntc_rg269 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg268:
+ntc_rg269:
 ;## ntc_plat_mode @unit ntc_plat_screen ntc_plat_fw ntc_plat_data ntc_data
 ; ntc_plat_mode - A = mode 0-2 (3 = 2): SCR SET MODE (clears)
 ntc_plat_mode:
@@ -8008,11 +8162,11 @@ ntc_md_set:
 			ld iy, #BC0E			; SCR SET MODE
 			jp ntc_fwcall
 
-ntc_rg268_e:
-			IF ($ < 32768) && (ntc_rg269_e - ntc_rg269 + $ > 16384)	; fwdref-ok
+ntc_rg269_e:
+			IF ($ < 32768) && (ntc_rg270_e - ntc_rg270 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg269:
+ntc_rg270:
 ;## ntc_plat_locate @unit ntc_plat_screen ntc_plat_fw ntc_plat_data ntc_data
 ; ntc_plat_locate - H = column, L = row, 1 based: TXT SET CURSOR
 ntc_plat_locate:
@@ -8037,11 +8191,11 @@ ntc_lc_y:
 			ld iy, #BB75			; TXT SET CURSOR
 			jp ntc_fwcall
 
-ntc_rg269_e:
-			IF ($ < 32768) && (ntc_rg270_e - ntc_rg270 + $ > 16384)	; fwdref-ok
+ntc_rg270_e:
+			IF ($ < 32768) && (ntc_rg271_e - ntc_rg271 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg270:
+ntc_rg271:
 ;## ntc_plat_key ntc_plat_fw ntc_data
 ; ntc_plat_scankey - A = key from the firmware's buffer, or 0
 ntc_plat_scankey:
@@ -8064,26 +8218,15 @@ ntc_plat_getkey:
 			jp ntc_fwcall
 ntc_kslink:		dw 0
 
-ntc_rg270_e:
-			IF ($ < 32768) && (ntc_rg271_e - ntc_rg271 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
-			ENDIF
-ntc_rg271:
-;## ntc_plat_frame ntc_plat_fw
-; ntc_plat_frame - MC WAIT FLYBACK
-ntc_plat_frame:
-			ld iy, #BD19
-			jp ntc_fwcall
-
 ntc_rg271_e:
 			IF ($ < 32768) && (ntc_rg272_e - ntc_rg272 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg272:
-;## ntc_plat_ticks ntc_plat_fw
-; ntc_plat_ticks - HL = the firmware's 1/300 s clock (KL TIME PLEASE, low word)
-ntc_plat_ticks:
-			ld iy, #BD0D
+;## ntc_plat_frame ntc_plat_fw
+; ntc_plat_frame - MC WAIT FLYBACK
+ntc_plat_frame:
+			ld iy, #BD19
 			jp ntc_fwcall
 
 ntc_rg272_e:
@@ -8091,6 +8234,17 @@ ntc_rg272_e:
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg273:
+;## ntc_plat_ticks ntc_plat_fw
+; ntc_plat_ticks - HL = the firmware's 1/300 s clock (KL TIME PLEASE, low word)
+ntc_plat_ticks:
+			ld iy, #BD0D
+			jp ntc_fwcall
+
+ntc_rg273_e:
+			IF ($ < 32768) && (ntc_rg274_e - ntc_rg274 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
+			ENDIF
+ntc_rg274:
 ;## ntc_plat_exit ntc_plat_data ntc_plat_fw
 ntc_plat_exit:
 			ld bc, #7FC0		; RAM setting back to plain (a Memory page may be in #4000)
@@ -8110,11 +8264,11 @@ ntc_ex_back:
 ntc_ex_done:
 			jp (ix)
 
-ntc_rg273_e:
-			IF ($ < 32768) && (ntc_rg274_e - ntc_rg274 + $ > 16384)	; fwdref-ok
+ntc_rg274_e:
+			IF ($ < 32768) && (ntc_rg275_e - ntc_rg275 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg274:
+ntc_rg275:
 ;## ntc_plat_fs ntc_data ntc_buf2k @shared
 FS_NOTFOUND	equ -2
 FS_TOOBIG	equ -8
@@ -8646,11 +8800,11 @@ fs_sv_done:
 			ld hl, 0
 			ret
 
-ntc_rg274_e:
-			IF ($ < 32768) && (ntc_rg275_e - ntc_rg275 + $ > 16384)	; fwdref-ok
+ntc_rg275_e:
+			IF ($ < 32768) && (ntc_rg276_e - ntc_rg276 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg275:
+ntc_rg276:
 ;## ntc_plat_memtop ntc_plat_data
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
 ; use: #A600 (the firmware's and AMSDOS's RAM is above), #A5F0 when the fast
@@ -8660,11 +8814,11 @@ ntc_plat_memtop:
 			ld hl, (ntc_fwtop)
 			ret
 
-ntc_rg275_e:
-			IF ($ < 32768) && (ntc_rg276_e - ntc_rg276 + $ > 16384)	; fwdref-ok
+ntc_rg276_e:
+			IF ($ < 32768) && (ntc_rg277_e - ntc_rg277 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg276:
+ntc_rg277:
 ;## ntc_plat_rmr ntc_plat_data
 ; ntc_plat_rmr - A = the gate array's ROM / mode byte now: the firmware keeps
 ; it in C' (B' = #7F), so Memory's CallBank can turn both ROMs off and put
@@ -8681,7 +8835,7 @@ ntc_plat_rmr:
 ovl_blk_spin:	dw 0, ovl_spin_end, ovl_spin_vsize
 			db "CUBE3D.001", 0, "Spin", 0	; its file, its name (for the messages)
 
-ntc_rg276_e:
+ntc_rg277_e:
 ntc_end:				; the end of the program (and of its file)
 var_vector3d_addpoint_y		equ var_vector3d_addpoint_x + 2
 var_vector3d_addpoint_z		equ var_vector3d_addpoint_x + 4
@@ -9691,4 +9845,4 @@ ovl_spin_vsize	equ 16		; its page variables; its local memory is the rest, to #8
 			DISPLAY "  page variables ", /D, ovl_spin_vsize, ", free ", /D, #8000 - (ovl_spin_end + ovl_spin_vsize)
 			SAVEAMSDOS "CUBE3D.001", ovl_spin_start, ovl_spin_end - ovl_spin_start, #4000
 
-NTC_STAMP	equ #8EBD		; the build stamp: the first word of every page file
+NTC_STAMP	equ #044A		; the build stamp: the first word of every page file

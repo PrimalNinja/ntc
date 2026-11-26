@@ -1,0 +1,114 @@
+' ---- Main.bas (from Main.nat)
+
+
+Option Explicit
+Dim score As Integer, lives As Integer, r As Integer
+
+Sub Cheer(ByVal n As Integer)
+    Print "cheer"; n
+End Sub
+
+score = 5
+score = score + 10
+score = score * 4
+score = score - 3
+score = score \ 2
+r = score Mod 5
+lives = ( score * 2 + 1 )
+Print "score"; " "; score; " "; "r"; " "; r; " "; "lives"; " "; lives
+Door.Shut 3
+If (Door.Closed(3) <> 0) Then
+Print "The red door is closed."
+End If
+Door.Open 3
+If (Door.Closed(3) <> 0) Then
+Print "still closed"
+Else
+Print "The red door is open."
+End If
+Door.Shut 1
+If (score > 10) Then
+Door.Shut 4
+Door.Lock 4, 99
+If ((Door.Locked(4) <> 0) And (Door.Closed(4) <> 0)) Then
+Print "The cellar door is locked."
+End If
+End If
+If (Door.Closed(1) <> 0) Then
+Print "Door 1 is closed."
+End If
+Door.Open 4
+If (Door.Closed(4) <> 0) Then
+Print "It will not open."
+End If
+Door.Unlock 4, 99
+Door.Open 4
+If Not ((Door.Closed(4) <> 0)) Then
+Print "The cellar door is open."
+End If
+Dim nat_n1 As Integer
+For nat_n1 = 1 To 3
+Print "hip"
+Next nat_n1
+Dim n As Integer
+For n = 1 To 4
+Door.Shut n
+Next n
+For n = 4 To 3 Step -1
+Print "down"; " "; n
+Next n
+lives = 3
+Do While (lives >= 1)
+lives = lives - 1
+If (lives = 1) Then
+Exit Do
+End If
+Loop
+Print "lives"; " "; lives
+Do
+r = r + 1
+If (r <= 6) Then
+Else
+Exit Do
+End If
+Loop
+Print "r"; " "; r
+Cheer 7
+Door.Shut 5
+If (Door.Closed(5) <> 0) Then
+Print "Door 5 is closed."
+End If
+Print "end"
+' ---- Door.cls
+' Door - the Natural flavour demo's doors: a state for each id. A noun is a class, a verb a
+' Public Sub whose first parameter is the id, a state word a Function of the id.
+' (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
+Option Explicit
+
+Private shuts(7) As Integer
+Private locks(7) As Integer
+
+Public Sub Shut(ByVal id As Integer)
+    shuts(id) = 1
+End Sub
+
+Public Sub Open(ByVal id As Integer)
+    If locks(id) = 0 Then shuts(id) = 0
+End Sub
+
+Public Sub Lock(ByVal id As Integer, ByVal code As Integer)
+    locks(id) = code
+End Sub
+
+Public Sub Unlock(ByVal id As Integer, ByVal code As Integer)
+    If locks(id) = code Then locks(id) = 0
+End Sub
+
+Public Function Closed(ByVal id As Integer) As Integer
+    Closed = shuts(id)
+End Function
+
+Public Function Locked(ByVal id As Integer) As Integer
+    If locks(id) <> 0 Then Locked = 1 Else Locked = 0
+End Function
+

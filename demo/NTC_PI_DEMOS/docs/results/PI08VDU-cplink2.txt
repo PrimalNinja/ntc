@@ -1,0 +1,18 @@
+PI08 VDU - the Pi's HDMI as a virtual display (mode=hd)
+-------------------------------------------------------
+  ok    OPEN vdu mode=hd
+  ok    the drawing sent (16 lines of commands)
+
+ON THE PI'S SCREEN there should now be, on dark blue:
+  NTC PI DEMOS in big yellow letters, Hello from the Amstrad CPC in white,
+  a red filled box, a green outlined box, a magenta disc, a cyan line under them.
+
+Click the page or press a key on it (10 seconds) ...
+    0 events
+  ok    no error came from the display
+  ok    CHANS lists the channel
+    OK 0 control /  / 1 vdu
+
+4 ok, 0 failed - ALL PASS
+
+--- ended  bytes to the Pi 544, from the Pi 175, Pi ROM writes 0  (cplink2)

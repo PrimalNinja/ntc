@@ -1,7 +1,7 @@
 # NTC - done
 
 What has been done, newest first (moved out of todo.md on 2026-11-01; the open work is there,
-by component).
+by component). docs/build-info.txt has every build in full; an entry here names its build.
 
 ## ticked in the open list (moved here 2026-11-01)
 - [x] File I/O, first step (2026-10-12): FileSystem class - CP/M full, CPC firmware
@@ -25,6 +25,171 @@ by component).
       expansion RAM, not by drive letter - M: may be an M4 / XMAS drive; the probe must save and
       put back what it writes. CP/M Plus runs in C2: every page setting swaps all four blocks.)
 
+- 2026-11-26 The documents brought up to date (20261126-2): this file had stopped at 9 November
+  and todo.md, components.md, buglist.md, architecture.md and targets.md named none of the
+  platforms added since. Every entry from here down to 2026-11-05 was written on 2026-11-26 from
+  docs/build-info.txt, which has each build's full detail under the number in brackets.
+- 2026-11-26 c64reu: Option Lot (20261126-1). `Option Lot Name = Class, Class` - programs bigger
+  than one 64K thread. The REU past the kernel's 32K is lots of 96K (5 on 512K, 21 on 2 MB, 174
+  on 16 MB): a code lot is 64K of its classes' code and 32K of workspace (their variables, strings
+  and stubs) that is in the C64's memory, ending at $CFFF, only while that lot runs; any other lot
+  is 96K of data (Reu.LotBank, Reu.LotAddr). Classes in no lot are the kernel. A lot's Sub called
+  from outside takes no parameters and gives no result (a compile error says which). Tasks keep
+  their lot. The program checks the REU's size at the start. System.Lots(); Reu.Banks() no longer
+  writes to the REU; c64build.js assembles twice and --split writes GAME.0, GAME.1 ...; sample
+  bas/c64_lots; c64regress.sh 63 checks. docs/c64reu.md section 13.
+- 2026-11-25 c64reu: the scrolling sample and what it needed (20261125-3). bas/c64_dungeon (128 x
+  128 tiles of 16 x 16 pixels, scrolled by the pixel at 50 frames a second); Vic.Scroll,
+  ScrollOff, MultiText; Reu.FetchRect / StashRect about 125 cycles a row and a cycle a byte (40 x
+  25 in 3,150 cycles), a step of 0 allowed.
+- 2026-11-25 NEW platform c64reu (20261125-2): a stock Commodore 64 with an REU, a plain 6502. The
+  thread is kept in the REU and run through three 64 byte windows in page 1 (SP runs through
+  them); the C64's memory holds the library, variables and arrays. Compiler: `;@cpu 6502` rides
+  the 45GS02 path, winLayout cuts the threads into 64 byte pieces and keeps loops and small Subs
+  whole. Library: asm/ntc_lib_m65.asm shared with the MEGA65 (the C64's parts in `ifd NTC_C64`;
+  the MEGA65's output byte for byte unchanged). Interrupts on. Classes (lib/c64reu): Reu, Task (32
+  tasks that take turns), Disk, Vic, Sid, Keys, Joy, StdIO, System. test/c64build.js (--split,
+  --d64, --add, --reu, --log, --list), c64run.py (VICE x64sc), c64regress.sh. Samples c64_test,
+  c64_tasks, c64_world, c64_film, c64_sprites. Run on VICE (PAL) only. docs/c64reu.md.
+- 2026-11-25 NEW platform ep128 (20261125-1): the Enterprise 128 (Z80), an EXOS program file
+  (GAME.COM) that takes the machine - its own screen (Nick, 40 x 25 / 80 x 25), keyboard and
+  frame interrupt. Every free 16K segment is a page of the Memory class (Option Memory Heap
+  Pages: 128K gives 3, 4 MB about 250) through the paging manager's Enterprise branch
+  (ntc_lib_cpc.asm). asm/ntc_plat_ep128.asm, asm/ntc_lib_ep.asm, lib/ep128 (StdIO, System, Memory,
+  Keys, List), test/epbuild.js (--img: a 720K EXDOS disc), eprun.py, epregress.sh (32 checks on
+  ep128emu, EXOS 2.0, 2.1, 2.4). Compiler: `;@boot name` and `;@head name` platform header lines.
+  docs/ep128.md.
+- 2026-11-24 NEW platform amiga (20261124-1): the Commodore Amiga 500 (68000), a boot disc (.adf)
+  that takes the machine from Kickstart. Chip, slow and fast RAM found at the start (Memory:
+  Alloc, AllocOther, AllocAny, Free, FreeOther); an 80 x 32 one-bitplane console; the keyboard
+  through CIA-A, Keys.Down / Joystick; a hardware disc loader for DF0-DF3 with files laid out
+  after the program on one disc or several (Loader: Load, Size, Disc, Drive, Drives, Wanted, Read,
+  MotorOff). asm/ntc_plat_amiga.asm, lib/amiga, test/amigabuild.js, amigarun.py, amigaregress.sh
+  (25 checks on PUAE with its AROS Kickstart). The compiler and the 68000 library not changed.
+  docs/amiga.md.
+- 2026-11-23 Natural flavour (20261123-3, 20261123-4): near-English sentences turned into VB5
+  text (src/js/ntc_flavour_natural.js; a .nat file or `Option Flavour Natural`, `#natural ...
+  #endnatural` parts in a .bas or .cls, `#ntc ... #endntc` for plain BASIC). `with class id`
+  context, a noise word list, say / set / add / subtract / multiply / divide / remainder / ask /
+  pick, if / else / end, repeat / count / while / forever / leave, conditions in words, `to name
+  using ...` for a word of your own. The project's classes are the vocabulary. Examples in
+  bas/natural_demo (Primes, Fibonacci, Guess, Bank, Draw, Maze). The compiler itself not touched.
+  docs/natural_flavour.md.
+- 2026-11-23 Neo Geo: the classes for games, and the two lines joined (20261123-2). lib/neogeo:
+  Vdp (128 sprites through a table, a backdrop of sprites in four scrolled bands, palettes, the
+  fix layer's cells), Keys, Pcm, Psg, Fm, Cdda, Sound. The sound driver takes FM registers ($50 /
+  $51). tools/neogeo/ngtiles.js (PNG to the C ROM's tiles, palettes, a backdrop, fix tiles) and
+  ngpcm.js (WAV to the V ROM). test/ngregress.sh. FIXED: every towns program failed to assemble
+  after 20261120-1 (the 68000's NTC_A16 macro written into the 80386's file).
+- 2026-11-23 NEW platform neocd (20261123-1): the Neo Geo CD (`;@base neogeo`: the CD's vectors,
+  variables at $0F8000). test/ncdbuild.js writes the disc (.cue, an ISO 9660 track 1 with EDC and
+  ECC, CD audio tracks from WAV files). A draft: built, never run.
+- 2026-11-20 neogeo made to run (20261120-1): it was a draft that only assembled. A cartridge
+  (.neo) the BIOS starts - the vectors and the Neo Geo header, the console on the fix layer (40 x
+  28), both pads read in the VBlank interrupt, Frame, Ticks, the watchdog; variables at $100000.
+  Compiler and 68000 library: `;@a16` in a platform header (a 16 bit address is the Neo Geo's
+  RAM). NEW asm/neogeo_sound_z80.asm (NTC's Z80 sound driver for the M1 ROM: the SSG, ADPCM-B
+  songs, ADPCM-A samples), lib/neogeo/Pad, StdIO, System, test/ngbuild.js, ngrun.py (Geolith),
+  ngbios.s (NTC's stand-in AES BIOS). TIANLONG and SILK TO STEEL run whole. docs/neogeo.md.
+- 2026-11-19 The classes for games on the FM Towns, the X68000 and the Mega Drive (20261119-1),
+  lifted from TIANLONG and made NTC's own. towns: high data (files past the program, loaded to
+  $100000 on; NTC_HIGHFILE), Memory (Alloc, Free, AllocHigh, FreeHigh), the keyboard followed in
+  one place, Keys, Vdp (256 x 240, 2 layers of 32768 colours: sprites, a backdrop in 4 scrolled
+  bands, words), Pcm (the RF5C68). x68000: the supervisor call (trap #1), Keys, Vdp (256 x 256 in
+  256 colours: sprites, graphics page 0 with raster splits, the text plane), Pcm, Opm (the
+  YM2151). md: Vdp gains Sat, Copy, Display, ScrollMode, ScrollRow, ScrollLineX; new Z80, Pcm,
+  Keys. The Keys class has the same names on the Next, CPC, MSX, FM Towns, X68000 and Mega Drive.
+  tools/adpcm/okiadpcm.js, tools/md/dpcm.js, tools/md/z80pcm.asm.
+- 2026-11-18 zxn: the DOS area and the top of memory (20261118-1). #BA00-#BDFF is kept out of the
+  program only when it has the FileSystem or Loader class (every Next program lost that 1K
+  before). FIXED: a program whose arrays were put in #C000-#FFFF stopped at its start with GURU
+  001 (kw_bssinit's top of memory was #BA00 always; now ZXN_MEMTOP). NTC3D's E3 reserves
+  #C000-#FCFF (its data page and drawing buffer).
+- 2026-11-17 NEW platform towns (20261117-2): the Fujitsu FM Towns (80386), NTC's first x86
+  platform. A 2HD floppy image that boots itself into 32 bit protected mode, no Towns OS; ESP is
+  the thread, the program in ring 3. NEW asm/ntc_lib_x86.asm - the keyword library in 80386
+  (nasm), every section of the 68000 library (204 keywords). Compiler: `;@cpu x86` uses the 68000
+  path and a last pass writes nasm. asm/ntc_plat_towns.asm, lib/towns, test/townsbuild.js,
+  townsrun.py (Tsugaru), townsregress.sh. docs/towns.md.
+- 2026-11-17 NEW platform x68000 (20261117-1): the Sharp X68000 (68000). A 2HD floppy image (.XDF)
+  that boots itself, no Human68k; a 96 x 32 text console, the keyboard, Frame and Ticks. Uses the
+  Mega Drive's 68000 library and compiler path. Compiler: `;@ramorg` and `;@ramend` say where a
+  68000 platform's variables are. asm/ntc_plat_x68000.asm, lib/x68000, test/x68build.js,
+  x68run.py (px68k), x68regress.sh. docs/x68000.md.
+- 2026-11-16 NEW the Loader class (20261116-10): Loader.Load(name, address, maxlen), a file from
+  where the program was run, and nothing else of FileSystem - cpcfw / cpcmin 152 / 223 bytes
+  (FileSystem.Load: 1045 / 1126), cpm 279 (2368), zxn 495 (5648). With it Option ROM Enable keeps
+  AMSDOS's drive. In the cpcfw and cpcmin keyword ROMs. First run of the Next layout on NextZXOS
+  (ZEsarUX).
+- 2026-11-16 A class in a page keeps its number parameters in the page (20261116-9): packed side
+  by side, moved in with one LDIR (ntc_pkbuf, ntc_pkin). FIX: an argument is copied back after
+  the caller's page is back.
+- 2026-11-16 Option ByVal | Option ByRef (20261116-8): on a line of its own in a file, what a
+  parameter is when its declaration says neither.
+- 2026-11-16 The Next's memory settled (20261116-6, 20261116-7). An NTC page is the Next's 16K
+  bank of the same number (0 to 111 on a 2MB Next); the program is loaded at the bottom of memory
+  (the Next's banks 0, 1, 2); #C000-#FFFF is main memory; a page is taken only when the program
+  really has something in it (5 always, 7 with FileSystem, 12 to 21 with Graphics). NEW Option
+  Memory Reserve Pages. FIXED: the Next's font was font8x8_basic, it is the Amstrad CPC's now.
+  The Memory class's table holds every page.
+- 2026-11-16 The layout is Reserve and Safe (20261116-5): safe memory gets what must stay in
+  sight while a page is in; everything else fills from the org upward through all memory that is
+  not Reserved. A paging program says where the always-seen parts go (Option Memory Safe). NEW
+  ROMDiscFS (the ROM disc as a class of its own; Option NoRomDisc gone; the cpc platform has no
+  FileSystem class any more). Option NexData gone (Option SaveNex). Option Page "FILE" Loaded n
+  where pages are files. The heap in main memory takes any size that fits. Option Memory Heap
+  Pages [most]. Option CompactCalls' library routines out.
+- 2026-11-16 Terminals and SaveNex (20261116-4): Option Terminal VT52 | ANSI | ADM3A | Televideo |
+  None (cpm) and StdIO.SetTerminal n (the terminal chosen while the program runs). Option SaveNex
+  "FILE", pages (zxn): a data file's 16K pieces in the pages named. docs/library-size.md.
+- 2026-11-16 The memory and class options (20261116-3): Option Memory Paged startbank, addr, size;
+  Option Memory Heap Main | Pages (the old Small / CPCExpansion); Option Class Default = Main |
+  Page; Option FirstBank, Option Next2MB and Option Home gone.
+- 2026-11-16 ByRef in place; Option CompactCalls gone (20261116-2): a ByRef parameter is the
+  caller's variable itself - the call stub puts the argument's address into every operand of the
+  body that names the parameter; nothing copied in or back. Still copied: ByVal, a String the
+  procedure writes, a parameter named in #asm, a class in a page, ROM platforms, the 68000 and
+  45GS02 builds. 1000 calls of three test procedures: 6,286,831 to 4,534,581 T.
+- 2026-11-16 The option clean-up, phase 1 (20261116-1): Option ROM Enable (two words), Option
+  Class Safe, Option Memory Reserved (the one form; ZeroFill and Skip refused), Option Buffer
+  address, size; Option ClassSize gone; the old spellings only with Option Deprecated. The memory
+  terms table in the user guide and memory-map.md.
+- 2026-11-15 Trit.cls: the single trit operations in Z80 (20261115-1) - Tand 446 to 109 T, Tmul
+  1202 to 120, Get4 2355 to 206. test/tritchk.py.
+- 2026-11-14 Fixed.cls and Float.cls MulDiv in Z80 (20261114-1): Mul16 38000 to 3300 T, Div16
+  37600 to 3270, Mul32 76700 to 7360, Div32 74500 to 7310. test/float/fixchk.py.
+- 2026-11-12 NTC3D: E3W.cls, wireframe (20261112-1, merged in 20261113-1): the same models, calls
+  and camera as E3, the faces outlined; ROCKS swaps both ways at 15-16 pictures a second.
+- 2026-11-11 zxn dot commands under a real NextZXOS, and the Next's banks (20261111-2,
+  20261111-3): dot_fs_call (an esxDOS file call made on BASIC's side); the Memory class's RAM
+  probe puts back the bytes it writes; a Loaded page past a 1MB Next's banks refused.
+- 2026-11-11 The threads fill back under a Paged window (20261111-1; replaced by Reserve and Safe
+  in 20261116-5).
+- 2026-11-10 zxn on a real Next (20261110-1, 20261110-2): no data block in the Next's bank 7 (the
+  DOS's workspace); the NEX start stub no longer touches DivMMC's entry-point registers. Four
+  games had crashed on a real Next at their first esxDOS call.
+- 2026-11-08 NEW platforms zxndot and zxndotl (20261108-2): ZX Spectrum Next dot commands, the
+  Small Model (8K at #2000) and the Large Model (the entry's 8K plus the program at #8000, the
+  Memory class's banks from NextZXOS's allocator). asm/ntc_lib_dot.asm, test/dotrun.py.
+- 2026-11-08 Main RAM back for CyborgOS's C2 (20261108-1): ntc_isl sized to the interrupt classes
+  in use, one `ld hl, 0` a call stub; Option WindowFile; page 1 not handed out under Paged code.
+- 2026-11-07 The memory map as docs/memory-map.md says (20261107-6): fill from the org round
+  Reserved only (Option Memory Paged no longer reserves), Safe first fit, the "NTC memory" report
+  at assembly, platform default Reserved (`;@reserved`). The page-to-page keyword crash fixed.
+- 2026-11-07 docs/targets.md (20261107-4); tools/gen/fgru.py, GEN's model in real floats
+  (20261107-5).
+- 2026-11-07 NEW platforms, drafts (20261107-1 to 20261107-3): neogeo (made to run 20261120-1),
+  ti83 (TI-83 Plus / 84 Plus), ti89 (a skeleton), trs80 (TRS-80 Model III) and system80 (Dick
+  Smith System 80); tools/trscmd.js wraps a TRS-80 /CMD.
+- 2026-11-06 NEW platform pcw16, a draft (20261106-2): the Amstrad PcW16 as a Rosanne
+  application. FIXED (20261106-1): a pure #asm method of a page / overlay class called from
+  another page now has its page switched in.
+- 2026-11-05 Option Memory and Option Safe (20261105-5 to 20261105-13): `Option Memory Available |
+  Reserved | Paged | Safe start, size` - one directive for the memory map; Option Safe names the
+  safe memory and places the safe classes' code in it; Option Deprecated for the old memory
+  directives; the compiler's auto-added Reserve &H4000 for page / overlay classes removed; a sub
+  called only from inside its own page no longer goes through main; a class copied into two or
+  more pages with a procedure nothing calls assembles.
 - 2026-11-09 Option CompactCalls (20261109-1): the procedure stubs through shared routines
   (ntc_pcall / ntc_pcallb / ntc_pret), the return point word in front of the body, a procedure's
   Integer parameters and locals one block copied in / cleared by ntc_pcallb; parameter blocks

@@ -1,0 +1,12 @@
+PI01 LINK - the card and the Pi
+-------------------------------
+Status byte at &FD81: &2  (bit 0 a byte waiting, bit 1 room to write)
+Card: CPC-CPLink (or none: bits 4-7 are not 1010)
+  ok    the card has room to write (bit 1)
+  FAIL  HELLO answered  [TIMEOUT (no HELLO from the Pi)]
+    TIMEOUT (no HELLO from the Pi)
+
+THE LINK WENT QUIET: a byte did not come from the Pi in time.
+1 ok, 1 failed
+
+--- ended  bytes to the Pi 59, from the Pi 0, Pi ROM writes 0  (cplink)

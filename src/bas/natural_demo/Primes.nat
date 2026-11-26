@@ -1,0 +1,11 @@
+Option Flavour Natural
+' Primes.nat - the prime numbers up to 60. (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
+say "The primes up to 60:"
+count n from 2 to 60
+  set prime to 1
+  count d from 2 to ( n \ 2 )
+    remainder of n by d into left
+    if left is equal to 0 set prime to 0 leave end
+  end
+  if prime say n end
+end

@@ -2,11 +2,11 @@
 var fs = require('fs');
 var strDir = require('path').join(__dirname, '..', 'src') + '/';
 function read(f) { return fs.readFileSync(strDir + f, 'utf8'); }
-var strLib = read('asm/ntc_lib_gen.asm') + '\n' + read('asm/ntc_lib_cpc.asm') + '\n' + read('asm/ntc_lib_nxt.asm') + '\n' + read('asm/ntc_lib_msx.asm') + '\n' + read('asm/ntc_lib_dot.asm') + '\n' + read('asm/ntc_lib_vdp.asm');
+var strLib = read('asm/ntc_lib_gen.asm') + '\n' + read('asm/ntc_lib_cpc.asm') + '\n' + read('asm/ntc_lib_nxt.asm') + '\n' + read('asm/ntc_lib_msx.asm') + '\n' + read('asm/ntc_lib_dot.asm') + '\n' + read('asm/ntc_lib_vdp.asm') + '\n' + read('asm/ntc_lib_ep.asm');		// (ntc_lib_ep last: a new file's variables go after every one the keyword ROMs already have a place for)
 var strLib68k = read('asm/ntc_lib_68k.asm');		// the 68000's keyword library (md)
 var strLibX86 = read('asm/ntc_lib_x86.asm');		// the 80386's keyword library (towns)
 var strLibM65 = read('asm/ntc_lib_m65.asm');		// the 45GS02's keyword library (m65)
-var arrPlat = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'cyborgos', 'cyborgoshh', 'baremetal', 'test', 'zxn', 'zxndot', 'zxndotl', 'msx', 'msxcard', 'msx9990', 'msxdos', 'sc3000', 'colecovision', 'cpc9990', 'cpccard', 'md', 'm65', 'pcw16', 'neogeo', 'neocd', 'ti83', 'ti89', 'x68000', 'towns', 'trs80', 'system80'];
+var arrPlat = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'cyborgos', 'cyborgoshh', 'baremetal', 'test', 'zxn', 'zxndot', 'zxndotl', 'msx', 'msxcard', 'msx9990', 'msxdos', 'sc3000', 'colecovision', 'cpc9990', 'cpccard', 'md', 'm65', 'c64reu', 'pcw16', 'neogeo', 'neocd', 'amiga', 'ep128', 'ti83', 'ti89', 'x68000', 'towns', 'trs80', 'system80'];
 // a platform built on another: ";@base cpm" in asm/ntc_plat_<platform>.asm - its text is its own
 // file (the ;@ header, anything of its own) followed by the base's, less the base's ;@ lines it
 // has its own of and less the base's sections it has its own of (the same ;## name: its own
@@ -49,7 +49,7 @@ function platBase(strPlat)
 // the platform's own classes: lib/<platform>/*.cls - then lib/z80/*.cls (the Float and Fixed
 // maths, Z80 code) for every Z80 platform that hasn't a class of that name of its own
 var objClasses = {};
-var arrNotZ80 = ['md', 'm65'];			// (the 68000's, the 45GS02's: not Z80)
+var arrNotZ80 = ['md', 'm65', 'c64reu'];			// (the 68000's, the 45GS02's: not Z80)
 arrPlat.forEach(function(strPlat)
 {
 	var strDirCls = strDir + 'lib/' + strPlat + '/';
@@ -146,11 +146,25 @@ var arrExamples = [
 	{ name: 'JS flavour: a JS program and a JS class (2 files)', files: ['js_demo/Main.js', 'js_demo/Counter.js'] },
 	{ name: 'PHP flavour: a PHP program and a PHP class (2 files)', files: ['php_demo/Main.php', 'php_demo/Counter.php'] },
 	{ name: 'Locomotive BASIC flavour: a CPC type-in listing', files: ['loco_demo/Main.loc'] },
+	{ name: 'Natural: prime numbers', files: ['natural_demo/Primes.nat'] },
+	{ name: 'Natural: Fibonacci numbers', files: ['natural_demo/Fibonacci.nat'] },
+	{ name: 'Natural: guess the number', files: ['natural_demo/Guess.nat'] },
+	{ name: 'Natural: a bank, the class is the vocabulary (2 files)', files: ['natural_demo/Bank.nat', 'natural_demo/Account.cls'] },
+	{ name: 'Natural: a turtle that draws, words of your own (2 files)', files: ['natural_demo/Draw.nat', 'natural_demo/Turtle.cls'] },
+	{ name: 'Natural: a robot finds its way out of a maze (2 files)', files: ['natural_demo/Maze.nat', 'natural_demo/Robot.cls'] },
+	{ name: 'Natural: every kind of sentence, doors (2 files)', files: ['natural_demo/Main.nat', 'natural_demo/Door.cls'] },
 	{ name: 'Your own StdIO (2 files)', files: ['own_stdio/Main.bas', 'own_stdio/StdIO.cls'] },
 	{ name: 'Shell sort - turbo at run time', files: ['shellsort.bas'] },
 	{ name: 'Sieve timing - turbo / normal (compare with Small C)', files: ['sievetime.bas'] },
 	{ name: '68000 self test (md: the Sega Mega Drive)', files: ['md_test/Main.bas', 'md_test/Counter.cls'] },
 	{ name: '45GS02 self test (m65: the MEGA65)', files: ['m65_test/Main.bas', 'm65_test/Counter.cls'] },
+	{ name: '6502 self test (c64reu: the C64 with an REU)', files: ['c64_test/Main.bas', 'c64_test/Counter.cls'] },
+	{ name: 'C64 + REU: 20 tasks', files: ['c64_tasks/Main.bas'] },
+	{ name: 'C64 + REU: a 64K world to walk round', files: ['c64_world/Main.bas'] },
+	{ name: 'C64 + REU: a film of 64 screens', files: ['c64_film/Main.bas'] },
+	{ name: 'C64 + REU: sprites, shapes from the REU', files: ['c64_sprites/Main.bas'] },
+	{ name: 'C64 + REU: a dungeon of 16 x 16 pixel tiles, scrolled by the pixel', files: ['c64_dungeon/Main.bas'] },
+	{ name: 'C64 + REU: a program in lots (Option Lot)', files: ['c64_lots/Main.bas', 'c64_lots/Game.cls', 'c64_lots/Title.cls', 'c64_lots/Stage1.cls', 'c64_lots/Stage2.cls'] },
 	{ name: 'Classic self test', files: ['ntc_test.bas'] },
 	{ name: 'Primes (sieve)', files: ['sieve.bas'] },
 	{ name: 'Guess the number', files: ['guess.bas'] },

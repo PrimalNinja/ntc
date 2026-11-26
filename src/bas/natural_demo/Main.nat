@@ -1,0 +1,68 @@
+Option Flavour Natural
+' Main.nat - the Natural flavour: sentences that compile to the thread a hand-written program
+' makes. (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
+' The file is natural all through; plain NTC BASIC goes between #ntc and #endntc.
+#ntc
+Option Explicit
+Dim score As Integer, lives As Integer, r As Integer
+
+Sub Cheer(ByVal n As Integer)
+    Print "cheer"; n
+End Sub
+#endntc
+
+name red door is door 3
+name cellar door is door 4
+
+' maths: one operation a sentence
+set score to 5
+add 10 to score
+multiply score by 4
+subtract 3 from score
+divide score by 2
+remainder of score by 5 into r
+set lives to ( score * 2 + 1 )
+say "score" score "r" r "lives" lives
+
+' a context, a verb of its class, a state word
+with the red door shut
+if closed say "The red door is closed." end
+with red door : open
+if closed say "still closed" else say "The red door is open." end
+
+' the context goes back at the end of the block it was opened in
+with door 1 shut
+if score is above 10
+  with cellar door shut lock 99
+  if locked and closed say "The cellar door is locked." end
+end
+if closed say "Door 1 is closed." end
+with cellar door open
+if closed say "It will not open." end
+unlock 99 open
+if not closed say "The cellar door is open." end
+
+' loops
+repeat 3 times say "hip" end
+count n from 1 to 4
+  with door n shut
+end
+count n from 4 down to 3 say "down" n end
+set lives to 3
+while lives is at least 1
+  subtract 1 from lives
+  if lives is equal to 1 leave end
+end
+say "lives" lives
+forever
+  add 1 to r
+  if r is at most 6 else leave end
+end
+say "r" r
+
+' a Sub of the file is called as it is, context or not; a dotted name is a call as written
+with door 2
+cheer 7
+Door.Shut 5
+with door 5 if closed say "Door 5 is closed." end
+say "end"

@@ -1,0 +1,27 @@
+PI03 BIG - data in parts, and the CPLink2's Pi ROM
+--------------------------------------------------
+Card: CPC-CPLink
+  ok    OPEN store
+6000 bytes:
+  ok    PUT PIDEMO/BIG in parts
+  ok      the Pi has 6000
+    sent in 886 ticks (300 a second)
+  ok    GET it back
+    it came through the FIFO in 25 frames: 1167 ticks
+  ok      all of it came
+  ok      the same bytes
+20000 bytes:
+  ok    PUT the first 10000
+  ok    APPEND the next 10000
+  ok      the Pi has 20000
+  ok    GET it back
+    it came through the FIFO in 81 frames: 3890 ticks
+  ok      all of it came
+  ok      the same bytes
+  ok    GET 300 bytes from 5000 (small: always in the frame)
+  ok      300 bytes, the right ones, not through the ROM
+  ok    DEL
+
+15 ok, 0 failed - ALL PASS
+
+--- ended  bytes to the Pi 27793, from the Pi 28200, Pi ROM writes 0  (cplink)
