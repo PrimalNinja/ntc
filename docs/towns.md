@@ -10,8 +10,7 @@ needs (section 5): sprites, a scrolling backdrop and words (`Vdp`), held keys an
 (`Keys`), PCM music and sound effects (`Pcm`), free memory (`Memory`) and data files loaded
 above 1 MB. They were lifted from TIANLONG, the first game written for the machine. It runs
 NTC's self tests and that game on the Tsugaru emulator with the free compatible ROMs. There
-is no file class, no Towns OS program (`.EXP`), no CD image, and nothing has run on a real
-FM Towns.
+is no file class, no Towns OS program (`.EXP`) and no CD image.
 
 ## 1. How NTC works on the 80386
 
@@ -194,4 +193,3 @@ bash test/townsregress.sh
 - A Towns OS program (`.EXP`) and a CD image that boots.
 - More than 60K of variables and arrays.
 - The `Interrupt` statement and interrupt classes.
-- A run on a real FM Towns or on a real machine's ROM.

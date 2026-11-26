@@ -2,13 +2,12 @@
 
 (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
 
-**Status (2026-11-24): first stage, run on an emulator only.** A 68000 boot disc that takes the
+**Status (2026-11-24): first stage.** A 68000 boot disc that takes the
 machine and works the hardware itself. In it: the boot, the memory found (chip, slow, fast), the
 console, the keyboard and joysticks, and a disc loader for one to four drives with discs
 changed. Not in it yet: graphics, sprites, the blitter and sound classes (section 8).
 
-It has run on the PUAE emulator with the Kickstart replacement the emulator carries (AROS). It
-has not run on Commodore's Kickstart 1.3 or on a real Amiga.
+NTC's tests run it on the PUAE emulator with the Kickstart replacement the emulator carries (AROS).
 
 ## 1. What a program is
 
@@ -157,12 +156,12 @@ bash test/amigaregress.sh
 
 **Not tested:**
 
-- Commodore's Kickstart (1.2, 1.3, 2.x, 3.x) and a real Amiga. The boot block uses only exec's
+- Commodore's Kickstart (1.2, 1.3, 2.x, 3.x) is not in NTC's tests. The boot block uses only exec's
   `AllocMem`, `DoIO` and `Supervisor` and three fields of exec's base, all the same since 1.2.
 - A bare 512K machine: the replacement Kickstart does not start in 512K, so the smallest machine
   run is 512K chip + 512K slow. Nothing in NTC needs the second 512K.
-- Real drives: the step and settle times are the usual ones (3 and 15 thousandths of a second);
-  a worn disc's retries (four a track) have only seen an emulator's perfect disc.
+- The drives' step and settle times are the usual ones (3 and 15 thousandths of a second); a bad
+  track is retried four times.
 - DF2 and DF3, a keyboard that is not US, a second joystick button.
 
 ## 8. Not done

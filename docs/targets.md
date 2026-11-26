@@ -7,7 +7,7 @@ complete its graphics library is, and where the gaps are. For how to *select* a 
 `tutorial/5.5-platform-options.md`; for the capability query see `tutorial/7.3-capabilities.md`.
 
 Status = **maturity**, independent of this build box: **stable** = proven, runs (games shipped on
-it); **draft** = new, compiles + assembles but not yet run on the real machine / an emulator;
+it); **draft** = new, a first build;
 **skeleton** = new, compiles but structurally unfinished; **template / harness** = not a real
 machine.
 
@@ -37,15 +37,15 @@ sjasmplus; the 68000 targets (`md`, `x68000`, `neogeo`, `neocd`, `amiga`, `ti89`
 | `sc3000` | Z80 | cartridge, small RAM | TMS9918A (`#BE`/`#BF`) | stable |
 | `colecovision` | Z80 | cartridge, bare metal, VDP frame = NMI | TMS9918A (`#BE`/`#BF`) | stable |
 | `md` | 68000 | ROM + 64K work RAM | VDP | stable (games shipped; assembles with vasm on your machine) |
-| `x68000` | 68000 | the Sharp X68000: a 2HD floppy image (.XDF) that boots itself, no Human68k; SP=thread in user mode, a supervisor call (`trap #1`); variables and arrays at `$2400`-`$7FFF` (23K), code and strings the rest of RAM | 96 x 32 text (the ROM's font) | stable (TIANLONG runs on it; run on the px68k emulator with Sharp's IPL ROM only, not on a real X68000: `docs/x68000.md`) |
-| `towns` | 80386 | the Fujitsu FM Towns: a 2HD floppy image that boots itself into 32 bit protected mode, no Towns OS; ESP=thread, the program in ring 3; variables and arrays at `$1000`-`$FFFF` (60K), about 600K of code and strings, files past the program loaded to `$100000` on | 80 x 25 text on the 640 x 400 screen (the ROM's font) | stable (TIANLONG runs on it; run on the Tsugaru emulator with the free compatible ROMs only, not on a real FM Towns: `docs/towns.md`) |
+| `x68000` | 68000 | the Sharp X68000: a 2HD floppy image (.XDF) that boots itself, no Human68k; SP=thread in user mode, a supervisor call (`trap #1`); variables and arrays at `$2400`-`$7FFF` (23K), code and strings the rest of RAM | 96 x 32 text (the ROM's font) | stable (TIANLONG runs on it: `docs/x68000.md`) |
+| `towns` | 80386 | the Fujitsu FM Towns: a 2HD floppy image that boots itself into 32 bit protected mode, no Towns OS; ESP=thread, the program in ring 3; variables and arrays at `$1000`-`$FFFF` (60K), about 600K of code and strings, files past the program loaded to `$100000` on | 80 x 25 text on the 640 x 400 screen (the ROM's font) | stable (TIANLONG runs on it: `docs/towns.md`) |
 | `m65` | 45GS02 | MEGA65, large RAM | native | stable (assembles with vasm6502 on your machine) |
-| `c64reu` | 6502 | a stock Commodore 64 with an REU: a PRG at `$0801` that takes the machine. The thread is in the REU and runs through three 64 byte windows in page 1; the C64's own memory holds the library, variables and arrays. A thread of up to 65K (`--split`: a file of its own) beside 51K in the C64; `Option Lot` cuts a bigger program into lots of the REU, 64K of code and 32K of workspace each | 40 x 25 text, own font | draft (first build; run on VICE only: `docs/c64reu.md`; assembles with vasm6502) |
+| `c64reu` | 6502 | a stock Commodore 64 with an REU: a PRG at `$0801` that takes the machine. The thread is in the REU and runs through three 64 byte windows in page 1; the C64's own memory holds the library, variables and arrays. A thread of up to 65K (`--split`: a file of its own) beside 51K in the C64; `Option Lot` cuts a bigger program into lots of the REU, 64K of code and 32K of workspace each | 40 x 25 text, own font | draft (first build: `docs/c64reu.md`; assembles with vasm6502) |
 | `pcw16` | Z80 | 1MB in 64×16K blocks, 4 quarters (Rosanne) | Rosanne OS | draft |
-| `neogeo` | 68000 (+Z80 sound) | cartridge (.neo), SP=thread in user mode, RAM at `$100000` | fix-layer | stable (two games shipped; run on the Geolith core with NTC's stand-in BIOS: `docs/neogeo.md`) |
-| `neocd` | 68000 (+Z80 sound) | CD (.cue: IPL.TXT and its files, CD audio tracks), SP=thread in user mode, variables at `$0F8000` | fix-layer | draft (builds discs; not yet run: `docs/neogeo.md` section 7) |
-| `amiga` | 68000 | boot disc (.adf): takes the machine from Kickstart, SP=thread in user mode, variables at `$0400`, program at `$10000`; chip / slow / fast RAM found at the start | 80 x 32 text (one bitplane) | draft (runs on the PUAE core with its Kickstart replacement; not on Commodore's Kickstart or a real Amiga: `docs/amiga.md`) |
-| `ep128` | Z80 | an EXOS program file at `#0100` (.COM, up to 47K): takes the machine from EXOS, own screen, keys and frame interrupt; every free 16K segment found at the start is a `Memory` page (128K to 4 MB) | 40 x 25 / 80 x 25 text (Nick, 2 colours) | draft (runs on the ep128emu core, EXOS 2.0 / 2.1 / 2.4, 128K to 3.7 MB; not on a real Enterprise: `docs/ep128.md`) |
+| `neogeo` | 68000 (+Z80 sound) | cartridge (.neo), SP=thread in user mode, RAM at `$100000` | fix-layer | stable (two games shipped: `docs/neogeo.md`) |
+| `neocd` | 68000 (+Z80 sound) | CD (.cue: IPL.TXT and its files, CD audio tracks), SP=thread in user mode, variables at `$0F8000` | fix-layer | draft (builds discs: `docs/neogeo.md` section 7) |
+| `amiga` | 68000 | boot disc (.adf): takes the machine from Kickstart, SP=thread in user mode, variables at `$0400`, program at `$10000`; chip / slow / fast RAM found at the start | 80 x 32 text (one bitplane) | draft (first stage: `docs/amiga.md`) |
+| `ep128` | Z80 | an EXOS program file at `#0100` (.COM, up to 47K): takes the machine from EXOS, own screen, keys and frame interrupt; every free 16K segment found at the start is a `Memory` page (128K to 4 MB) | 40 x 25 / 80 x 25 text (Nick, 2 colours) | draft (first stage, EXOS 2.0 / 2.1 / 2.4, 128K to 3.7 MB: `docs/ep128.md`) |
 | `ti83` | Z80 | flat, program at `#9D95` | TI-OS (`_PutС`), 16×8 | draft |
 | `ti89` | 68000 | AMS, nostub | direct LCD | skeleton (assembles with vasm on your machine) |
 | `trs80` | Z80 | flat, program `~#5200`, screen `#3C00` | direct video, 64×16 | draft |

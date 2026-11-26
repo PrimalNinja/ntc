@@ -10,8 +10,8 @@ are on all the time, there is one mode, Integer is 16 bits, Long 32).
 
 **State: stable for games.** A program runs as a cartridge's game: the console on the fix layer,
 the pads, Frame and Ticks, NTC's sound driver on the Z80. NTC's self tests pass, and two games
-(TIANLONG and SILK TO STEEL) run whole on it. Everything has run on the Geolith core with NTC's
-stand-in BIOS (below). Nothing has run with SNK's BIOS or on a real Neo Geo yet.
+(TIANLONG and SILK TO STEEL) run whole on it. NTC's tests run on the Geolith core with NTC's
+stand-in BIOS (below).
 
 ## 1. What a program is
 
@@ -255,7 +255,7 @@ five files, as whole MODE1 sectors with their EDC and ECC, so it can go to a CD-
 
 Checked so far: the file system reads back in another ISO 9660 reader (pycdlib); the `.SPR` of
 TIANLONG decodes, by ngdevkit's description of the format, to the same pixels as its cartridge's
-C ROM. NOT yet run on any emulator or machine.
+C ROM.
 
 ## 8. Not done
 

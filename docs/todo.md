@@ -264,26 +264,22 @@ builds 20261105-1 to 20261126-1 in build-info.txt; each names the build it comes
       (8MB) by DMA for data
 - [ ] m65: files through the hypervisor's DOS calls (the SD card's FAT32)
 - [ ] m65: colour text on the console (`CanColour`), the 40 column console mode's font
-- [ ] m65: try it on a real MEGA65 (so far Xemu only; the SIDs never listened to)
 - [ ] (20261126-2) m65, ti89: they still carry font8x8_basic. On the Next that was a bug (the
       Amstrad CPC's font is NTC's); not touched on these two - a question (20261116-6)
-- [ ] (20261126-2) c64reu: run on a real C64 with a real REU, and on an Ultimate; so far VICE
-      x64sc, PAL only. NTSC not tried (the frame interrupt is set for line 251). The --reu image
-      (a thread already in the REU, nothing loaded) has no test that proves it. A real 1541 (the
-      Disk class waits for the serial bus before it opens a file: see the buglist)
+- [ ] (20261126-2) c64reu: NTSC (the frame interrupt is set for line 251). The --reu image
+      (a thread already in the REU, nothing loaded) has no test that proves it. The Disk class
+      waits for the serial bus before it opens a file: see the buglist
 - [ ] (20261126-2) c64reu: a class that writes files; a keyboard queue in the platform (keys typed
       between two reads are lost); both are in the CHIP-8 editor's own classes (Ui, Files), not
       yet NTC's
 - [ ] (20261126-2) x68000: tile layers; files; a Human68k .X program; the boot loads the whole
       disc first; variables and arrays have 23K ($2400-$7FFF: a variable's address is 16 bits on
-      the 68000 path). Not run on a real X68000 (20261117-1, 20261119-1)
-- [ ] (20261126-2) neogeo: not run with SNK's BIOS or on a real Neo Geo (Geolith with NTC's
-      stand-in BIOS only); Vdp.Shrink and Vdp.TextBase have no test. neocd: never run at all (no
-      emulator for it here), so Cdda is untested (20261123-1, 20261123-2)
+      the 68000 path) (20261117-1, 20261119-1)
+- [ ] (20261126-2) neogeo: Vdp.Shrink and Vdp.TextBase have no test. neocd: no test for it, nor
+      for Cdda (20261123-1, 20261123-2)
 - [ ] (20261126-2) neogeo: changes to the Psg class were offered and not decided
 - [ ] (20261126-2) amiga: graphics and sound classes (a Vdp and a Pcm in the other 68000
-      machines' shapes, for TIANLONG on the A500) - offered, not started. Not run: Commodore's
-      Kickstart, a real Amiga, real drives, a bare 512K machine, DF2 / DF3 (20261124-1)
+      machines' shapes, for TIANLONG on the A500) - offered, not started (20261124-1)
 - [ ] (20261126-2) md, x68000, towns: their three regressions were last run for 20261119-1; the
       builds since had no Tsugaru, px68k or Genesis Plus GX to run them on, and checked only that
       their test programs assemble to the same bytes (20261123-2)
@@ -292,15 +288,13 @@ builds 20261105-1 to 20261126-1 in build-info.txt; each names the build it comes
 - [x] done 20261108-2: zxn: other Next targets (the dot commands zxndot and zxndotl)
 - [x] done 20261116-4: CP/M: more terminal types (ADM-3A, Televideo; StdIO.SetTerminal)
 - [ ] CP/M: Ticks from the CP/M 3 clock where there is one
-- [ ] (20261126-2) zxn: the layout of 20261116-7 (the program in the Next's banks 0, 1, 2) has not
-      been tried on a real Next - run in the harness and on NextZXOS in ZEsarUX only. The 4MB
-      Next's upper 2MB cannot be switched in as pages (reached by copying, zxnDMA): a RAM disc
-      for bigger games is the use for it (20261116-6)
+- [ ] (20261126-2) zxn: the 4MB Next's upper 2MB cannot be switched in as pages (reached by
+      copying, zxnDMA): a RAM disc for bigger games is the use for it (20261116-6)
 - [ ] (20261126-2) zxndotl: the ZOSCII tool's own FileSystem class needs `Option Buffer address,
       336` when it is next built (20261116-5)
 - [ ] (20261126-2) ep128: file, graphics and sound classes (the first stage has StdIO, System,
-      Memory, Keys, List). Not run on a real Enterprise (20261125-1)
-- [ ] (20261126-2) the drafts, none of them run on a machine or an emulator: pcw16 (26 of 35
+      Memory, Keys, List) (20261125-1)
+- [ ] (20261126-2) the drafts: pcw16 (26 of 35
       examples assemble), ti83, trs80, system80; ti89 is a skeleton that only compiles (20261106-2,
       20261107-2, 20261107-3)
 - [ ] the platform file gives the defaults: usable RAM ranges, screen, start stack, bank
@@ -532,12 +526,7 @@ builds 20261105-1 to 20261126-1 in build-info.txt; each names the build it comes
 - [ ] (20261126-2) towns, not there yet: tile layers, files, the CD drive, the mouse, a Towns OS
       .EXP program, the `Interrupt` statement; the backdrop's bands are TIANLONG's four (lines 0,
       56, 112, 152). Variables and arrays have 60K ($1000-$FFFF); Peek / Poke / VarPtr reach the
-      first 64K. Not run on a real FM Towns or with a real machine's ROM; the sound on the new
-      classes not checked by ear (20261117-2, 20261119-1)
-
-## 55 Loader.cls
-- [ ] (20261126-2) not run on a real CPC: the AMSDOS drive keep (#BE7D) is the usual way, but the
-      test emulator's firmware is a stand-in (20261116-10)
+      first 64K (20261117-2, 20261119-1)
 
 ## Decisions and design notes (kept for reference - not open work)
 

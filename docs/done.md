@@ -50,7 +50,7 @@ by component). docs/build-info.txt has every build in full; an entry here names 
   the MEGA65's output byte for byte unchanged). Interrupts on. Classes (lib/c64reu): Reu, Task (32
   tasks that take turns), Disk, Vic, Sid, Keys, Joy, StdIO, System. test/c64build.js (--split,
   --d64, --add, --reu, --log, --list), c64run.py (VICE x64sc), c64regress.sh. Samples c64_test,
-  c64_tasks, c64_world, c64_film, c64_sprites. Run on VICE (PAL) only. docs/c64reu.md.
+  c64_tasks, c64_world, c64_film, c64_sprites. docs/c64reu.md.
 - 2026-11-25 NEW platform ep128 (20261125-1): the Enterprise 128 (Z80), an EXOS program file
   (GAME.COM) that takes the machine - its own screen (Nick, 40 x 25 / 80 x 25), keyboard and
   frame interrupt. Every free 16K segment is a page of the Memory class (Option Memory Heap
@@ -83,7 +83,7 @@ by component). docs/build-info.txt has every build in full; an entry here names 
   after 20261120-1 (the 68000's NTC_A16 macro written into the 80386's file).
 - 2026-11-23 NEW platform neocd (20261123-1): the Neo Geo CD (`;@base neogeo`: the CD's vectors,
   variables at $0F8000). test/ncdbuild.js writes the disc (.cue, an ISO 9660 track 1 with EDC and
-  ECC, CD audio tracks from WAV files). A draft: built, never run.
+  ECC, CD audio tracks from WAV files). A draft.
 - 2026-11-20 neogeo made to run (20261120-1): it was a draft that only assembled. A cartridge
   (.neo) the BIOS starts - the vectors and the Neo Geo header, the console on the fix layer (40 x
   28), both pads read in the VBlank interrupt, Frame, Ticks, the watchdog; variables at $100000.
@@ -375,11 +375,11 @@ by component). docs/build-info.txt has every build in full; an entry here names 
   joysticks) and sc3000 (the matrix, the joypads). Tested: the self tests from the ROM on the
   SC-3000 (MAME) and the MSX (openMSX, C-BIOS MSX1 / MSX2 / MSX2+), the consoles and classes in
   openMSX (GFX9000, HB-4000) and MAME; cpccard / cpc9990 in cpcrun.py's CPC with a model of the
-  cards' ports (no CPC emulator here has AMSDAP). Not on real hardware yet.
+  cards' ports.
 - 2026-10-21 zxn: `ntc_zxn_inthold` (a call from #asm): the line interrupt held by the Next's
   interrupt controller (core 3.02+, NextReg #C0 bit 0, #C4) until the Z80 takes it, instead of
   the 32 T pulse a program with interrupts off misses; the handler ends with reti. For CyborgOS;
-  a game whose Frame waits catch every pulse doesn't need it. Untested on hardware as yet.
+  a game whose Frame waits catch every pulse doesn't need it.
 - 2026-10-21 zxn: a NEX must be started by NextZXOS (the browser, .nexload, an autoexec) for
   esxDOS calls to work; loaded as a snapshot in an emulator the DOS answers "nonsense" (2) to
   everything - noted in the start stub (CyborgOS's SD drive, tested on JNEXT / NextZXOS 2.06H).

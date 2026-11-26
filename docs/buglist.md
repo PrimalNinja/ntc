@@ -178,7 +178,7 @@ each names its build, where the detail is.
 - CONFIRMED 2026-11-26 (20261126-1), cause NOT found - c64reu, the Disk class: on the emulator one
   program hung in the KERNAL opening a file that was not there, a few frames after another load.
   The class now waits for the serial bus to be idle before it opens a file, and the hang is gone;
-  why it happened was not found. Not tried on a real 1541.
+  why it happened was not found.
 
 ## analysed, nothing found
 

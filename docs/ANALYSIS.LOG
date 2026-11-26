@@ -295,3 +295,17 @@ Corrections to the entry above - two of its claims were wrong:
 - No source, library or compiler file changed. Nothing was run but that one case.
 - files: docs/done.md, todo.md, components.md, buglist.md, architecture.md, targets.md, userguide.md,
   requirements.md, requirements-user.md, portable-ntc-basic.md, NTC.md, build-info.txt, ANALYSIS.LOG
+
+## 2026-11-26T11:31Z - claude-fable-5-2 (the configured model for this session) - "not run on real hardware" taken out
+- Julian: the documents kept saying things had not run on real machines; he has the machines. Those
+  lines recorded what the build sandbox could run. All taken out (build 20261126-3, documents only).
+- Nothing was run. No source, library or compiler file changed.
+- files: README.md, docs/NTC.md, targets.md, requirements.md, userguide.md, todo.md, done.md,
+  buglist.md, c64reu.md, m65.md, amiga.md, towns.md, x68000.md, ep128.md, neogeo.md, build-info.txt,
+  ANALYSIS.LOG
+
+## 2026-11-26T11:45Z - claude-fable-5-2 (the configured model for this session) - the IDE's platform list
+- Julian (a screenshot of the IDE): "i cannot even see half the targets". The list in src/ntc.html
+  had 23 options; NTC_PLATFORMS in js/ntc_lib.js has 33. The ten missing added (build 20261126-4).
+- Run: hosted/ntc.html in headless Chromium, every option picked, each compiles, no page error.
+- files: src/ntc.html, hosted/ntc.html (rebuilt), docs/build-info.txt, docs/ANALYSIS.LOG

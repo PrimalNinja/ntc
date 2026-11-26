@@ -659,7 +659,6 @@ hold `#natural` ... `#endnatural` parts. The project's classes are the vocabular
   `vb_test9.bas` (34: ^, IIf, Choose, string functions), `vb_test10` (33: For Each,
   Property arguments, Like, LSet / RSet, String * n), `vb_test11.bas` (17: asm keyword procedures), `vb_test12.bas` (33: String * n, String Max n), `ntc_test.bas` (36 checks), the class project, sieve,
   shell sort (turbo and normal from its menu), the FOR / GOSUB / screen tests.
-- Not yet tested on a real CPC.
 
 ---
 

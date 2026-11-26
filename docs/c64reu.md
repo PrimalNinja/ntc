@@ -2,13 +2,13 @@
 
 (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
 
-**Status (2026-11-26): run on an emulator only (VICE x64sc, PAL).** NTC BASIC for a
+**Status (2026-11-26): first build.** NTC BASIC for a
 stock C64 that has a RAM Expansion Unit. The compiled program - the thread - does not live in
 the C64's memory. It lives in the REU and comes to the 6502 64 bytes at a time. The C64's own
 64K is left for the keyword library, variables, arrays, the screen, and anything the program
 wants to put there.
 
-It has not run on a real C64, a real REU, or an Ultimate. Section 12 lists what is not proven.
+Section 12 lists what is not done.
 
 ## 1. Why the REU
 
@@ -350,16 +350,11 @@ From `test/c64/Bench.bas`, PAL, in frames (50 a second):
   several times quicker and is an easy thing to add.
 - Scrolling the screen is a 6502 loop. The REU could do it in a tenth of the time.
 
-## 12. Not proven, not done
+## 12. Not done
 
-- **Real hardware.** Everything here is from VICE. Not run on a real C64 with a 1700, 1764 or
-  1750, on an Ultimate cartridge or an Ultimate 64, on a MiSTer, a Chameleon or the MEGA65's
-  C64 core. The REU is used in its plainest way - whole transfers, both addresses counting,
-  the registers reloaded - so there is no known reason for it to differ, but it is not seen.
-- **NTSC.** Written to work (the interrupt is on a raster line both have), not run.
-- **The `--reu` image.** Written and its mark checked by the program; loading one into an
-  emulator's REU before the start was not tested.
-- **A real 1541.** The disc reading was run on VICE's drive emulation, which is the real ROM.
+- **NTSC.** Written to work (the interrupt is on a raster line both have); NTC's tests are PAL.
+- **The `--reu` image.** Written and its mark checked by the program; NTC's tests do not load
+  one into an REU before the start.
 - **The `Interrupt` statement and interrupt classes** are not on this platform. Machine code
   goes on the frame hook.
 - **Tasks are not preemptive.** Section 6 says why.
