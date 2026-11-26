@@ -37,6 +37,12 @@ Packaging rule (what goes in the archive) - READ THIS BEFORE ZIPPING
 History (newest first)
 ======================
 
+20261126-5
+  - The IDE's platform list is in alphabetical order (src/ntc.html; hosted/ rebuilt). The same 33.
+    "Amstrad CPC (hardware, no firmware)" is still the one picked on a first visit (it was first
+    in the list; it is marked selected now).
+  - Checked with test/guiplatforms.py on hosted/ntc.html: 33 options, each compiles, no page error.
+
 20261126-4
   - THE IDE'S PLATFORM LIST HAD 23 OF THE 33 PLATFORMS. src/ntc.html: the ten that were missing
     are in the list now - neogeo, neocd, x68000, towns, amiga, pcw16, trs80, system80, ti83, ti89.
