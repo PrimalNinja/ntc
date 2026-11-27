@@ -7,7 +7,7 @@ Card: CPLink2
   ok      the Pi has 6000
     sent in 886 ticks (300 a second)
   ok    GET it back
-    it came through the Pi ROM (a CPLink2): 29 ticks
+    it came through the Pi ROM (a CPLink2): 28 ticks
   ok      all of it came
   ok      the same bytes
 20000 bytes:
@@ -15,7 +15,7 @@ Card: CPLink2
   ok    APPEND the next 10000
   ok      the Pi has 20000
   ok    GET it back
-    it came through the Pi ROM (a CPLink2): 51 ticks
+    it came through the Pi ROM (a CPLink2): 50 ticks
   ok      all of it came
   ok      the same bytes
   ok    GET 300 bytes from 5000 (small: always in the frame)

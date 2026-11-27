@@ -2,7 +2,7 @@ PI15 TILES - the vdp's tile layer, tiles from the store
 -------------------------------------------------------
   ok    OPEN store
   ok    4 tiles put in the store as GRAPHICS/V9990/TILES
-    100 frames in 223 ticks (300 a second)
+    100 frames in 222 ticks (300 a second)
   ok    STATE 0: the ball is on the Pi
     OK 0 218 142 0 1
   ok    INFO

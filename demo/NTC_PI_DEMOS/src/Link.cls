@@ -38,7 +38,7 @@ Public Function Status() As Integer
   Status = Inp(LINKS)
 End Function
 Public Function IsCPLink2() As Integer
-  IsCPLink2 = ((Inp(LINKS) And &HF0) = &HA0)
+  IsCPLink2 = ((Inp(LINKS) And &HF0) = &H10)     ' <--- CHANGED: bits 4-7 are the card's version, 1 (was 1010)
 End Function
 
 ' ---- a byte out when there is room, a byte in when there is one - or Lost
@@ -209,10 +209,13 @@ Private Function Answer(ByVal addr As Integer, ByVal max As Integer) As Integer
     n = Num(6) : Bulk = True : BodyLen = n
     m = n : If m > max Then m = max
     Kept = m
+    ' <--- CHANGED: ROM 33 is always selected and let go too, even when no byte of it is wanted.
+    ' The card marks both ROMs "new data" after any write and the Pi waits for both to have been
+    ' read before it writes again: an answer of 16K or less that left ROM 33 alone stopped the next.
     If m > 16384 Then
       RomCopy addr, 16384, 32 : RomCopy addr + 16384, m - 16384, 33
     Else
-      RomCopy addr, m, 32
+      RomCopy addr, m, 32 : RomCopy addr, 0, 33
     End If
     at = InStr(6, Reply, " ")
     If at > 0 Then Reply = Mid$(Reply, at + 1) Else Reply = ""

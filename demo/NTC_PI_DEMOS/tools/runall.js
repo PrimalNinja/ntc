@@ -26,7 +26,7 @@ arrCards.forEach(function(strCard)
 		if (/^PI1[45]/.test(p)) { arrSrc.push(path.join(ROOT, 'src', 'Pi.cls'), path.join(ROOT, 'src', 'Art.cls')); }
 		var r = cp.spawnSync('python3', [path.join(__dirname, 'pirun.py'), '--card=' + strCard, '--limit=200000', '--keys=x'].concat(arrSrc), { encoding: 'utf8', timeout: 600000 });
 		var strText = (r.stdout || '') + (r.stderr || ''), m = strText.match(/(\d+) ok, (\d+) failed( - ALL PASS)?/);
-		var blnOk = !!(m && m[3]) && /--- ended/.test(strText);
+		var blnOk = !!(m && m[3]) && /--- ended/.test(strText) && !/--- FAIL/.test(strText);
 		fs.writeFileSync(path.join(OUT, p + '-' + strCard + '.txt'), strText);
 		if (!blnOk) { intBad++; }
 		console.log((blnOk ? 'ok   ' : 'FAIL ') + (p + '        ').slice(0, 9) + (strCard + '   ').slice(0, 8) + (m ? m[0] : 'no result line'));

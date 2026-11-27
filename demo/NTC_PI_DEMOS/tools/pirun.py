@@ -7,7 +7,7 @@
 #
 #   NTC      the NTC folder (the one with src/ and test/)        default ../NTC beside this folder
 #   COS_PI   CyborgOS's pi folder (the one with cosd.js)          default ../CYBORGOS/pi
-#   --card=cplink2   the status byte's bits 4-7 read 1010 and cosd is started on a cplink2 link:
+#   --card=cplink2   the status byte's bits 4-7 read 0001 (the card's version) and cosd is started on a cplink2 link:
 #                    big answers come through the Pi ROM (ROM 32 / 33 at &C000), this script
 #                    standing in for cplink-bridge
 #   --card=none      no card: both ports read &FF
@@ -58,8 +58,9 @@ def main():
     try: sock, _ = srv.accept()
     except socket.timeout: print('pirun: cosd did not connect (see %s)' % log.name); cosd.kill(); return 2
     sock.setblocking(False)
-    inq = bytearray(); stats = {'in': 0, 'out': 0, 'rom': 0}
+    inq = bytearray(); stats = {'in': 0, 'out': 0, 'rom': 0, 'unread': 0}
     pirom = bytearray(0x8000)
+    ror = {32: False, 33: False}             # the card's ROR1 / ROR2: new data in the ROM, the CPC has not read it
 
     def pump():
         try:
@@ -74,7 +75,9 @@ def main():
                 b = c.recv(65536)
                 if not b: break
                 d.extend(b)
-            pirom[0:len(d)] = d[:0x8000]; stats['rom'] += 1
+            if ror[32] or ror[33]: stats['unread'] += 1      # the real bridge waits here until both are read: for ever
+            pirom[0:len(d)] = d[:0x8000] + bytes(0x8000 - min(len(d), 0x8000)); stats['rom'] += 1
+            ror[32] = ror[33] = True                         # both set when RNF falls, whatever the length
             try: c.sendall(b'OK %d\n' % len(d))
             except OSError: pass
             c.close()
@@ -98,7 +101,7 @@ def main():
     else:
         h = cpcrun.CPC(b, syms.get('ntc_start', 0x4000), keys, syms)
         m = h.m; old_out, old_inp = h.out, h.inp; txt = []; sel = []
-    status_hi = 0xA0 if card == 'cplink2' else 0x00
+    status_hi = 0x10 if card == 'cplink2' else 0x00      # bits 4-7: the CPLink2's version, 1
 
     def out(p, v):
         if p == 0xFD80:
@@ -110,13 +113,15 @@ def main():
         if lo in txt: printed.append(chr(v) if (32 <= v < 127 or v in (10, 13)) else '')
         rom = m.c if lo in sel else -1
         old_out(p, v)
-        if rom in (32, 33): m.set_memory_block(0xC000, bytes(pirom[(rom - 32) * 0x4000:(rom - 31) * 0x4000]))
+        if rom in (32, 33):
+            m.set_memory_block(0xC000, bytes(pirom[(rom - 32) * 0x4000:(rom - 31) * 0x4000]))
+            ror[rom] = False                                 # (the card clears it when the ROM is deselected)
     def inp(p):
         if card == 'none' and p in (0xFD80, 0xFD81): return 0xFF
         if p == 0xFD81:
             pump()
             if not inq: time.sleep(0.0003)      # (the emulated CPC waits about as long as a real one)
-            return status_hi | 0x02 | (0x01 if inq else 0)
+            return status_hi | 0x02 | (0x01 if inq else 0) | (0x04 if ror[32] else 0) | (0x08 if ror[33] else 0)
         if p == 0xFD80: return inq.pop(0) if inq else 0xFF
         return old_inp(p)
     m.set_output_callback(out); m.set_input_callback(inp)
@@ -127,6 +132,7 @@ def main():
     else:
         h.run(); print(h.screen(cpcrun.loadfont(syms, m.memory)))
     print('--- %s  bytes to the Pi %d, from the Pi %d, Pi ROM writes %d  (%s)' % ('ended' if m.halted else 'NOT ended', stats['out'], stats['in'], stats['rom'], card))
+    if stats['unread']: print('--- FAIL  %d Pi ROM write(s) came while the CPC had not read ROM 32 and 33 of the last one: the real bridge waits there' % stats['unread'])
     sock.close(); cosd.kill(); log.close()
     if keep: print('--- kept:', work)
     else: shutil.rmtree(work, ignore_errors=True)

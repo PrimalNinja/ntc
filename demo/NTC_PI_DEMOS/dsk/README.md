@@ -36,7 +36,10 @@ the Pi within 3 seconds; the program then stops asking and ends.
 
 - Port &FD80: data. Port &FD81: status.
 - Status bit 0 = 1: a byte from the Pi is waiting. Bit 1 = 1: there is room to write one.
-- Status bits 4-7 = 1010: the card is taken as a CPLink2. Anything else: a CPC-CPLink.
+- Status bits 2 and 3 (CPLink2): new data in Pi ROM 1 / 2 that the CPC has not read. Not used
+  by the programs; PI01LINK prints the byte.
+- Status bits 4-7 = 0001 (the CPLink2's version): the card is taken as a CPLink2. Anything else:
+  a CPC-CPLink.
   Status &FF: no card.
 - A byte out: wait for bit 1, then OUT &FD80. A byte in: wait for bit 0, then INP &FD80. One byte
   at a time from BASIC, about 2000 bytes a second. No interrupts are used.
@@ -44,7 +47,9 @@ the Pi within 3 seconds; the program then stops asking and ends.
 - CPLink2 only, the Pi ROM: when an answer's data is more than two frames' worth (and 32K at
   most) the Pi writes it to the Pi ROM and sends a short frame `BULK n`. The program then has
   the firmware select ROM 32 (KL ROM SELECT, &B90F), copies from &C000 with one LDIR, deselects
-  (KL ROM DESELECT, &B918), and for data past 16K does the same with ROM 33.
+  (KL ROM DESELECT, &B918), then does the same with ROM 33 - always, even when the data is 16K
+  or less and no byte of ROM 33 is wanted: the card marks both ROMs as new after any write, and
+  the Pi waits for both to have been read before it writes again.
 
 What the Pi side (cplink-bridge.c, 2026-11-27) takes the card's header to be, BCM numbers: D0-D7
 on 2 3 4 7 8 9 10 11, DIR 17, DOR 23, SI 18, SOB 22, WNR 24, RNF 13 (CPLink2: high = to the ROM,
@@ -81,7 +86,6 @@ PI01, PI02, PI03 and PI13 test the card. The rest test the Pi's services through
 ## 5. What to look at first on the card
 
 - What bits 4-7 of a CPC-CPLink's status byte read. PI01LINK prints the byte.
-- Whether bits 4-7 = 1010 is right for every CPLink2 (taken from the card's documents).
 - The FIFOs: the harness's card always has room and never loses a byte. The CPC-CPLink has
   16 bytes, the CPLink2 1K. PI03BIG sends 20000 bytes each way.
 - ROM 32 and 33 selected through the firmware.

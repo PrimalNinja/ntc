@@ -1,18 +1,18 @@
 PI01 LINK - the card and the Pi
 -------------------------------
-Status byte at &FD81: &A2  (bit 0 a byte waiting, bit 1 room to write)
-Card: CPLink2 (bits 4-7 read 1010)
+Status byte at &FD81: &12  (bit 0 a byte waiting, bit 1 room, bits 2 / 3 new data in Pi ROM 1 / 2)
+Card: CPLink2 (bits 4-7 read 0001: its version)
   ok    the card has room to write (bit 1)
   ok    HELLO answered
     COS1 cosd 0.1 max=1024 host=vm link=cplink2 services=store,run,term,math,float,
   ok    PING
   ok    PING says OK PONG
   ok    50 PINGs all answered
-    50 PINGs in 591 ticks (300 a second)
+    50 PINGs in 557 ticks (300 a second)
   ok    TIME
-    OK 2026-11-26 20:41:54 +11:00 1795686114 5
+    OK 2026-11-27 20:17:35 +11:00 1795771055 6
   ok    INFO
-    OK COS1 cosd 0.1 host=vm uptime=3407 machine=PIDEMO
+    OK COS1 cosd 0.1 host=vm uptime=305 machine=PIDEMO
   ok    LIST (the services)
     OK 14  (1238 bytes in 1 frames; the first 1023 shown)
 store ready tagged data kept on the Pi between boots (PUT / GET / DEL / LIST)
@@ -31,4 +31,4 @@ plugin notyet code sent f
 
 9 ok, 0 failed - ALL PASS
 
---- ended  bytes to the Pi 666, from the Pi 994, Pi ROM writes 1  (cplink2)
+--- ended  bytes to the Pi 666, from the Pi 993, Pi ROM writes 1  (cplink2)

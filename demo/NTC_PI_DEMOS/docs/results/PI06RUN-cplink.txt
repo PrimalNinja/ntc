@@ -12,8 +12,8 @@ total 92
 lrwxrwxrwx  1 root root     7 Apr 22  2024 bin -> usr/bin
 drwxr-xr-x  2 root root  4096 Apr  9  2024 bin.usr-is-merged
 drwxr-xr-x  2 root root  4096 Apr 22  2024 boot
--rw-r--r--  1 root root   512 Nov 26 19:45 container_info.json
-drwxr-xr-x  6 root root  2280 Nov 26 19:45 dev
+-rw-r--r--  1 root root   512 Nov 27 20:12 container_info.json
+drwxr-xr-x  6 root root  2280 Nov 27 20:12 dev
 drwxr-xr-x 88 root root  4096 Nov 23 06:12 etc
 drwxr-xr-x  4 root root  4096 Nov 17 05:50 home
 lrwxrwxrwx  1 root root     7 Apr 22  2024 lib -> usr/lib
@@ -25,8 +25,8 @@ drwxr-xr-x  6 root root  4096 Nov 23 06:12 mnt
 drwxr-xr-x  4 root root  4096 Nov 17 05:49 nix
 drwxr-xr-x  2 root root  4096 Nov 23 06:11 old_root
 drwxr-xr-x 25 root root  4096 Nov 23 06:11 opt
-dr-xr-xr-x 86 root root     0 Nov 26 18:44 proc
-drwx------ 16 root root  4096 Nov 26 20:30 root
+dr-xr-xr-x 84 root root     0 Nov 25 12:08 proc
+drwx------ 16 root root  4096 Nov 27 20:00 root
 drwxr-xr-x 13 root root  4096 Nov 23 06:12 run
 lr    (1385 bytes in 7 frames)
   ok    RUN exit 3 gives exit=3

@@ -3,7 +3,7 @@ PI13 MANY - several channels at once
   ok    three channels open, each its own number
     store 1, math 2, float 3
   ok    20 rounds of store, maths, float, store - all right
-    80 requests in 1422 ticks (300 a second)
+    80 requests in 1388 ticks (300 a second)
   ok    the maths channel closed: it takes no more
   ok    the store still answers
   ok    the float still answers

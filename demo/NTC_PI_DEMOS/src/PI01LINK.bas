@@ -8,8 +8,8 @@ Dim i As Integer, t As Integer, n As Integer, st As Integer
 Mode 2
 Link.Title "PI01 LINK - the card and the Pi"
 st = Link.Status()
-Print "Status byte at &FD81: &"; Hex$(st); "  (bit 0 a byte waiting, bit 1 room to write)"
-If Link.IsCPLink2() Then Print "Card: CPLink2 (bits 4-7 read 1010)" Else Print "Card: CPC-CPLink (or none: bits 4-7 are not 1010)"
+Print "Status byte at &FD81: &"; Hex$(st); "  (bit 0 a byte waiting, bit 1 room, bits 2 / 3 new data in Pi ROM 1 / 2)"
+If Link.IsCPLink2() Then Print "Card: CPLink2 (bits 4-7 read 0001: its version)" Else Print "Card: CPC-CPLink (or none: bits 4-7 are not 0001)"
 If st = &HFF Then
   Print "&FF: nothing answers at &FD81 - no card, or not a CPLink at this address."
   Link.Check "a card at &FD81", False

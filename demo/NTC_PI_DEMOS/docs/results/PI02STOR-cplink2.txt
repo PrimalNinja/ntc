@@ -5,7 +5,7 @@ PI02 STORE - tagged data kept on the Pi
   ok    PUT PIDEMO/PIECE (64 bytes)
   ok      the Pi says OK 64
   ok    SIZE
-    OK 64 2026-11-26 20:41
+    OK 64 2026-11-27 20:17
   ok      64 bytes
   ok    GET it back
   ok      64 bytes came
@@ -19,8 +19,8 @@ PI02 STORE - tagged data kept on the Pi
   ok    PUT PIDEMO/HELLO.TXT (text)
   ok    LIST PIDEMO/
   ok      two tags
-PIDEMO/HELLO.TXT 19 2026-11-26 20:41
-PIDEMO/PIECE 80 2026-11-26 20:41
+PIDEMO/HELLO.TXT 19 2026-11-27 20:17
+PIDEMO/PIECE 80 2026-11-27 20:17
   ok    an empty PUT (0 bytes)
   ok      SIZE says 0
   ok    DEL the three

@@ -15,4 +15,4 @@ exit
 
 4 ok, 0 failed - ALL PASS
 
---- ended  bytes to the Pi 183, from the Pi 360, Pi ROM writes 0  (cplink2)
+--- ended  bytes to the Pi 192, from the Pi 367, Pi ROM writes 0  (cplink2)

@@ -159,8 +159,8 @@ Run here on 2026-11-26, NTC BASIC 20261126-2, cosd from CyborgOS 20261116-7:
 
 The harness stands in for these, so they are the first things to look at on the machine:
 
-- The status byte of a CPC-CPLink. The programs take bits 4-7 = 1010 as a CPLink2 (from
-  cyborgos-pi.md) and anything else as a CPC-CPLink. PI01LINK prints the byte.
+- The status byte of a CPC-CPLink. The programs take bits 4-7 = 0001 (the CPLink2's version, from
+  its overview sheet) as a CPLink2 and anything else as a CPC-CPLink. PI01LINK prints the byte.
 - The FIFO's size and speed. The harness's card always has room and never loses a byte; the
   CPLink has 16 bytes.
 - KL ROM SELECT with ROM 32 and 33 (the CPLink2's Pi ROM): the harness's firmware is a stand-in.

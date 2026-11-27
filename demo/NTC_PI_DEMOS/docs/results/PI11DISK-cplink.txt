@@ -30,7 +30,7 @@ TEST.DAT 640
 NEW.DAT 640
 SUB <DIR>
   ok    FREE P
-    OK 29038668 (kilobytes free on the Pi)
+    OK 28810500 (kilobytes free on the Pi)
   ok    a path that leaves the volume is refused
     ERR a path must stay in its volume
   ok    RMDIR P:SUB
