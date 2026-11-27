@@ -49,7 +49,7 @@ function platBase(strPlat)
 // the platform's own classes: lib/<platform>/*.cls - then lib/z80/*.cls (the Float and Fixed
 // maths, Z80 code) for every Z80 platform that hasn't a class of that name of its own
 var objClasses = {};
-var arrNotZ80 = ['md', 'm65', 'c64reu'];			// (the 68000's, the 45GS02's: not Z80)
+var arrNotZ80 = ['md', 'm65', 'c64reu', 'neogeo', 'neocd', 'amiga', 'x68000', 'towns', 'ti89'];			// (the 68000's, the 45GS02's: not Z80)
 arrPlat.forEach(function(strPlat)
 {
 	var strDirCls = strDir + 'lib/' + strPlat + '/';

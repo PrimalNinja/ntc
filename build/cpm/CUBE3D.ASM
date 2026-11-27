@@ -2241,16 +2241,16 @@ fn_graphics_copytext:		; sub copytext (asm keyword), Graphics.cls line 118
             ld sp, (gfx_sp)		; Graphics.cls 124
 			ret			; end of #asm
 
-fn_graphics_buffering:		; function buffering (asm keyword), Graphics.cls line 155
-            pop hl		; Graphics.cls 156
-            ld a, (gfx_dbl)		; Graphics.cls 157
-            or a		; Graphics.cls 158
-            jr z, fn_graphics_buffering_bf0		; Graphics.cls 159
-            ld a, #FF		; Graphics.cls 160
-fn_graphics_buffering_bf0:		; Graphics.cls 161
-            ld (hl), a		; Graphics.cls 162
-            inc hl		; Graphics.cls 163
-            ld (hl), a		; Graphics.cls 164
+fn_graphics_buffering:		; function buffering (asm keyword), Graphics.cls line 160
+            pop hl		; Graphics.cls 161
+            ld a, (gfx_dbl)		; Graphics.cls 162
+            or a		; Graphics.cls 163
+            jr z, fn_graphics_buffering_bf0		; Graphics.cls 164
+            ld a, #FF		; Graphics.cls 165
+fn_graphics_buffering_bf0:		; Graphics.cls 166
+            ld (hl), a		; Graphics.cls 167
+            inc hl		; Graphics.cls 168
+            ld (hl), a		; Graphics.cls 169
 			ret			; end of #asm
 
 

@@ -5,6 +5,7 @@
 // compiles in the visitor's browser, and their files stay on their own PC.
 //
 //   node tools/hosted/build.js            (from NTC's top folder, or anywhere)
+// Run it AFTER docs/build-info.txt has the build's entry: the page is stamped with that number.
 //
 // (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
 'use strict';
@@ -21,7 +22,15 @@ strPage.replace(/(?:src|href)="([^"#:]+)"/g, function(m, f) { if (arrFiles.index
 
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
-fs.writeFileSync(path.join(OUT, 'ntc.html'), strPage);
+// the hosted page's own copy: every file it loads named with the build number (js/ntc_lib.js?v=
+// 20261126-7), so a browser that has an older build's files takes the new ones - without that a
+// new page ran with an old library until Ctrl+F5 ("unknown platform", classes missing). The build
+// number (the top entry of docs/build-info.txt) is shown after the copyright line too.
+var arrBuild = fs.readFileSync(path.join(TOP, 'docs', 'build-info.txt'), 'utf8').match(/^(\d{8}-\d+)\s*$/m);
+var strBuild = arrBuild ? arrBuild[1] : String(Date.now());
+var strHosted = strPage.replace(/((?:src|href)=")([^"#:?]+)(")/g, function(m, a, f, b) { return (arrFiles.indexOf(f) >= 0) ? a + f + '?v=' + strBuild + b : m; });
+strHosted = strHosted.replace('(c) 2026 Cyborg Unicorn Pty Ltd</a>', '(c) 2026 Cyborg Unicorn Pty Ltd</a> <span id="ge-build" style="opacity: 0.6; font-size: 11px;">build ' + strBuild + '</span>');
+fs.writeFileSync(path.join(OUT, 'ntc.html'), strHosted);
 arrFiles.forEach(function(f)
 {
 	var strFrom = path.join(SRC, f), strTo = path.join(OUT, f);

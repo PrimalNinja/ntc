@@ -309,3 +309,26 @@ Corrections to the entry above - two of its claims were wrong:
   had 23 options; NTC_PLATFORMS in js/ntc_lib.js has 33. The ten missing added (build 20261126-4).
 - Run: hosted/ntc.html in headless Chromium, every option picked, each compiles, no page error.
 - files: src/ntc.html, hosted/ntc.html (rebuilt), docs/build-info.txt, docs/ANALYSIS.LOG
+
+## 2026-11-26T12:20Z - claude-fable-5-2 (the configured model for this session) - Graphics on sixteen more platforms, the Enterprise 64
+- Julian: the IDE's list in alphabetical order (20261126-5); then, after cycling a sample that uses
+  Graphics through the platforms: "please fix PCW16, ColecoVision, C64 REU, Amiga, Enterprise 128
+  (AND 64), FM Towns, Mega65, MSX, Megadrive, SC3000, X68000, Neo Geo, System80, TI83, TI89, TRS80".
+  Read as: the Graphics class (what the sample needed) on each, and the Enterprise 64 supported.
+- Done (20261126-6): see build-info. Built the Genesis Plus GX core and Tsugaru here to run md and
+  towns. No Xemu (no SDL here) and no X68000 ROMs: m65 and x68000 assembled only. pcw16 not done.
+- files: tools/graphics/{gen.js,parts.js} (new), src/lib/*/Graphics.cls (14 new), src/lib/colecovision/
+  VDP.cls (new), src/lib/towns/Vdp.cls, src/asm/ntc_plat_ep128.asm, src/asm/ntc_plat_ti89.asm,
+  test/gen.js, test/ngbuild.js, test/epregress.sh, test/gfxregress.sh (new), test/graphics/* (new),
+  src/ntc.html, src/js/ntc_lib.js, hosted/, docs (userguide, targets, ep128, neogeo, towns, done, todo,
+  components, build-info, ANALYSIS.LOG)
+
+## 2026-11-26T13:40Z - claude-fable-5-2 (the configured model for this session) - every platform compiles Graphics; the hosted page's build stamp
+- Julian: the chess sample still gave Graphics errors on the MEGA65 from his localhost. His Network
+  tab showed js/ntc_lib.js at 6,826 kB: the library of 20261126-4 / -5 (20261126-6's is 6,092 kB).
+  Why his folder had that file was not settled. My own check of 20261126-6 found 5 platforms with
+  no Graphics class and no Height() on the machine code classes.
+- Done (20261127-1): see build-info. files: tools/hosted/build.js, tools/graphics/parts.js,
+  src/lib/{cpc,cpcmin,cpcfw,cpm,zxn}/Graphics.cls (Height), src/lib/{zxndot,zxndotl,baremetal,test,
+  pcw16}/Graphics.cls (new), test/guiplatforms.py, test/gfxregress.sh, test/graphics/{z80mem,dotmem}.py,
+  src/js/ntc_lib.js, hosted/, docs (userguide, targets, todo, done, build-info, ANALYSIS.LOG)

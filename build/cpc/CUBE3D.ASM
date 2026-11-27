@@ -2396,16 +2396,16 @@ fn_graphics_copytext:		; sub copytext (asm keyword), Graphics.cls line 118
             ld sp, (gfx_sp)		; Graphics.cls 124
 			ret			; end of #asm
 
-fn_graphics_buffering:		; function buffering (asm keyword), Graphics.cls line 161
-            pop hl		; Graphics.cls 162
-            ld a, (gfx_dbl)		; Graphics.cls 163
-            or a		; Graphics.cls 164
-            jr z, fn_graphics_buffering_bf0		; Graphics.cls 165
-            ld a, #FF		; Graphics.cls 166
-fn_graphics_buffering_bf0:		; Graphics.cls 167
-            ld (hl), a		; Graphics.cls 168
-            inc hl		; Graphics.cls 169
-            ld (hl), a		; Graphics.cls 170
+fn_graphics_buffering:		; function buffering (asm keyword), Graphics.cls line 166
+            pop hl		; Graphics.cls 167
+            ld a, (gfx_dbl)		; Graphics.cls 168
+            or a		; Graphics.cls 169
+            jr z, fn_graphics_buffering_bf0		; Graphics.cls 170
+            ld a, #FF		; Graphics.cls 171
+fn_graphics_buffering_bf0:		; Graphics.cls 172
+            ld (hl), a		; Graphics.cls 173
+            inc hl		; Graphics.cls 174
+            ld (hl), a		; Graphics.cls 175
 			ret			; end of #asm
 
 fn_keys_down:		; function down (asm keyword), Keys.cls line 44

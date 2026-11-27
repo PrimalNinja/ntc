@@ -11,7 +11,8 @@
 // vasmm68k_mot -spaces -Fbin -coalesced) into the P ROM, puts the name in the soft DIPs' name
 // and the NGH number at $108, and packs the cartridge:
 //   P   the program (padded to 1 MB; stored a word at a time, low byte first, as the dumps are)
-//   S   the fix layer's tiles (--srom, else NTC's font at tiles 32-126, colour 1)
+//   S   the fix layer's tiles (--srom, else NTC's font at tiles 32-126 and the Graphics class's
+//       blocks at 256-511, colour 1)
 //   M1  the Z80's program (--mrom, else NTC's driver: src/asm/neogeo_sound_z80.asm, assembled
 //       with sjasmplus: NTC_SJASM), with --songs (32 x 8 bytes at $100) and --samples (64 x 4
 //       bytes at $200) written in
@@ -116,6 +117,14 @@ function defaultS() {
 	const s = Buffer.alloc(128 * 1024, 0);
 	const f = fontFromAsm();
 	for (let c = 0; c < 95; c++) fixTile(f.slice(c * 8, c * 8 + 8), 1).copy(s, (32 + c) * 32);
+	// tiles 256-511: the Graphics class's blocks - a cell as 2 x 4 dots of 4 x 2 pixels, tile
+	// 256 + n with dot k (k = row * 2 + column) on when bit k of n is set, in colour 1
+	for (let n = 0; n < 256; n++) {
+		const rows = [0, 0, 0, 0, 0, 0, 0, 0];
+		for (let k = 0; k < 8; k++)
+			if (n & (1 << k)) { const m = (k & 1) ? 0x0F : 0xF0; rows[(k >> 1) * 2] |= m; rows[(k >> 1) * 2 + 1] |= m; }
+		fixTile(rows, 1).copy(s, (256 + n) * 32);
+	}
 	return s;
 }
 

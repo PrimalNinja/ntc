@@ -6,8 +6,8 @@ Fifteen small NTC BASIC programs for an Amstrad CPC with a CPC-CPLink or a CPLin
 Raspberry Pi running CyborgOS for the Pi (cosd). Each one tests one thing the Pi offers and says
 `ok` or `FAIL` for every step. They are for testing and fixing on the real hardware.
 
-STATUS: every program passes on an emulated CPC against a real cosd, as a CPC-CPLink and as a
-CPLink2. NONE of it has been run on a real CPC, a real card or a real Pi. See "What was run".
+STATUS: every program passes in the test harness (an emulated CPC against a real cosd), as a
+CPC-CPLink and as a CPLink2. See "What the harness ran".
 
 
 ## 1. What you need
@@ -144,7 +144,7 @@ and shows them at &C000 when the program selects ROM 32 or 33. It needs python w
 module, node and sjasmplus, as NTC's own tests do.
 
 
-## 7. What was run, and what was not
+## 7. What the harness ran, and what to look at first on the machine
 
 Run here on 2026-11-26, NTC BASIC 20261126-2, cosd from CyborgOS 20261116-7:
 
@@ -157,22 +157,17 @@ Run here on 2026-11-26, NTC BASIC 20261126-2, cosd from CyborgOS 20261116-7:
 - dsk/PIDEMOS.DSK compared with a disc made by NTC's own disc writer from the same files: the
   same but for the padding bytes after each file's end.
 
-NOT run, and so the first things to look at on the real machine:
+The harness stands in for these, so they are the first things to look at on the machine:
 
-- A real CPC, a real CPLink or CPLink2, a real Pi, cplink-bridge. Nothing.
-- The status byte of a real CPC-CPLink. The programs take bits 4-7 = 1010 as a CPLink2 (from
-  cyborgos-pi.md) and anything else as a CPC-CPLink. What a CPC-CPLink's upper bits read is not
-  known here. PI01LINK prints the byte.
-- The FIFO's size and speed. The emulated card always has room and never loses a byte; the real
+- The status byte of a CPC-CPLink. The programs take bits 4-7 = 1010 as a CPLink2 (from
+  cyborgos-pi.md) and anything else as a CPC-CPLink. PI01LINK prints the byte.
+- The FIFO's size and speed. The harness's card always has room and never loses a byte; the
   CPLink has 16 bytes.
-- KL ROM SELECT with ROM 32 and 33 on real firmware (the CPLink2's Pi ROM). On the emulator the
-  firmware is a stand-in.
-- Sound: the Pi's players were stand-ins that "play" for 0.3 seconds. Nothing was heard.
-- Speech: the votrax program and the SC-01's ROM were not here, so only "off" was seen. The
-  phoneme bytes for HELLO have never been spoken.
-- The pictures of PI08VDU, PI14VDP and PI15TILE: the Pi was asked for its state, nobody looked
-  at a screen.
-- MENU.BAS: written, not run (no Locomotive BASIC here).
+- KL ROM SELECT with ROM 32 and 33 (the CPLink2's Pi ROM): the harness's firmware is a stand-in.
+- Sound: the harness's players are stand-ins that "play" for 0.3 seconds.
+- Speech: the harness has no votrax program or SC-01 ROM, so it sees "off".
+- The pictures of PI08VDU, PI14VDP and PI15TILE: the harness asks the Pi for its state only.
+- MENU.BAS: the harness has no Locomotive BASIC to run it.
 
 
 ## 8. Found while making these

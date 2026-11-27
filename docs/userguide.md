@@ -3611,6 +3611,36 @@ screen starts at its first byte, and a console that has scrolled has moved that 
 writes the CPC's screen memory, so it is for an Amstrad CPC only (on other CP/M machines it
 writes over memory).
 
+#### Graphics on the other machines (20261126-6)
+
+The same class - `Line`, `Plot`, `Pen`, `Clip`, `Width()`, and `Height()` - on the machines
+below, so a program that draws with lines compiles for them too. Here the class is BASIC (one
+line loop over the machine's own dot; `tools/graphics/gen.js` writes the files), so it is slower
+than the CPC's and the Next's machine code. Lines are XORed as everywhere. There is one screen:
+`DoubleBuffer`, `Flip` and `CopyText` do nothing, `Back()` is 0. The sizes differ a great deal,
+so a program for more than one machine should draw to `Graphics.Width()` and
+`Graphics.Height()`, not to 320 x 200. Pen 0 draws nothing; pen 1 always shows.
+
+| Platform | Size | Pens | How |
+|---|---|---|---|
+| `msx`, `msxcard`, `msx9990`, `sc3000`, `colecovision` | 256 x 192 | 1 white, 2-15 the chip's colours; one ink for each 8 dots of a row | the TMS9918's Screen 2 through `VDP` (the first line sets it: the text goes until `Mode` or `Cls`) |
+| `md` | 320 x 224 | 1-15: palette 0's colours | plane B's cells given a tile each (tiles 128-1247), the dots written into the tiles; 9K of RAM for a copy; the text stays in front |
+| `neogeo`, `neocd` | 80 x 112 | 1-16: fix palettes 0-15 | the fix layer's cells show block tiles of 2 x 4 dots (tiles 256-511, which `ngbuild.js` puts in the S ROM beside the font); a cell holds text or dots |
+| `x68000` | 256 x 256 | 1-255: the graphics page's palette | `Vdp.GPixel` / `Vdp.GPlot` (the first line calls `Vdp.Init` and makes colour 1 white) |
+| `towns` | 256 x 240 | 1 white, else a 15 bit colour | `Vdp.GPixel` / `Vdp.GPlot` on the back layer (the first line calls `Vdp.Init`; `Print` is the 640 x 400 console's, so use `Vdp.Text` after it) |
+| `amiga` | 640 x 256 (200 NTSC) | on / off | the console's bitplane; text and lines share it |
+| `ep128` | 320 x 200 (`Mode 1`), 640 x 200 (`Mode 2`) | on / off | the console's bitmap; text and lines share it |
+| `m65` | 320 x 200 | 1-255: the palette's entries | the `Vic` class's screen (`Vic.Box` a dot at a time, the first line turns it on); 8K of RAM for a copy; text shows at `Vic.Update` |
+| `c64reu` | 80 x 50 | 1-15: the C64's colours | block characters 128-143 on the text screen; a cell holds text or dots |
+| `trs80`, `system80` | 128 x 48 | on / off | the machine's block graphics; a cell holds text or dots |
+| `ti83` | 96 x 64 | on / off | the OS's graph buffer, copied to the LCD after each line |
+| `ti89` | 160 x 100 | on / off | the LCD's bitmap |
+| `zxndot`, `zxndotl` | 256 x 192 | on / off | the Spectrum's own screen (the ULA's bitmap), the one BASIC prints on; the dots take each cell's ink and paper |
+| `baremetal`, `test`, `pcw16` | 320 x 200 | on / off | a picture kept in memory (8000 bytes, a bit a dot; `Graphics.Buffer()` is its address): bare metal's own code shows it, a test reads it; on the PCW16 nothing shows it yet |
+
+`Height()` is on every platform's class since 20261127-1 (200 on the CPC, CP/M and the Next), so
+every platform in the IDE's list compiles a program that draws with `Graphics`.
+
 ### Keys
 
 Keys held down, and the joysticks (cpc, cpcmin, cpcfw, cpccard, cpc9990, zxn, msx, msxcard, msx9990, sc3000). `Inkey` / `Inkey$` give the characters

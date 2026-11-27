@@ -103,6 +103,9 @@ tile with a palette of its own.
   each). Palettes 0-15 are the fix layer's, 16-31 the table's blocks, 32-255 the backdrop's.
 - **The fix layer:** `Cell x, y, v`, `Fill x, y, w, h, v` (v: palette << 12 | tile); `TextPalette
   p` and `TextBase t` change the palette and the font `Print` uses.
+- `Graphics` (20261126-6): lines on the fix layer, 80 x 112 dots, with the block tiles
+  `ngbuild.js` puts at 256-511 of the default S ROM (user guide, "Graphics on the other machines").
+  A cartridge with its own S ROM needs those 256 tiles to use the class.
 - `VAddr`, `VMod`, `VPut`: VRAM written a word at a time, for anything else.
 
 ## 4. Sound: NTC's Z80 driver
@@ -197,7 +200,7 @@ class demo and the sieve by their transcripts; the two tools; the classes (`test
 transcript (`Keys.Joystick` and `Pad.Read` with Up and A held), the picture (the table's sprite,
 `Strip` / `Place` / `Join` / `Hide`, the backdrop's bands, `Cell`, `Fill`, the backdrop colour) and
 the sound (the SSG, FM, a song and a sample each heard by itself, then quiet); and a Neo Geo CD
-disc built. Not tested: `Vdp.Shrink`, `Vdp.TextBase`, `Cdda` (no Neo Geo CD emulator here).
+disc built. No test yet: `Vdp.Shrink`, `Vdp.TextBase`, `Cdda`.
 vb_test11 has Z80 `#asm` in it.
 
 ## 6. In the compiler and library

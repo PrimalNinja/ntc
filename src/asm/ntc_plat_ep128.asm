@@ -123,6 +123,8 @@ ntc_plat_boot:
 			ld (ep_seg0), a
 			in a, (#B1)
 			ld (ep_seg1), a				; (a program over 16K: the last segment loaded)
+			ld a, 1						; a page of the program may take EXOS's shared segment (a 64K
+			ld (ep_keep), a				; machine has no other): see ep_bt_alloc
 			ld a, high (ntc_end - 1)
 			cp #40
 			jr nc, ep_bt_two
@@ -169,6 +171,10 @@ ep_bt_have:
 			out (#B2), a
 			xor a
 			ld (ep_nseg), a
+			ld (ep_keep), a				; the pages: the shared segment is handed back
+			ld a, (ep_share)			; the program is in the shared segment: EXOS's own data in it is
+			or a						; ours to write over now, so EXOS is not called again
+			jr nz, ep_bt_got
 ep_bt_more:
 			call ep_bt_alloc			; every free segment, to the list - but the program's own
 			jr nz, ep_bt_got
@@ -194,7 +200,7 @@ ep_bt_got:
 			di
 			ld a, (ep_nseg)				; the screen's segment: the highest one, a video one (#FC-#FF)
 			or a
-			jp z, ep_bt_fail
+			jr z, ep_bt_sys				; none free (a 64K machine): EXOS's own segment
 			ld b, a
 			ld hl, EP_SEGS
 			ld de, EP_SEGS
@@ -210,9 +216,14 @@ ep_bt_low:
 			djnz ep_bt_max
 			ld a, c
 			cp #FC
-			jp c, ep_bt_fail
+			jr c, ep_bt_sys
 			ld (ep_vseg), a
 			call ep_bt_drop				; out of the list (the last one takes its place)
+			jr ep_bt_vok
+ep_bt_sys:
+			ld a, #FF					; no free video segment: the screen goes in EXOS's system segment
+			ld (ep_vseg), a				; (#FF, always RAM the video chip shows). EXOS is not called
+ep_bt_vok:								; again, and End is its cold start, which sets it up afresh
 	IFDEF NTC_EPLOG
 			ld a, (ep_nseg)				; (test) the log's segment: the last one in the list
 			or a
@@ -276,8 +287,16 @@ ep_bt_alloc:
 			ld a, c
 			ret
 ep_bt_anone:
-			cp #7F						; (.SHARE: the shared segment was given - back it goes)
-			jr nz, ep_bt_aerr
+			cp #7F						; (.SHARE: the shared segment was given - back it goes,
+			jr nz, ep_bt_aerr			; unless it is for a page of the program: kept then)
+			ld a, (ep_keep)
+			or a
+			jr z, ep_bt_agive
+			ld (ep_share), a
+			ld a, c
+			cp a
+			ret
+ep_bt_agive:
 			rst #30
 			db 25
 ep_bt_aerr:
@@ -305,6 +324,8 @@ ep_seg0:		db 0			; the program's segments: page 0,
 ep_seg1:		db 0			; page 1 (the Memory class's "main RAM" page),
 ep_seg2:		db 0			; page 2
 ep_vseg:		db 0			; the screen's segment (page 3)
+ep_keep:		db 0			; 1 while a page of the program is asked for
+ep_share:		db 0			; 1: the program took EXOS's shared segment
 ep_nseg:		db 0			; segments in EP_SEGS: the Memory class's pages
 	IFDEF NTC_EPLOG
 ep_logseg:		db 0			; (test) the log's segment

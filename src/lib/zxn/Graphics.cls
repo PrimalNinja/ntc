@@ -140,6 +140,11 @@ Public Function Width() As Integer
 #endasm
 End Function
 
+' Height(): the height in pixels: 200
+Public Function Height() As Integer
+    Height = 200
+End Function
+
 ' Back(): the buffer drawn on now: 0 = the first (banks 12-16), 1 = the second (17-21)
 Public Function Back() As Integer
 #asm

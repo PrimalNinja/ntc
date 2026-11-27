@@ -86,21 +86,41 @@ see the gaps). Measured by capability, not method count.
 | `x68000` | `Vdp`, `Keys`, `Pcm`, `Opm` | 256 x 256 in 256 colours: sprites, graphics page 0 with up to 4 raster splits, the text plane; ADPCM music, the YM2151's registers; no tile layers, no files (`docs/x68000.md`) |
 | `towns` | `Vdp`, `Keys`, `Pcm`, `Memory` | 256 x 240, 2 layers of 32768 colours: sprites, a backdrop in 4 scrolled bands, words; ADPCM music and 4 channels of effects (the RF5C68); no tile layers, no files, no CD (`docs/towns.md`) |
 | `m65` | `Vic`, `Joy`, `Sid` | the screen, the palette, sprites, stamps, boxes, a star field; joysticks; the SIDs (`docs/m65.md`) |
-| `zxn` | `Graphics` (10) | **hardware sprites / Layer 2 / 256-col not classed** - big gap vs the silicon |
+| `zxn` | `Graphics` (10), `Stream` | lines on Layer 2 (320 x 200, double buffered) in the library; hardware sprites, Layer 2 polygons and the palette are the game library's `Zxn` class (`src/hwlib/lib`) and NTC3D's `Nx` (`src/ntc3d`), which a project adds itself |
 | `cpm`, `cyborgos`, `cyborgoshh` | (inherited `Graphics`) | CyborgOS really draws via the **Pi/RVDU streamer**, not a per-platform class |
-| `colecovision` | **none** | identical video to `sc3000` (TMS9918A, `#BE`/`#BF`) - the SC-3000 `VDP` class drops straight on |
+| `colecovision` | `VDP`, `Graphics` | the SC-3000's `VDP` class (the same TMS9918A at `#BE`/`#BF`) and lines on Screen 2; no console classes |
 | `neogeo`, `neocd` | `Vdp`, `Keys`, `Pad`, `Pcm`, `Psg`, `Fm`, `Cdda`, `Sound` | sprites (a table of 128, any sprite straight), a backdrop of sprites in four scrolled bands, palettes, the fix layer's cells; ADPCM music and samples, the SSG, FM registers (`docs/neogeo.md` section 3) |
-| `amiga` | `Memory`, `Keys`, `Loader` | no graphics or sound classes yet; blocks of chip and other RAM, keys held and two joysticks, files off the game's discs (one to four drives, discs changed) (`docs/amiga.md`) |
-| `ep128` | `Memory`, `Keys` | no graphics, sound or file classes yet; the machine's segments as pages (`Option Memory Heap Pages`), keys held, the built in joystick and both control ports (`docs/ep128.md`) |
+| `amiga` | `Graphics`, `Memory`, `Keys`, `Loader` | lines on the console's bitplane; no sprite, blitter or sound classes yet; blocks of chip and other RAM, keys held and two joysticks, files off the game's discs (one to four drives, discs changed) (`docs/amiga.md`) |
+| `ep128` | `Graphics`, `Memory`, `Keys` | lines on the console's bitmap; no colour modes, sound or file classes yet; the machine's segments as pages (`Option Memory Heap Pages`), keys held, the built in joystick and both control ports (`docs/ep128.md`) |
 | `c64reu` | `Reu`, `Task`, `Disk`, `Vic`, `Sid`, `Keys`, `Joy` | the REU as the program's memory (blocks, rows, fills), up to 32 tasks, files off the disc into the REU, the 8 sprites and the program's own characters, three SID voices, keys held, both joysticks (`docs/c64reu.md`) |
-| `pcw16`, `ti83`, `ti89`, `trs80`, `system80` | **none** | console only so far; graphics is the next layer |
+| `ti83`, `ti89`, `trs80`, `system80` | `Graphics` | lines on the LCD / the block graphics; console otherwise |
+| `pcw16` | `Graphics` (in memory only) | console only so far; `Graphics` draws into a picture in memory that nothing shows yet |
+
+### The `Graphics` class (lines) on the other machines
+
+Since 20261126-6 the line class of the CPC and the Next is on these too (BASIC: `tools/graphics/gen.js`):
+
+| Platform | Size | Pens | How |
+|---|---|---|---|
+| `msx`, `msxcard`, `msx9990`, `sc3000`, `colecovision` | 256 x 192 | 1 white, 2-15 the chip's colours; one ink for each 8 dots of a row | the TMS9918's Screen 2 through `VDP` (the first line sets it: the text goes until `Mode` or `Cls`) |
+| `md` | 320 x 224 | 1-15: palette 0's colours | plane B's cells given a tile each (tiles 128-1247), the dots written into the tiles; 9K of RAM for a copy; the text stays in front |
+| `neogeo`, `neocd` | 80 x 112 | 1-16: fix palettes 0-15 | the fix layer's cells show block tiles of 2 x 4 dots (tiles 256-511, which `ngbuild.js` puts in the S ROM beside the font); a cell holds text or dots |
+| `x68000` | 256 x 256 | 1-255: the graphics page's palette | `Vdp.GPixel` / `Vdp.GPlot` (the first line calls `Vdp.Init` and makes colour 1 white) |
+| `towns` | 256 x 240 | 1 white, else a 15 bit colour | `Vdp.GPixel` / `Vdp.GPlot` on the back layer (the first line calls `Vdp.Init`; `Print` is the 640 x 400 console's, so use `Vdp.Text` after it) |
+| `amiga` | 640 x 256 (200 NTSC) | on / off | the console's bitplane; text and lines share it |
+| `ep128` | 320 x 200 (`Mode 1`), 640 x 200 (`Mode 2`) | on / off | the console's bitmap; text and lines share it |
+| `m65` | 320 x 200 | 1-255: the palette's entries | the `Vic` class's screen (`Vic.Box` a dot at a time, the first line turns it on); 8K of RAM for a copy; text shows at `Vic.Update` |
+| `c64reu` | 80 x 50 | 1-15: the C64's colours | block characters 128-143 on the text screen; a cell holds text or dots |
+| `trs80`, `system80` | 128 x 48 | on / off | the machine's block graphics; a cell holds text or dots |
+| `ti83` | 96 x 64 | on / off | the OS's graph buffer, copied to the LCD after each line |
+| `ti89` | 160 x 100 | on / off | the LCD's bitmap |
+| `zxndot`, `zxndotl` | 256 x 192 | on / off | the Spectrum's own screen (the ULA's bitmap), the one BASIC prints on; the dots take each cell's ink and paper |
+| `baremetal`, `test`, `pcw16` | 320 x 200 | on / off | a picture kept in memory (8000 bytes, a bit a dot; `Graphics.Buffer()` is its address): bare metal's own code shows it, a test reads it; on the PCW16 nothing shows it yet |
 
 ### Known gaps (library, not hardware)
 
-- `colecovision` ships no classes at all, yet its video is the same TMS9918A as `sc3000` - copying
-  `sc3000/VDP.cls` would give it the full card API for free.
-- `zxn` under-represents the Next badly: hardware sprites, Layer 2 and 256-colour exist in silicon
-  but aren't shipped classes (BOUNCE drove sprites through a *project* class, not the library).
+- `zxn`: hardware sprites and the tilemap as a game layer are in the game library's `Zxn` class,
+  not in the platform's own library.
 - `cyborgos` graphics completeness isn't in this table - its path is the Pi/RVDU streamer
   (`streamer/`, `pi-bridge.md`).
 - `amiga` and `ep128` are first stages: memory, keys and (the Amiga) files, no graphics or sound

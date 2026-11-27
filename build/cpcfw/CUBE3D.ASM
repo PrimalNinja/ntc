@@ -1762,16 +1762,16 @@ fn_graphics_copytext:		; sub copytext (asm keyword), Graphics.cls line 121
             ld sp, (gfx_sp)		; Graphics.cls 127
 			ret			; end of #asm
 
-fn_graphics_buffering:		; function buffering (asm keyword), Graphics.cls line 164
-            pop hl		; Graphics.cls 165
-            ld a, (gfx_dbl)		; Graphics.cls 166
-            or a		; Graphics.cls 167
-            jr z, fn_graphics_buffering_bf0		; Graphics.cls 168
-            ld a, #FF		; Graphics.cls 169
-fn_graphics_buffering_bf0:		; Graphics.cls 170
-            ld (hl), a		; Graphics.cls 171
-            inc hl		; Graphics.cls 172
-            ld (hl), a		; Graphics.cls 173
+fn_graphics_buffering:		; function buffering (asm keyword), Graphics.cls line 169
+            pop hl		; Graphics.cls 170
+            ld a, (gfx_dbl)		; Graphics.cls 171
+            or a		; Graphics.cls 172
+            jr z, fn_graphics_buffering_bf0		; Graphics.cls 173
+            ld a, #FF		; Graphics.cls 174
+fn_graphics_buffering_bf0:		; Graphics.cls 175
+            ld (hl), a		; Graphics.cls 176
+            inc hl		; Graphics.cls 177
+            ld (hl), a		; Graphics.cls 178
 			ret			; end of #asm
 
 fn_keys_down:		; function down (asm keyword), Keys.cls line 44
@@ -9845,4 +9845,4 @@ ovl_spin_vsize	equ 16		; its page variables; its local memory is the rest, to #8
 			DISPLAY "  page variables ", /D, ovl_spin_vsize, ", free ", /D, #8000 - (ovl_spin_end + ovl_spin_vsize)
 			SAVEAMSDOS "CUBE3D.001", ovl_spin_start, ovl_spin_end - ovl_spin_start, #4000
 
-NTC_STAMP	equ #044A		; the build stamp: the first word of every page file
+NTC_STAMP	equ #2FB7		; the build stamp: the first word of every page file

@@ -341,6 +341,42 @@ vb_w2:
 #endasm
 End Sub
 
+' GPixel(x, y): the colour of a dot of layer 0 (15 bits). GPlot x, y, c: a dot of layer 0 set
+' to a colour. x 0-255, y 0-239 (the Graphics class draws with these)
+Public Function GPixel(ByVal x As Integer, ByVal y As Integer) As Integer
+#asm
+            pop esi
+            movzx eax, word [esi]
+            pop esi
+            movzx ecx, word [esi]
+            and eax, 255
+            and ecx, 511
+            mov edi, [{vram}]
+            shl ecx, 9
+            add edi, ecx
+            mov ax, [edi + eax * 2]
+            pop esi
+            mov [esi], ax
+#endasm
+End Function
+
+Public Sub GPlot(ByVal x As Integer, ByVal y As Integer, ByVal c As Integer)
+#asm
+            pop esi
+            movzx eax, word [esi]
+            pop esi
+            movzx ecx, word [esi]
+            pop esi
+            movzx edx, word [esi]
+            and eax, 255
+            and ecx, 511
+            mov edi, [{vram}]
+            shl ecx, 9
+            add edi, ecx
+            mov [edi + eax * 2], dx
+#endasm
+End Sub
+
 ' GFill y, n, c: layer 0's lines y .. y + n - 1 all colour c (15 bits)
 Public Sub GFill(ByVal y As Integer, ByVal n As Integer, ByVal c As Integer)
 #asm

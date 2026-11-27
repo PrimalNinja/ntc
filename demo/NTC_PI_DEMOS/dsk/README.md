@@ -6,8 +6,7 @@ A 178K data format disc for an Amstrad CPC with a CPC-CPLink or a CPLink2 card a
 running CyborgOS for the Pi (cosd). Each program tests one thing the Pi offers through the card
 and prints `ok` or `FAIL` for every step. They are written in NTC BASIC and compiled to Z80.
 
-STATUS: every program passes on an emulated CPC with an emulated card against the real cosd.
-NONE of it has been run on a real CPC, a real card or a real Pi. The disc is for doing that.
+STATUS: every program passes in the test harness (an emulated CPC and card against the real cosd).
 
 
 ## 1. What it needs
@@ -47,10 +46,11 @@ the Pi within 3 seconds; the program then stops asking and ends.
   the firmware select ROM 32 (KL ROM SELECT, &B90F), copies from &C000 with one LDIR, deselects
   (KL ROM DESELECT, &B918), and for data past 16K does the same with ROM 33.
 
-What the Pi side (cplink-bridge.c) takes the card's header to be, BCM numbers: D0-D7 on 2 3 4 7 8
-9 10 11, DIR 17, DOR 23, SI 18, SOB 22, WNR 24, RNF 26 (CPLink2: high = to the ROM, not the
-FIFO). Before a ROM write it waits for the CPC to have read the last one (RRD1 / RRD2), 5 seconds
-at most.
+What the Pi side (cplink-bridge.c, 2026-11-27) takes the card's header to be, BCM numbers: D0-D7
+on 2 3 4 7 8 9 10 11, DIR 17, DOR 23, SI 18, SOB 22, WNR 24, RNF 13 (CPLink2: high = to the ROM,
+not the FIFO), RRD1 19, RRD2 26. A byte from the CPC is taken with SOB up, DOR seen low, SOB down.
+Before a ROM write it waits for DIR, RRD1 and RRD2 all high (the CPC has read the last one), with
+no time limit; it waits for DIR before every byte and after the last one, then drops RNF.
 
 
 ## 4. The programs
@@ -78,13 +78,13 @@ at most.
 PI01, PI02, PI03 and PI13 test the card. The rest test the Pi's services through it.
 
 
-## 5. Not yet known - what a run on the real card will show
+## 5. What to look at first on the card
 
-- What bits 4-7 of a real CPC-CPLink's status byte read. PI01LINK prints the byte.
+- What bits 4-7 of a CPC-CPLink's status byte read. PI01LINK prints the byte.
 - Whether bits 4-7 = 1010 is right for every CPLink2 (taken from the card's documents).
-- The FIFOs: the emulated card always has room and never loses a byte. The real CPC-CPLink has
+- The FIFOs: the harness's card always has room and never loses a byte. The CPC-CPLink has
   16 bytes, the CPLink2 1K. PI03BIG sends 20000 bytes each way.
-- ROM 32 and 33 selected through the firmware on a real CPC with the real card.
+- ROM 32 and 33 selected through the firmware.
 - The timing between the Pi's ROM write and the CPC's read of it (PI03BIG on a CPLink2).
 
 When something fails, the useful things to send back are: the card, the program's name, the

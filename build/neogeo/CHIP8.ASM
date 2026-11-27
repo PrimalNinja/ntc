@@ -1497,6 +1497,10 @@ lit_2:			dc.w 2
 lit_0:			dc.w 0
 lit_1:			dc.w 1
 vp_arr_mem:			dc.w (arr_mem)&$FFFF	; VarPtr: the address, 16 bits (RAM from $FF8000)
+lit_m32255:			dc.w -32255
+lit_3:			dc.w 3
+lit_64:			dc.w 64
+lit_4095:			dc.w 4095
 
 ; ============================================================
 ; Strings
@@ -2983,6 +2987,7 @@ p_system_commandline_rs:			dc.l 0
 tmp0:			dc.w 0
 tmp1:			dc.w 0
 tmp2:			dc.w 0
+tmp3:			dc.w 0
 			dc.b 160			; capacity
 stmp0:			ds.b 161
 			even
@@ -3029,6 +3034,11 @@ arr_stk		equ ntc_bss + 4112		; 32 bytes
 arr_disp		equ ntc_bss + 4144		; 2048 bytes
 arr_kp		equ ntc_bss + 6192		; 16 bytes
 arr_keymap		equ ntc_bss + 6208		; 32 bytes
-ntc_bss_size	equ 6240
+arr_graphics_m_sh		equ ntc_bss + 6240		; 1120 bytes
+arr_vdp_spr		equ ntc_bss + 7360		; 1024 bytes
+arr_vdp_pmap		equ ntc_bss + 8384		; 512 bytes
+arr_vdp_lst		equ ntc_bss + 8896		; 256 bytes
+arr_vdp_bw		equ ntc_bss + 9152		; 8 bytes
+ntc_bss_size	equ 9160
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ntc_memtab	equ ntc_free		; the Memory class's tables

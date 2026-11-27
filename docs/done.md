@@ -25,6 +25,20 @@ by component). docs/build-info.txt has every build in full; an entry here names 
       expansion RAM, not by drive letter - M: may be an M4 / XMAS drive; the probe must save and
       put back what it writes. CP/M Plus runs in C2: every page setting swaps all four blocks.)
 
+- 2026-11-27 Every platform in the IDE's list compiles a program that draws with Graphics
+  (20261127-1): `Height()` on the CPC's, CP/M's and the Next's classes; a class for the Next's dot
+  commands (the Spectrum's screen) and one that draws into memory for baremetal, test and pcw16.
+  The hosted page's files are named with the build number, so a browser no longer runs a new
+  page with an old library; the page shows its build.
+- 2026-11-26 The `Graphics` class on sixteen more platforms, the Enterprise 64, the IDE's list
+  (20261126-4 to -6). Graphics (Line, Plot, Pen, Clip, Width, Height; BASIC over each machine's
+  dot, `tools/graphics/gen.js`): msx, msxcard, msx9990, sc3000, colecovision (which also gets the
+  `VDP` class), md, neogeo / neocd (block tiles 256-511 in the default S ROM), x68000, towns
+  (`Vdp.GPixel`, `Vdp.GPlot` new), amiga, ep128, m65, c64reu, trs80, system80, ti83, ti89.
+  `test/gfxregress.sh` draws one picture on each and compares it dot for dot. ep128 runs on a 64K
+  Enterprise 64. ti89: the font linked (no program assembled before). gen.js: the Z80 maths
+  classes are no longer given to the 68000 and 80386 platforms. The IDE's platform list has
+  all 33, in alphabetical order.
 - 2026-11-26 The documents brought up to date (20261126-2): this file had stopped at 9 November
   and todo.md, components.md, buglist.md, architecture.md and targets.md named none of the
   platforms added since. Every entry from here down to 2026-11-05 was written on 2026-11-26 from

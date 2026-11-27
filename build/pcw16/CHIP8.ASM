@@ -1567,6 +1567,7 @@ lit_2:			dw 2
 lit_0:			dw 0
 lit_1:			dw 1
 vp_arr_mem:			dw arr_mem
+vp_arr_graphics_m_pic:			dw arr_graphics_m_pic
 
 ; ============================================================
 ; Strings
@@ -3197,6 +3198,7 @@ arr_stk		equ ntc_bss + 4112		; 32 bytes
 arr_disp		equ ntc_bss + 4144		; 2048 bytes
 arr_kp		equ ntc_bss + 6192		; 16 bytes
 arr_keymap		equ ntc_bss + 6208		; 32 bytes
-ntc_bss_size	equ 6240
+arr_graphics_m_pic		equ ntc_bss + 6240		; 8000 bytes
+ntc_bss_size	equ 14240
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ntc_memtab	equ ntc_free		; the Memory class's tables

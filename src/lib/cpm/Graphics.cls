@@ -140,6 +140,11 @@ Public Function Width() As Integer
 #endasm
 End Function
 
+' Height(): the height in pixels: 200
+Public Function Height() As Integer
+    Height = 200
+End Function
+
 ' Back(): the screen drawn on: always 0 on CP/M
 Public Function Back() As Integer
 #asm

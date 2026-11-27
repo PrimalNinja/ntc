@@ -37,6 +37,73 @@ Packaging rule (what goes in the archive) - READ THIS BEFORE ZIPPING
 History (newest first)
 ======================
 
+20261127-1
+  - A NEW PAGE NO LONGER RUNS WITH AN OLD LIBRARY. Twice a new hosted page ran in the browser
+    with the last build's js/ntc_lib.js still cached ("unknown platform: pcw16", then "Graphics is a
+    library class this platform (m65) hasn't"). tools/hosted/build.js now names every file the
+    hosted page loads with the build number (js/ntc_lib.js?v=20261127-1), so a new build is
+    fetched new, and the page shows "build 20261127-1" after the copyright line. src/ntc.html is
+    as it was (the stamp is the hosted copy's).
+  - EVERY PLATFORM IN THE IDE'S LIST COMPILES A PROGRAM THAT DRAWS WITH Graphics:
+      - Height() added to the machine code classes (cpc, cpcmin, cpcfw, cpm, zxn: 200), so
+        Graphics.Width() and Graphics.Height() are on every platform.
+      - zxndot, zxndotl: a Graphics class - 256 x 192 on the Spectrum's own screen (the ULA's
+        bitmap at #4000), the one BASIC prints on.
+      - baremetal, test, pcw16: a Graphics class that draws into a picture in memory (320 x 200,
+        a bit a dot, 8000 bytes; Graphics.Buffer() is its address). Bare metal: the platform's
+        own code shows it. The test harness: a test reads it. PCW16: nothing shows it yet.
+  - test/guiplatforms.py also compiles test/graphics/gfx.bas on all 33 in the page: no errors.
+  - RUN, all pass: regress.sh (1191), epregress.sh (32), ngregress.sh (21), amigaregress.sh (25),
+    c64regress.sh (63), mdregress.sh (15), townsregress.sh (17), gfxregress.sh (22: zxndot,
+    zxndotl, test and baremetal added), guiplatforms.py on hosted/ntc.html (33 of 33 with the
+    start-up example and with the Graphics program). x68regress.sh and m65regress.sh: not run.
+
+20261126-6
+  - THE Graphics CLASS ON SIXTEEN MORE PLATFORMS. The same calls as the CPC's and the Next's -
+    Line, Plot, Pen, Clip, Width(), DoubleBuffer, Flip, CopyText, Back(), Buffering() - and
+    Height(), so a program that draws lines compiles for them. Here the class is BASIC: one line
+    loop over each machine's own dot. tools/graphics/gen.js (with parts.js) writes the files.
+    Lines are XORed. One screen: DoubleBuffer, Flip and CopyText do nothing. Pen 1 always shows.
+      msx, msxcard, msx9990, sc3000, colecovision   256 x 192, the TMS9918's Screen 2 (VDP class)
+      md                    320 x 224: plane B's cells a tile each, the dots written into the tiles
+      neogeo, neocd         80 x 112: block tiles on the fix layer (test/ngbuild.js puts 256 of
+                            them at tiles 256-511 of the default S ROM, beside the font)
+      x68000                256 x 256, the graphics page (Vdp.GPixel / GPlot)
+      towns                 256 x 240, the back layer (Vdp.GPixel / GPlot: NEW in the Vdp class)
+      amiga                 640 x 256 (200 NTSC), the console's bitplane
+      ep128                 320 x 200 / 640 x 200, the console's bitmap
+      m65                   320 x 200, the Vic class's screen (Vic.Box a dot at a time)
+      c64reu                80 x 50, block characters 128-143 on the text screen
+      trs80, system80       128 x 48, the block graphics
+      ti83                  96 x 64, the OS's graph buffer
+      ti89                  160 x 100, the LCD's bitmap
+    User guide: "Graphics on the other machines". targets.md: the table.
+  - colecovision: it had no classes. It has the SC-3000's VDP class now (the same chip and ports)
+    and Graphics.
+  - ep128: RUNS ON AN ENTERPRISE 64 (64K). The start code stopped with a red border there (two
+    free segments, three wanted). Now a page of the program takes the segment EXOS shares, EXOS
+    is not called again, and the screen goes in EXOS's system segment (#FF). Memory.Pages is 0
+    there. 128K and up: as before. A --log test build still stops on 64K (its log wants a segment).
+  - ti89: no program assembled (the font's section was never linked, and it was a placeholder).
+    The platform has the Mega Drive console's font now, linked.
+  - FIXED test/gen.js: the Z80 maths classes (Float, Fixed, Trit, Tiny, Tree, Net) were put in the
+    library of the 68000 and 80386 platforms too (neogeo, neocd, amiga, x68000, towns, ti89).
+    They are Z80 code. Those platforms no longer list them.
+  - NOT DONE: pcw16 has no Graphics class (its Rosanne calls are unconfirmed in the platform).
+    c64reu is block characters, not a 320 x 200 bitmap (no 8K free where the VIC can see it).
+  - NEW test/gfxregress.sh with test/graphics/ (gfx.bas, expect.py, z80mem.py, tmsmem.py, shot.py):
+    one picture - a frame, two diagonals, a line drawn twice, a dot, two clipped lines - on each
+    platform, compared dot for dot with the same loop in Python. RUN, all pass: trs80, system80,
+    ti83 (the Z80 core), msx, msxcard, msx9990, sc3000, colecovision (the core and a model of the
+    chip's ports), ep128 at 128K and at 64K (ep128emu), amiga (PUAE), md (Genesis Plus GX),
+    towns (Tsugaru), neogeo (Geolith), c64reu (VICE). BUILT AND ASSEMBLED, NO PICTURE TAKEN:
+    x68000, m65, ti89.
+  - RUN, all pass: regress.sh (1191), epregress.sh (32), ngregress.sh (21), amigaregress.sh (25),
+    c64regress.sh (63), mdregress.sh (15), townsregress.sh (17), gfxregress.sh (18),
+    guiplatforms.py (33 platforms in the IDE's list, each compiles). x68regress.sh and
+    m65regress.sh: not run for this build.
+  - Regenerated: js/ntc_lib.js, hosted/, test/out.
+
 20261126-5
   - The IDE's platform list is in alphabetical order (src/ntc.html; hosted/ rebuilt). The same 33.
     "Amstrad CPC (hardware, no firmware)" is still the one picked on a first visit (it was first

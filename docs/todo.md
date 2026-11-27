@@ -445,6 +445,11 @@ builds 20261105-1 to 20261126-1 in build-info.txt; each names the build it comes
       caught; Memory.SavePage / LoadPage (a data page out to a file and back)
 
 ## 20 Graphics.cls
+- [ ] (20261127-1) pcw16: Graphics draws into a picture in memory and nothing shows it (the
+      platform's Rosanne calls are still unconfirmed)
+- [ ] (20261126-6) c64reu: Graphics is 80 x 50 block characters; a 320 x 200 bitmap needs 8K the
+      VIC can see and the program's memory map has none free
+- [ ] (20261126-6) the BASIC Graphics classes: no double buffering; a machine code dot or line where speed matters
 - [ ] Graphics (CPC): Plot, Draw / Line (Bresenham), Circle, Fill, Point (read), Ink /
       Paper / Pen / Border, sprites (masked, pre shifted). Screen address: row * 80 +
       (line in char) * #800 + x bytes; inks and border are gate array (#7Fxx), not the CRTC

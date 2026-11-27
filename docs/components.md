@@ -56,7 +56,9 @@ not at the end, so the numbers in a section are not all in a row.
     neogeo, amiga, c64reu (keys held; Joystick(n) with the same bits on every machine)
 19. List.cls - cpc, cpcfw, cpcmin, cpm, msx, sc3000, zxn, zxndot, ep128, baremetal, test;
     cyborgos/COSList.cls (the same calls, the nodes in the hypervisor's heap)
-20. Graphics.cls - cpc, cpcfw, cpcmin, cpm, zxn
+20. Graphics.cls - cpc, cpcfw, cpcmin, cpm, zxn (machine code); msx, sc3000, colecovision, md,
+    neogeo, x68000, towns, amiga, ep128, m65, c64reu, trs80, ti83, ti89 (BASIC, made by
+    tools/graphics/gen.js; test/gfxregress.sh, test/graphics/)
 21. VDP.cls, V9990.cls - the MSX, the CPC's Powergraph, msxcard's VDP, the SC-3000
 22. z80/Float.cls, z80/Fixed.cls - the built-in floating point and 24.8 fixed point (every Z80 platform)
 57. z80/Trit.cls (ternary values), z80/Tiny.cls (8 bit scaled numbers), z80/Tree.cls (a tree of
@@ -117,7 +119,8 @@ not at the end, so the numbers in a section are not all in a row.
 59. Tools for the other machines and classes: tools/neogeo (ngtiles.js: PNG to tiles and palettes;
     ngpcm.js: WAV to the V ROM), tools/adpcm/okiadpcm.js (songs for Pcm on the FM Towns and
     X68000), tools/md (dpcm.js, z80pcm.asm: the Mega Drive's), tools/trscmd.js (a TRS-80 /CMD),
-    tools/gen (GEN's model: qgru.py, fgru.py), tools/tiny, tools/byref-bench, tools/znc-compare
+    tools/gen (GEN's model: qgru.py, fgru.py), tools/tiny, tools/byref-bench, tools/znc-compare,
+    tools/graphics (gen.js, parts.js: the BASIC Graphics classes, a file a platform)
 42. sjasmplus/ - the assembler; build/ - build.bat, the dsk and rom outputs; src/compare - bench,
     smallc (other compilers to compare against)
 

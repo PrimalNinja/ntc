@@ -5,7 +5,7 @@
 # checked. Then what is the platform's own: programs over 16K and over 32K (EXOS leaves their
 # parts in different pages: the start code puts them right), the Interrupt hook, interrupt
 # classes, the Memory class's pages on 128K to 3.7 MB (every segment a page, each read back),
-# a 64K machine refused, keys and the three joysticks, 80 columns, the program file started
+# a 64K machine (a --log build refused), keys and the three joysticks, 80 columns, the program file started
 # from IS-BASIC. Needs sjasmplus and NTC_EPCORE (ep128emu_core_libretro.so; for the two
 # biggest machines the core built as eprun.py's header says).
 cd "$(dirname "$0")"
@@ -99,7 +99,8 @@ chk "256K, the built in joystick (cursor up, Space)" "segs10 .* pages13 free11 r
 chk "512K, control port 1 (up and fire: 33)" "segs26 .* pages29 free27 ram496 banks6 taken27 bad0 free0 $T [.]* joy0330 key0 end" 512 --joy=+300:UF
 chk "1 MB, control port 2 (down, right and fire: 42)" "segs58 .* pages61 free59 ram1008 banks14 taken59 bad0 free0 $T [.]* joy0042 key0 end" 1024 --joy2=+500:DRF
 chk "3.7 MB - 226 segments, each its own page" "segs226 .* pages229 free227 ram3696 banks56 taken227 bad0 free0 $T" 3712 --quiet=40
-# 64K: not enough segments - a red border, nothing run
+# 64K: a program runs there since 20261126-6 (gfxregress.sh runs one); a test (--log) build still
+# stops with a red border - the log wants a segment of its own and a 64K machine has none to spare
 ram classes 64
 timeout 300 python3 eprun.py t/ep/classes.img --frames=2500 --untilend --shot=t/ep/c64.png >/dev/null 2>&1
 if python3 - <<'PY'
@@ -111,7 +112,7 @@ w = struct.unpack('>I', d[16:20])[0]
 at = (w * 3 + 1) * 100 + 1 + 30
 sys.exit(0 if raw[at] > 200 and raw[at + 1] < 40 and raw[at + 2] < 40 else 1)
 PY
-then echo "ok   a 64K machine: stopped with a red border"; else echo "FAIL a 64K machine (no red border)"; fail=1; fi
+then echo "ok   a 64K machine, a --log build: stopped with a red border"; else echo "FAIL a 64K machine, a --log build (no red border)"; fail=1; fi
 
 # 80 columns: Mode 2, a line of 80 characters, Locate, the scroll - the transcript and the picture's text
 build mode ep/Mode.bas && { if go mode "cols80 .*X end" --shot=t/ep/mode.png; then echo "ok   Mode 2: 80 columns"; else echo "FAIL Mode 2"; echo "$o" | tail -4; fail=1; fi; }
